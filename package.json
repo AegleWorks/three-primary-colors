@@ -4,7 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "bun run scripts/dev.ts",
+    "dev:vite": "vite",
     "discord:bridge": "bun run src/server/DiscordIPCBridge.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
