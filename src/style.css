@@ -33,3 +33,43 @@ body {
 .animate-choke-vignette {
 	animation: chokeGlowPulse 2s ease-out forwards;
 }
+
+/* Commentator Deck Entry & Exit Animations */
+@keyframes casterPopIn {
+	0% {
+		opacity: 0;
+		transform: scale(0.5) translateY(-10px);
+	}
+	70% {
+		opacity: 1;
+		transform: scale(1.06) translateY(2px);
+	}
+	100% {
+		opacity: 1;
+		transform: scale(1) translateY(0);
+	}
+}
+
+.caster-card {
+	max-width: 120px;
+	will-change: transform, opacity;
+}
+
+.caster-card-enter {
+	animation: casterPopIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.caster-card-exit {
+	transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+	            transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+	            max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+	            margin 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+	            padding 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+	opacity: 0 !important;
+	transform: scale(0.5) translateY(-10px) !important;
+	max-width: 0 !important;
+	margin-left: -12px !important;
+	margin-right: -12px !important;
+	overflow: hidden !important;
+	pointer-events: none !important;
+}

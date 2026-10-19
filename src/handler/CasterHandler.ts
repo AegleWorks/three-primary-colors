@@ -65,25 +65,35 @@ export default class CasterHandler {
 	render() {
 		if (!this.container) return;
 
-		if (this.casters.length === 0) {
-			this.container.innerHTML = "";
-			return;
+		const currentMap = new Map<string, Caster>();
+		for (const c of this.casters) {
+			currentMap.set(c.id, c);
 		}
 
-		// Smooth in-place DOM update if same casters are present to prevent image flicker
-		const existingCards = this.container.querySelectorAll<HTMLElement>("[id^='caster-']");
-		const existingIds = Array.from(existingCards).map((c) => c.id.replace("caster-", ""));
-		const currentIds = this.casters.map((c) => c.id);
+		// 1. Handle removals with smooth exit animation
+		const existingCards = this.container.querySelectorAll<HTMLElement>(".caster-card");
+		existingCards.forEach((card) => {
+			const casterId = card.dataset.casterId;
+			if (!casterId || !currentMap.has(casterId)) {
+				if (!card.classList.contains("caster-card-exit")) {
+					card.classList.remove("caster-card-enter");
+					card.classList.add("caster-card-exit");
+					setTimeout(() => {
+						card.remove();
+					}, 300);
+				}
+			}
+		});
 
-		const isSameRoster =
-			existingIds.length === currentIds.length &&
-			existingIds.every((id, idx) => id === currentIds[idx]);
+		// 2. Handle additions & in-place updates with entry animation
+		for (const caster of this.casters) {
+			const safeId = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(caster.id) : caster.id;
+			let card = this.container.querySelector<HTMLElement>(`#caster-${safeId}`);
 
-		if (isSameRoster) {
-			for (const caster of this.casters) {
-				const safeId = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(caster.id) : caster.id;
-				const card = this.container.querySelector<HTMLElement>(`#caster-${safeId}`);
-				if (!card) continue;
+			if (card) {
+				if (card.classList.contains("caster-card-exit")) {
+					card.classList.remove("caster-card-exit");
+				}
 
 				const img = card.querySelector<HTMLImageElement>(".caster-avatar");
 				if (img && img.src !== caster.avatarUrl) {
@@ -96,34 +106,39 @@ export default class CasterHandler {
 				}
 
 				this.updateCasterDOM(caster);
+			} else {
+				card = document.createElement("div");
+				card.id = `caster-${caster.id}`;
+				card.dataset.casterId = caster.id;
+				card.className =
+					"caster-card caster-card-enter flex flex-col items-center gap-1.5 select-none pointer-events-none";
+
+				const ringClasses = caster.isSpeaking
+					? "border-emerald-400 ring-4 ring-emerald-500/60 shadow-[0_0_22px_rgba(16,185,129,0.9)] scale-105"
+					: "border-surface-1/80 ring-0 shadow-none scale-100 opacity-85";
+
+				card.innerHTML = `
+					<div class="relative">
+						<img src="${caster.avatarUrl}" alt="${caster.name}"
+							class="caster-avatar w-11 h-11 rounded-full object-cover border-2 transition-all duration-150 ${ringClasses}"
+							onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'"
+						/>
+					</div>
+					<span class="caster-name px-2 py-0.5 rounded-full bg-black/60 backdrop-blur text-[11px] font-semibold text-white/90 border border-white/10 tracking-wide truncate max-w-[110px]">
+						${caster.name}
+					</span>
+				`;
+
+				card.addEventListener(
+					"animationend",
+					() => {
+						card?.classList.remove("caster-card-enter");
+					},
+					{ once: true },
+				);
+
+				this.container.appendChild(card);
 			}
-			return;
-		}
-
-		this.container.innerHTML = "";
-		for (const caster of this.casters) {
-			const card = document.createElement("div");
-			card.id = `caster-${caster.id}`;
-			card.className =
-				"flex flex-col items-center gap-1.5 transition-transform duration-150 select-none pointer-events-none";
-
-			const ringClasses = caster.isSpeaking
-				? "border-emerald-400 ring-4 ring-emerald-500/60 shadow-[0_0_22px_rgba(16,185,129,0.9)] scale-105"
-				: "border-surface-1/80 ring-0 shadow-none scale-100 opacity-85";
-
-			card.innerHTML = `
-				<div class="relative">
-					<img src="${caster.avatarUrl}" alt="${caster.name}"
-						class="caster-avatar w-11 h-11 rounded-full object-cover border-2 transition-all duration-150 ${ringClasses}"
-						onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'"
-					/>
-				</div>
-				<span class="caster-name px-2 py-0.5 rounded-full bg-black/60 backdrop-blur text-[11px] font-semibold text-white/90 border border-white/10 tracking-wide truncate max-w-[110px]">
-					${caster.name}
-				</span>
-			`;
-
-			this.container.appendChild(card);
 		}
 	}
 
