@@ -76,14 +76,14 @@ export default class Test {
 	testAll() {
 		if (!this.testMode) {
 			this.scoreHandler?.updateScoring(
-				this.engine.cache?.tourney.manager.gameplay.score.left ?? 0,
-				this.engine.cache?.tourney.manager.gameplay.score.right ?? 0,
+				this.engine.cache?.tourney?.manager?.gameplay?.score?.left ?? 0,
+				this.engine.cache?.tourney?.manager?.gameplay?.score?.right ?? 0,
 			);
 			this.gameStateHandler?.updateScoreVisible(
-				this.engine.cache.tourney.manager.bools.scoreVisible,
+				this.engine.cache?.tourney?.manager?.bools?.scoreVisible ?? false,
 			);
 			this.gameStateHandler?.updateStarsVisible(
-				this.engine.cache.tourney.manager.bools.starsVisible,
+				this.engine.cache?.tourney?.manager?.bools?.starsVisible ?? false,
 			);
 			return;
 		}
