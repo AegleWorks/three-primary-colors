@@ -287,19 +287,22 @@ export class DiscordIPCBridge {
 		}
 
 		// 4. Voice Channel Selected / Changed
+		// 4. Voice Channel Selected / Changed
 		if (evt === "VOICE_CHANNEL_SELECT") {
-			const channelId = data?.channel_id;
-			this.state.currentChannelId = channelId;
+			const channelId = data?.channel_id || null;
 
-			if (!channelId) {
+			if (this.state.currentChannelId !== channelId) {
+				if (this.subscribedChannelId) {
+					this.unsubscribeFromChannelEvents(this.subscribedChannelId);
+					this.subscribedChannelId = null;
+				}
+
+				this.state.currentChannelId = channelId;
 				this.state.users.clear();
-				this.broadcast({
-					type: "discord_roster",
-					connected: true,
-					channelId: null,
-					users: [],
-				});
-			} else {
+				this.broadcastRoster();
+			}
+
+			if (channelId) {
 				this.sendIPCFrame(1, {
 					cmd: "GET_SELECTED_VOICE_CHANNEL",
 					args: {},
@@ -319,50 +322,78 @@ export class DiscordIPCBridge {
 				this.updateRosterFromVoiceStates(data?.voice_states || []);
 			} else {
 				this.state.users.clear();
-				this.broadcast({
-					type: "discord_roster",
-					connected: true,
-					channelId: null,
-					users: [],
-				});
+				this.broadcastRoster();
 			}
 			return;
 		}
 
-		// 6. Voice State Update (Join, Leave, Mute, Deafen)
+		// 6. Voice State Create (User joined channel)
+		if (evt === "VOICE_STATE_CREATE") {
+			const user = data?.user;
+			if (user?.id) {
+				const newUser: DiscordUser = {
+					id: user.id,
+					username: user.username,
+					displayName: data.nick || user.global_name || user.username,
+					avatarUrl: this.buildAvatarUrl(user.id, user.avatar, user.discriminator),
+					isSpeaking: false,
+					mute: Boolean(data.voice_state?.mute ?? data.mute),
+					deaf: Boolean(data.voice_state?.deaf ?? data.deaf),
+				};
+				this.state.users.set(user.id, newUser);
+				this.broadcastRoster();
+			}
+			return;
+		}
+
+		// 7. Voice State Delete (User left channel)
+		if (evt === "VOICE_STATE_DELETE") {
+			const userId = data?.user?.id || data?.user_id || data?.id;
+			if (userId) {
+				this.state.users.delete(userId);
+				this.broadcastRoster();
+			}
+			return;
+		}
+
+		// 8. Voice State Update (Mute, Deafen, or Channel Switch)
 		if (evt === "VOICE_STATE_UPDATE") {
 			const user = data?.user;
-			if (!user?.id) return;
+			const userId = user?.id || data?.user_id;
+			if (!userId) return;
 
-			if (data.voice_state?.mute !== undefined || data.mute !== undefined) {
-				const existing = this.state.users.get(user.id);
-				if (existing) {
-					existing.mute = Boolean(data.voice_state?.mute || data.mute);
-					existing.deaf = Boolean(data.voice_state?.deaf || data.deaf);
-				} else {
-					const newUser: DiscordUser = {
-						id: user.id,
-						username: user.username,
-						displayName: data.nick || user.global_name || user.username,
-						avatarUrl: this.buildAvatarUrl(user.id, user.avatar, user.discriminator),
-						isSpeaking: false,
-						mute: Boolean(data.voice_state?.mute || data.mute),
-						deaf: Boolean(data.voice_state?.deaf || data.deaf),
-					};
-					this.state.users.set(user.id, newUser);
+			// If user has moved to another channel or left
+			if (data.channel_id && data.channel_id !== this.state.currentChannelId) {
+				this.state.users.delete(userId);
+				this.broadcastRoster();
+				return;
+			}
+
+			const existing = this.state.users.get(userId);
+			if (existing) {
+				if (data.nick) existing.displayName = data.nick;
+				if (data.voice_state?.mute !== undefined || data.mute !== undefined) {
+					existing.mute = Boolean(data.voice_state?.mute ?? data.mute);
+					existing.deaf = Boolean(data.voice_state?.deaf ?? data.deaf);
 				}
-
-				this.broadcast({
-					type: "discord_roster",
-					connected: true,
-					channelId: this.state.currentChannelId,
-					users: Array.from(this.state.users.values()),
-				});
+				this.broadcastRoster();
+			} else if (user) {
+				const newUser: DiscordUser = {
+					id: user.id,
+					username: user.username,
+					displayName: data.nick || user.global_name || user.username,
+					avatarUrl: this.buildAvatarUrl(user.id, user.avatar, user.discriminator),
+					isSpeaking: false,
+					mute: Boolean(data.voice_state?.mute ?? data.mute),
+					deaf: Boolean(data.voice_state?.deaf ?? data.deaf),
+				};
+				this.state.users.set(user.id, newUser);
+				this.broadcastRoster();
 			}
 			return;
 		}
 
-		// 7. Speaking Start / Stop events
+		// 9. Speaking Start / Stop events
 		if (evt === "SPEAKING_START" || evt === "SPEAKING_STOP") {
 			const userId = data?.user_id;
 			const isSpeaking = evt === "SPEAKING_START";
@@ -382,30 +413,57 @@ export class DiscordIPCBridge {
 		}
 	}
 
+	private broadcastRoster() {
+		this.broadcast({
+			type: "discord_roster",
+			connected: true,
+			channelId: this.state.currentChannelId,
+			users: Array.from(this.state.users.values()),
+		});
+	}
+
+	private unsubscribeFromChannelEvents(channelId: string) {
+		const events = [
+			"SPEAKING_START",
+			"SPEAKING_STOP",
+			"VOICE_STATE_CREATE",
+			"VOICE_STATE_UPDATE",
+			"VOICE_STATE_DELETE",
+		];
+		for (const evt of events) {
+			this.sendIPCFrame(1, {
+				cmd: "UNSUBSCRIBE",
+				args: { channel_id: channelId },
+				evt,
+				nonce: `unsub_${evt}_${channelId}`,
+			});
+		}
+	}
+
 	private subscribeToChannelEvents(channelId: string) {
 		if (this.subscribedChannelId === channelId) return;
+
+		if (this.subscribedChannelId) {
+			this.unsubscribeFromChannelEvents(this.subscribedChannelId);
+		}
+
 		this.subscribedChannelId = channelId;
 
-		this.sendIPCFrame(1, {
-			cmd: "SUBSCRIBE",
-			args: { channel_id: channelId },
-			evt: "SPEAKING_START",
-			nonce: `sub_speaking_start_${channelId}`,
-		});
-
-		this.sendIPCFrame(1, {
-			cmd: "SUBSCRIBE",
-			args: { channel_id: channelId },
-			evt: "SPEAKING_STOP",
-			nonce: `sub_speaking_stop_${channelId}`,
-		});
-
-		this.sendIPCFrame(1, {
-			cmd: "SUBSCRIBE",
-			args: { channel_id: channelId },
-			evt: "VOICE_STATE_UPDATE",
-			nonce: `sub_voice_update_${channelId}`,
-		});
+		const events = [
+			"SPEAKING_START",
+			"SPEAKING_STOP",
+			"VOICE_STATE_CREATE",
+			"VOICE_STATE_UPDATE",
+			"VOICE_STATE_DELETE",
+		];
+		for (const evt of events) {
+			this.sendIPCFrame(1, {
+				cmd: "SUBSCRIBE",
+				args: { channel_id: channelId },
+				evt,
+				nonce: `sub_${evt}_${channelId}`,
+			});
+		}
 	}
 
 	private updateRosterFromVoiceStates(voiceStates: any[]) {
@@ -421,19 +479,14 @@ export class DiscordIPCBridge {
 				displayName: vs.nick || user.global_name || user.username,
 				avatarUrl: this.buildAvatarUrl(user.id, user.avatar, user.discriminator),
 				isSpeaking: false,
-				mute: Boolean(vs.voice_state?.mute || vs.mute),
-				deaf: Boolean(vs.voice_state?.deaf || vs.deaf),
+				mute: Boolean(vs.voice_state?.mute ?? vs.mute),
+				deaf: Boolean(vs.voice_state?.deaf ?? vs.deaf),
 			};
 
 			this.state.users.set(user.id, discordUser);
 		}
 
-		this.broadcast({
-			type: "discord_roster",
-			connected: true,
-			channelId: this.state.currentChannelId,
-			users: Array.from(this.state.users.values()),
-		});
+		this.broadcastRoster();
 	}
 
 	private buildAvatarUrl(userId: string, avatarHash?: string, discriminator = "0"): string {

@@ -376,17 +376,15 @@ export default class CasterHandler {
 				ws.onmessage = (event) => {
 					try {
 						const msg = JSON.parse(event.data);
-						if (msg.type === "discord_roster") {
-							if (Array.isArray(msg.users) && msg.users.length > 0) {
-								this.casters = msg.users.map((u: any) => ({
-									id: u.id,
-									discordId: u.id,
-									name: u.displayName || u.username,
-									avatarUrl: u.avatarUrl,
-									isSpeaking: Boolean(u.isSpeaking),
-								}));
-								this.render();
-							}
+						if (msg.type === "discord_roster" && Array.isArray(msg.users)) {
+							this.casters = msg.users.map((u: any) => ({
+								id: u.id,
+								discordId: u.id,
+								name: u.displayName || u.username,
+								avatarUrl: u.avatarUrl,
+								isSpeaking: Boolean(u.isSpeaking),
+							}));
+							this.render();
 						} else if (msg.type === "discord_speaking") {
 							this.setSpeaking(msg.userId, Boolean(msg.isSpeaking));
 						}
