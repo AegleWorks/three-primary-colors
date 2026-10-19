@@ -1,89 +1,706 @@
-import net from "node:net";
-import fs from "node:fs";
-import http from "node:http";
-import path from "node:path";
-import { WebSocketServer, WebSocket } from "ws";
+import * as fs from "node:fs";
+import * as http from "node:http";
+import * as net from "node:net";
+import * as path from "node:path";
+import { WebSocket, WebSocketServer } from "ws";
 
 export interface DiscordUser {
 	id: string;
 	username: string;
 	displayName: string;
 	avatarUrl: string;
-	osuId?: string;
-	osuAvatarUrl?: string;
 	isSpeaking: boolean;
 	mute: boolean;
 	deaf: boolean;
+	osuId?: string;
+	osuAvatarUrl?: string;
 }
 
-export interface DiscordBridgeState {
+export interface DiscordVoiceState {
 	connectedToDiscord: boolean;
 	currentChannelId: string | null;
 	users: Map<string, DiscordUser>;
 }
 
+/**
+ * Handles individual IPC Unix/named pipe socket connection to a Discord client instance.
+ * Discord on Linux/Electron can spawn multiple sockets (e.g. discord-ipc-0, discord-ipc-1)
+ * when multiple processes, windows, or profiles exist.
+ */
+class IPCSocketSession {
+	readonly path: string;
+	readonly bridge: DiscordIPCBridge;
+	socket: net.Socket | null = null;
+	isConnected = false;
+	isAuthenticated = false;
+	currentChannelId: string | null = null;
+	subscribedChannelId: string | null = null;
+	private pollTimer: ReturnType<typeof setInterval> | null = null;
+	private incomingBuffer = Buffer.alloc(0);
+	destroyed = false;
+
+	constructor(socketPath: string, bridge: DiscordIPCBridge) {
+		this.path = socketPath;
+		this.bridge = bridge;
+	}
+
+	connect() {
+		if (this.destroyed) return;
+		try {
+			const socket = net.createConnection(this.path);
+			this.socket = socket;
+
+			socket.on("connect", () => {
+				this.isConnected = true;
+				console.log(`[DiscordBridge] Connected to IPC socket: ${this.path}`);
+				// Handshake opcode 0
+				this.sendFrame(0, {
+					v: 1,
+					client_id: "207646673902501888",
+				});
+			});
+
+			socket.on("data", async (chunk: Buffer) => {
+				this.incomingBuffer = Buffer.concat([this.incomingBuffer, chunk]);
+
+				while (this.incomingBuffer.length >= 8) {
+					const length = this.incomingBuffer.readInt32LE(4);
+					if (this.incomingBuffer.length < 8 + length) {
+						break;
+					}
+
+					const bodyStr = this.incomingBuffer.subarray(8, 8 + length).toString("utf8");
+					this.incomingBuffer = this.incomingBuffer.subarray(8 + length);
+
+					try {
+						const body = JSON.parse(bodyStr);
+						await this.handleMessage(body);
+					} catch (err) {
+						console.warn(`[DiscordBridge] [${this.path}] Error parsing IPC frame:`, err);
+					}
+				}
+			});
+
+			socket.on("error", () => {
+				// Socket unreachable or closed; quietly clean up
+			});
+
+			socket.on("close", () => {
+				this.cleanup();
+				this.bridge.onSessionClosed(this);
+			});
+		} catch {
+			this.cleanup();
+			this.bridge.onSessionClosed(this);
+		}
+	}
+
+	sendFrame(opcode: number, obj: unknown) {
+		if (!this.socket || this.socket.destroyed) return;
+		try {
+			const payload = JSON.stringify(obj);
+			const header = Buffer.alloc(8);
+			header.writeInt32LE(opcode, 0);
+			header.writeInt32LE(Buffer.byteLength(payload), 4);
+			this.socket.write(Buffer.concat([header, Buffer.from(payload)]));
+		} catch (err) {
+			console.warn(`[DiscordBridge] [${this.path}] Failed to write IPC frame:`, err);
+		}
+	}
+
+	private async handleMessage(body: any) {
+		const { cmd, evt, data } = body;
+
+		if (body.nonce !== "heartbeat_voice_poll" && evt !== "SPEAKING_START" && evt !== "SPEAKING_STOP") {
+			console.log(`[DiscordBridge] [${this.path}] IPC -> cmd: ${cmd || "-"}, evt: ${evt || "-"}, data:`, JSON.stringify(data)?.slice(0, 110));
+		}
+
+		// 0. Handle OAuth error (token expired or revoked)
+		if (evt === "ERROR") {
+			if (body.nonce === "auth_cached_token" || cmd === "AUTHENTICATE") {
+				console.log(`[DiscordBridge] [${this.path}] Cached OAuth token expired. Requesting fresh authorization...`);
+				this.bridge.saveCachedToken(null);
+				this.requestAuthorization();
+				return;
+			}
+		}
+
+		// 1. Initial Handshake ready -> Authenticate with cached token or Authorize
+		if (evt === "READY") {
+			const cachedToken = this.bridge.getCachedToken();
+			if (cachedToken) {
+				this.sendFrame(1, {
+					cmd: "AUTHENTICATE",
+					args: { access_token: cachedToken },
+					nonce: "auth_cached_token",
+				});
+			} else {
+				this.requestAuthorization();
+			}
+			return;
+		}
+
+		// 2. Authorize response -> Exchange code for token and save
+		if (cmd === "AUTHORIZE" && data?.code) {
+			await this.bridge.exchangeAndSaveToken(data.code, this);
+			return;
+		}
+
+		// 3. Authenticated -> Subscribe to voice channel selection & query current channel
+		if (cmd === "AUTHENTICATE") {
+			this.isAuthenticated = true;
+			console.log(`[DiscordBridge] [${this.path}] Successfully authenticated.`);
+
+			this.sendFrame(1, {
+				cmd: "SUBSCRIBE",
+				args: {},
+				evt: "VOICE_CHANNEL_SELECT",
+				nonce: "sub_voice_select",
+			});
+
+			this.sendFrame(1, {
+				cmd: "SUBSCRIBE",
+				args: {},
+				evt: "VOICE_CONNECTION_STATUS",
+				nonce: "sub_voice_status",
+			});
+
+			this.queryVoiceChannel();
+			this.startPolling();
+			this.bridge.onSessionReady(this);
+			return;
+		}
+
+		// 4. Voice Connection Status changed
+		if (evt === "VOICE_CONNECTION_STATUS") {
+			if (data?.state === "CONNECTED" || data?.state === "VOICE_CONNECTED") {
+				this.queryVoiceChannel();
+			}
+			return;
+		}
+
+		// 5. Voice Channel Selected / Changed
+		if (evt === "VOICE_CHANNEL_SELECT") {
+			const channelId = data?.channel_id || null;
+			this.handleChannelChange(channelId);
+			if (channelId) {
+				this.queryVoiceChannel();
+			} else {
+				this.bridge.onSessionVoiceChannel(this, null, []);
+			}
+			return;
+		}
+
+		// 6. Selected voice channel details received
+		if (cmd === "GET_SELECTED_VOICE_CHANNEL") {
+			const channelId = data?.id || null;
+			this.handleChannelChange(channelId);
+			const voiceStates = channelId && Array.isArray(data?.voice_states) ? data.voice_states : [];
+			this.bridge.onSessionVoiceChannel(this, channelId, voiceStates);
+			return;
+		}
+
+		// 7. Voice state events (joined, left, muted/deafened)
+		if (evt === "VOICE_STATE_CREATE" || evt === "VOICE_STATE_DELETE" || evt === "VOICE_STATE_UPDATE") {
+			this.bridge.onSessionVoiceState(this, evt, data);
+			return;
+		}
+
+		// 8. Speaking Start / Stop
+		if (evt === "SPEAKING_START" || evt === "SPEAKING_STOP") {
+			const userId = data?.user_id;
+			if (userId) {
+				this.bridge.onSessionSpeaking(this, userId, evt === "SPEAKING_START");
+			}
+		}
+	}
+
+	private handleChannelChange(newChannelId: string | null) {
+		if (this.currentChannelId !== newChannelId) {
+			console.log(`[DiscordBridge] [${this.path}] Voice channel updated: ${this.currentChannelId} -> ${newChannelId}`);
+			if (this.subscribedChannelId) {
+				this.unsubscribeChannel(this.subscribedChannelId);
+				this.subscribedChannelId = null;
+			}
+			this.currentChannelId = newChannelId;
+			if (newChannelId) {
+				this.subscribeChannel(newChannelId);
+			}
+		}
+	}
+
+	queryVoiceChannel() {
+		this.sendFrame(1, {
+			cmd: "GET_SELECTED_VOICE_CHANNEL",
+			args: {},
+			nonce: "heartbeat_voice_poll",
+		});
+	}
+
+	private startPolling() {
+		if (this.pollTimer) return;
+		this.pollTimer = setInterval(() => {
+			if (this.isConnected && this.isAuthenticated && this.socket && !this.socket.destroyed) {
+				this.queryVoiceChannel();
+			}
+		}, 1200);
+	}
+
+	private subscribeChannel(channelId: string) {
+		if (this.subscribedChannelId === channelId) return;
+		this.subscribedChannelId = channelId;
+		const events = ["SPEAKING_START", "SPEAKING_STOP", "VOICE_STATE_CREATE", "VOICE_STATE_UPDATE", "VOICE_STATE_DELETE"];
+		for (const evt of events) {
+			this.sendFrame(1, {
+				cmd: "SUBSCRIBE",
+				args: { channel_id: channelId },
+				evt,
+				nonce: `sub_${evt}_${channelId}`,
+			});
+		}
+	}
+
+	private unsubscribeChannel(channelId: string) {
+		const events = ["SPEAKING_START", "SPEAKING_STOP", "VOICE_STATE_CREATE", "VOICE_STATE_UPDATE", "VOICE_STATE_DELETE"];
+		for (const evt of events) {
+			this.sendFrame(1, {
+				cmd: "UNSUBSCRIBE",
+				args: { channel_id: channelId },
+				evt,
+				nonce: `unsub_${evt}_${channelId}`,
+			});
+		}
+	}
+
+	private requestAuthorization() {
+		this.sendFrame(1, {
+			cmd: "AUTHORIZE",
+			args: {
+				client_id: "207646673902501888",
+				scopes: ["rpc", "identify", "rpc.voice.read"],
+			},
+			nonce: "auth_init",
+		});
+	}
+
+	cleanup() {
+		if (this.pollTimer) {
+			clearInterval(this.pollTimer);
+			this.pollTimer = null;
+		}
+		if (this.socket) {
+			this.socket.destroy();
+			this.socket = null;
+		}
+		this.isConnected = false;
+		this.isAuthenticated = false;
+	}
+
+	destroy() {
+		this.destroyed = true;
+		this.cleanup();
+	}
+}
+
+/**
+ * Robust Zero-Bot Discord IPC Bridge with Multi-Socket Pooling.
+ *
+ * Scans all available `/run/user/{uid}/discord-ipc-*` (or named pipe) sockets simultaneously.
+ * Automatically discovers which socket is connected to the active voice session (server or DM),
+ * updates commentator rosters in real-time, queries osu! profile avatars asynchronously,
+ * and broadcasts speaking events with zero external bot requirement.
+ */
 export class DiscordIPCBridge {
 	private port: number;
 	private wss: WebSocketServer | null = null;
-	private ipcSocket: net.Socket | null = null;
-	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-	private isConnecting = false;
+	private httpServer: http.Server | null = null;
 
-	private state: DiscordBridgeState = {
+	private sessions = new Map<string, IPCSocketSession>();
+	private activeSession: IPCSocketSession | null = null;
+	private scanTimer: ReturnType<typeof setInterval> | null = null;
+
+	private tokenFilePath = path.join(process.cwd(), ".discord_token.json");
+	private osuCache = new Map<string, { osuId: string; avatarUrl: string } | null>();
+
+	readonly state: DiscordVoiceState = {
 		connectedToDiscord: false,
 		currentChannelId: null,
 		users: new Map(),
 	};
 
-	private subscribedChannelId: string | null = null;
-	private osuCache = new Map<string, { osuId: string; avatarUrl: string } | null>();
-
-	private extractPotentialUsernames(rawName: string): string[] {
-		const names: string[] = [];
-		const clean = rawName.trim();
-		if (!clean) return names;
-		names.push(clean);
-
-		// Remove clan tag brackets: [XYZ] Name or (XYZ) Name
-		const strippedBrackets = clean.replace(/^\[[^\]]+\]\s*/, "").replace(/^\([^\)]+\)\s*/, "").trim();
-		if (strippedBrackets && !names.includes(strippedBrackets)) names.push(strippedBrackets);
-
-		// Remove pipe prefix: XYZ | Name
-		const strippedPipe = clean.replace(/^[^|]+\|\s*/, "").trim();
-		if (strippedPipe && !names.includes(strippedPipe)) names.push(strippedPipe);
-
-		// Remove trailing role info: Name (Caster) or Name [Caster]
-		const strippedSuffix = clean.replace(/\s*(\[[^\]]+\]|\([^\)]+\))$/, "").trim();
-		if (strippedSuffix && !names.includes(strippedSuffix)) names.push(strippedSuffix);
-
-		return names;
+	constructor(port = 24052) {
+		this.port = port;
 	}
 
-	private async resolveOsuProfile(nickname: string): Promise<{ osuId: string; avatarUrl: string } | null> {
-		const candidates = this.extractPotentialUsernames(nickname);
-		for (const candidate of candidates) {
-			const key = candidate.toLowerCase();
-			if (this.osuCache.has(key)) {
-				const cached = this.osuCache.get(key);
-				if (cached) return cached;
-				continue;
+	start() {
+		this.initWebSocketServer();
+		this.scanAndConnectSockets();
+
+		// Rescan periodically for newly opened Discord instances or socket increments
+		this.scanTimer = setInterval(() => {
+			this.scanAndConnectSockets();
+		}, 3000);
+	}
+
+	stop(cb?: () => void) {
+		if (this.scanTimer) {
+			clearInterval(this.scanTimer);
+			this.scanTimer = null;
+		}
+
+		for (const session of this.sessions.values()) {
+			session.destroy();
+		}
+		this.sessions.clear();
+		this.activeSession = null;
+
+		if (this.wss) {
+			this.wss.close();
+			this.wss = null;
+		}
+
+		if (this.httpServer) {
+			const server = this.httpServer;
+			this.httpServer = null;
+			server.close(() => {
+				cb?.();
+			});
+		} else {
+			cb?.();
+		}
+	}
+
+	getCachedToken(): string | null {
+		try {
+			if (fs.existsSync(this.tokenFilePath)) {
+				const content = fs.readFileSync(this.tokenFilePath, "utf8");
+				const json = JSON.parse(content);
+				return json?.access_token || null;
+			}
+		} catch {}
+		return null;
+	}
+
+	saveCachedToken(token: string | null) {
+		try {
+			if (token) {
+				fs.writeFileSync(this.tokenFilePath, JSON.stringify({ access_token: token }, null, 2), "utf8");
+			} else if (fs.existsSync(this.tokenFilePath)) {
+				fs.unlinkSync(this.tokenFilePath);
+			}
+		} catch (err) {
+			console.warn("[DiscordBridge] Failed to update token cache:", err);
+		}
+	}
+
+	async exchangeAndSaveToken(code: string, _originSession: IPCSocketSession) {
+		try {
+			const res = await fetch("https://streamkit.discord.com/overlay/token", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ code }),
+			});
+			const tokenRes = (await res.json()) as { access_token?: string };
+
+			if (tokenRes?.access_token) {
+				this.saveCachedToken(tokenRes.access_token);
+				// Authenticate all active sessions
+				for (const session of this.sessions.values()) {
+					session.sendFrame(1, {
+						cmd: "AUTHENTICATE",
+						args: { access_token: tokenRes.access_token },
+						nonce: "auth_token_confirm",
+					});
+				}
+			}
+		} catch (err) {
+			console.warn("[DiscordBridge] Token exchange error:", err);
+		}
+	}
+
+	private getCandidateSockets(): string[] {
+		const isWin = process.platform === "win32";
+		if (isWin) {
+			const pipes: string[] = [];
+			for (let i = 0; i < 10; i++) {
+				pipes.push(`\\\\.\\pipe\\discord-ipc-${i}`);
+			}
+			return pipes;
+		}
+
+		const uid = process.getuid ? process.getuid() : 1000;
+		const candidates: string[] = [];
+
+		for (let i = 0; i < 10; i++) {
+			candidates.push(`/run/user/${uid}/discord-ipc-${i}`);
+			candidates.push(`/tmp/discord-ipc-${i}`);
+			if (process.env.XDG_RUNTIME_DIR) {
+				candidates.push(`${process.env.XDG_RUNTIME_DIR}/discord-ipc-${i}`);
+			}
+		}
+
+		const existing = new Set<string>();
+		for (const p of candidates) {
+			try {
+				if (fs.existsSync(p)) {
+					existing.add(p);
+				}
+			} catch {}
+		}
+
+		return Array.from(existing);
+	}
+
+	private scanAndConnectSockets() {
+		const candidatePaths = this.getCandidateSockets();
+
+		for (const p of candidatePaths) {
+			if (!this.sessions.has(p)) {
+				const session = new IPCSocketSession(p, this);
+				this.sessions.set(p, session);
+				session.connect();
+			}
+		}
+
+		// Clean up removed sockets
+		for (const [p, session] of Array.from(this.sessions.entries())) {
+			if (!candidatePaths.includes(p) || session.destroyed) {
+				session.destroy();
+				this.sessions.delete(p);
+				if (this.activeSession === session) {
+					this.activeSession = null;
+					this.recalculateActiveSession();
+				}
+			}
+		}
+	}
+
+	onSessionReady(_session: IPCSocketSession) {
+		this.state.connectedToDiscord = true;
+	}
+
+	onSessionClosed(session: IPCSocketSession) {
+		this.sessions.delete(session.path);
+		if (this.activeSession === session) {
+			this.activeSession = null;
+			this.recalculateActiveSession();
+		}
+		this.state.connectedToDiscord = Array.from(this.sessions.values()).some((s) => s.isConnected);
+	}
+
+	onSessionVoiceChannel(session: IPCSocketSession, channelId: string | null, voiceStates: any[]) {
+		if (channelId) {
+			if (this.activeSession !== session) {
+				console.log(`[DiscordBridge] Active voice session routed to: ${session.path} (Channel ${channelId})`);
+				this.activeSession = session;
+			}
+			this.state.currentChannelId = channelId;
+			this.state.connectedToDiscord = true;
+			this.updateRosterFromVoiceStates(voiceStates);
+		} else if (this.activeSession === session) {
+			// Current active session left voice; check if another session has an active voice channel
+			const otherWithVoice = Array.from(this.sessions.values()).find(
+				(s) => s !== session && s.currentChannelId !== null,
+			);
+
+			if (otherWithVoice) {
+				console.log(`[DiscordBridge] Active voice session switching to: ${otherWithVoice.path}`);
+				this.activeSession = otherWithVoice;
+				this.state.currentChannelId = otherWithVoice.currentChannelId;
+				otherWithVoice.queryVoiceChannel();
+			} else {
+				this.activeSession = null;
+				this.state.currentChannelId = null;
+				this.state.users.clear();
+				this.broadcastRoster();
+			}
+		}
+	}
+
+	private recalculateActiveSession() {
+		const withVoice = Array.from(this.sessions.values()).find((s) => s.currentChannelId !== null);
+		if (withVoice) {
+			this.activeSession = withVoice;
+			this.state.currentChannelId = withVoice.currentChannelId;
+			withVoice.queryVoiceChannel();
+		} else {
+			this.activeSession = null;
+			this.state.currentChannelId = null;
+			this.state.users.clear();
+			this.broadcastRoster();
+		}
+	}
+
+	onSessionSpeaking(session: IPCSocketSession, userId: string, isSpeaking: boolean) {
+		if (this.activeSession === session || (!this.activeSession && session.currentChannelId)) {
+			const user = this.state.users.get(userId);
+			if (user) {
+				user.isSpeaking = isSpeaking;
 			}
 
+			this.broadcast({
+				type: "discord_speaking",
+				userId,
+				isSpeaking,
+			});
+		}
+	}
+
+	onSessionVoiceState(session: IPCSocketSession, evt: string, data: any) {
+		if (this.activeSession !== session && this.activeSession !== null) {
+			return;
+		}
+
+		if (evt === "VOICE_STATE_CREATE") {
+			const user = data?.user;
+			if (user?.id) {
+				const newUser: DiscordUser = {
+					id: user.id,
+					username: user.username,
+					displayName: data.nick || user.global_name || user.username,
+					avatarUrl: this.buildAvatarUrl(user.id, user.avatar, user.discriminator),
+					isSpeaking: false,
+					mute: Boolean(data.voice_state?.mute ?? data.mute),
+					deaf: Boolean(data.voice_state?.deaf ?? data.deaf),
+				};
+				this.state.users.set(user.id, newUser);
+				this.broadcastRoster();
+				this.enrichUserWithOsu(newUser);
+			}
+			return;
+		}
+
+		if (evt === "VOICE_STATE_DELETE") {
+			const userId = data?.user?.id || data?.user_id || data?.id;
+			if (userId) {
+				this.state.users.delete(userId);
+				this.broadcastRoster();
+			}
+			return;
+		}
+
+		if (evt === "VOICE_STATE_UPDATE") {
+			const user = data?.user;
+			const userId = user?.id || data?.user_id;
+			if (!userId) return;
+
+			if (data.channel_id && data.channel_id !== this.state.currentChannelId) {
+				this.state.users.delete(userId);
+				this.broadcastRoster();
+				return;
+			}
+
+			const existing = this.state.users.get(userId);
+			if (existing) {
+				const prevNick = existing.displayName;
+				if (data.nick) existing.displayName = data.nick;
+				if (data.voice_state?.mute !== undefined || data.mute !== undefined) {
+					existing.mute = Boolean(data.voice_state?.mute ?? data.mute);
+					existing.deaf = Boolean(data.voice_state?.deaf ?? data.deaf);
+				}
+				this.broadcastRoster();
+				if (data.nick && data.nick !== prevNick) {
+					this.enrichUserWithOsu(existing);
+				}
+			} else if (user) {
+				const newUser: DiscordUser = {
+					id: user.id,
+					username: user.username,
+					displayName: data.nick || user.global_name || user.username,
+					avatarUrl: this.buildAvatarUrl(user.id, user.avatar, user.discriminator),
+					isSpeaking: false,
+					mute: Boolean(data.voice_state?.mute ?? data.mute),
+					deaf: Boolean(data.voice_state?.deaf ?? data.deaf),
+				};
+				this.state.users.set(user.id, newUser);
+				this.broadcastRoster();
+				this.enrichUserWithOsu(newUser);
+			}
+		}
+	}
+
+	private updateRosterFromVoiceStates(voiceStates: any[]) {
+		const newIds = new Set<string>();
+		let rosterChanged = false;
+
+		for (const vs of voiceStates) {
+			const user = vs.user;
+			if (!user?.id) continue;
+			newIds.add(user.id);
+
+			const existing = this.state.users.get(user.id);
+			if (existing) {
+				const nick = vs.nick || user.global_name || user.username;
+				if (existing.displayName !== nick) {
+					existing.displayName = nick;
+					rosterChanged = true;
+					this.enrichUserWithOsu(existing);
+				}
+				const newMute = Boolean(vs.voice_state?.mute ?? vs.mute);
+				const newDeaf = Boolean(vs.voice_state?.deaf ?? vs.deaf);
+				if (existing.mute !== newMute || existing.deaf !== newDeaf) {
+					existing.mute = newMute;
+					existing.deaf = newDeaf;
+					rosterChanged = true;
+				}
+			} else {
+				const newUser: DiscordUser = {
+					id: user.id,
+					username: user.username,
+					displayName: vs.nick || user.global_name || user.username,
+					avatarUrl: this.buildAvatarUrl(user.id, user.avatar, user.discriminator),
+					isSpeaking: false,
+					mute: Boolean(vs.voice_state?.mute ?? vs.mute),
+					deaf: Boolean(vs.voice_state?.deaf ?? vs.deaf),
+				};
+				this.state.users.set(user.id, newUser);
+				rosterChanged = true;
+				this.enrichUserWithOsu(newUser);
+			}
+		}
+
+		// Prune users that are no longer in this channel
+		for (const id of Array.from(this.state.users.keys())) {
+			if (!newIds.has(id)) {
+				this.state.users.delete(id);
+				rosterChanged = true;
+			}
+		}
+
+		if (rosterChanged) {
+			this.broadcastRoster();
+		}
+	}
+
+	private async resolveOsuProfile(displayName: string): Promise<{ osuId: string; avatarUrl: string } | null> {
+		const key = displayName.toLowerCase().trim();
+		if (this.osuCache.has(key)) {
+			return this.osuCache.get(key) || null;
+		}
+
+		const candidates = [
+			displayName.trim(),
+			displayName.replace(/^[\[\(][^\]\)]+[\]\)]\s*/, "").trim(),
+			displayName.replace(/\s*\|.+$/, "").trim(),
+			displayName.replace(/[^\w\s\-\[\]]/gi, "").trim(),
+		];
+
+		const uniqueCandidates = Array.from(new Set(candidates.filter((c) => c.length >= 2)));
+
+		for (const candidate of uniqueCandidates) {
 			try {
 				const res = await fetch(`https://osu.ppy.sh/users/${encodeURIComponent(candidate)}`, {
 					method: "HEAD",
 					redirect: "manual",
-					headers: { "User-Agent": "Mozilla/5.0 (VCL-Overlay/1.0)" },
 				});
 
 				const location = res.headers.get("location");
 				if (location) {
 					const match = location.match(/\/users\/(\d+)/);
 					if (match && match[1]) {
-						const osuId = match[1];
 						const result = {
-							osuId,
-							avatarUrl: `https://a.ppy.sh/${osuId}`,
+							osuId: match[1],
+							avatarUrl: `https://a.ppy.sh/${match[1]}`,
 						};
 						this.osuCache.set(key, result);
 						return result;
@@ -111,79 +728,6 @@ export class DiscordIPCBridge {
 			current.osuId = profile.osuId;
 			current.osuAvatarUrl = profile.avatarUrl;
 			this.broadcastRoster();
-		}
-	}
-
-	private httpServer: http.Server | null = null;
-	private tokenFilePath = path.join(process.cwd(), ".discord_token.json");
-
-	private getCachedToken(): string | null {
-		try {
-			if (fs.existsSync(this.tokenFilePath)) {
-				const content = fs.readFileSync(this.tokenFilePath, "utf8");
-				const json = JSON.parse(content);
-				return json?.access_token || null;
-			}
-		} catch {}
-		return null;
-	}
-
-	private saveCachedToken(token: string | null) {
-		try {
-			if (token) {
-				fs.writeFileSync(this.tokenFilePath, JSON.stringify({ access_token: token }, null, 2), "utf8");
-			} else if (fs.existsSync(this.tokenFilePath)) {
-				fs.unlinkSync(this.tokenFilePath);
-			}
-		} catch (err) {
-			console.warn("[DiscordBridge] Failed to update token cache:", err);
-		}
-	}
-
-	private requestAuthorization() {
-		this.sendIPCFrame(1, {
-			cmd: "AUTHORIZE",
-			args: {
-				client_id: "207646673902501888",
-				scopes: ["rpc", "identify", "rpc.voice.read"],
-			},
-			nonce: "auth_init",
-		});
-	}
-
-	constructor(port = 24052) {
-		this.port = port;
-	}
-
-	start() {
-		this.initWebSocketServer();
-		this.connectToDiscordIPC();
-	}
-
-	stop(cb?: () => void) {
-		if (this.reconnectTimer) {
-			clearTimeout(this.reconnectTimer);
-			this.reconnectTimer = null;
-		}
-
-		if (this.ipcSocket) {
-			this.ipcSocket.destroy();
-			this.ipcSocket = null;
-		}
-
-		if (this.wss) {
-			this.wss.close();
-			this.wss = null;
-		}
-
-		if (this.httpServer) {
-			const server = this.httpServer;
-			this.httpServer = null;
-			server.close(() => {
-				cb?.();
-			});
-		} else {
-			cb?.();
 		}
 	}
 
@@ -239,378 +783,6 @@ export class DiscordIPCBridge {
 		}
 	}
 
-	/**
-	 * Scans candidate paths for the Discord local IPC socket.
-	 */
-	private findDiscordIPCSocket(): string | null {
-		const isWin = process.platform === "win32";
-		if (isWin) {
-			return "\\\\.\\pipe\\discord-ipc-0";
-		}
-
-		const uid = process.getuid ? process.getuid() : 1000;
-		const candidates: string[] = [];
-
-		for (let i = 0; i < 10; i++) {
-			candidates.push(`/run/user/${uid}/discord-ipc-${i}`);
-			candidates.push(`/tmp/discord-ipc-${i}`);
-			if (process.env.XDG_RUNTIME_DIR) {
-				candidates.push(`${process.env.XDG_RUNTIME_DIR}/discord-ipc-${i}`);
-			}
-		}
-
-		for (const p of candidates) {
-			try {
-				if (fs.existsSync(p)) {
-					return p;
-				}
-			} catch {}
-		}
-
-		return null;
-	}
-
-	private sendIPCFrame(opcode: number, obj: unknown) {
-		if (!this.ipcSocket || this.ipcSocket.destroyed) return;
-		try {
-			const payload = JSON.stringify(obj);
-			const header = Buffer.alloc(8);
-			header.writeInt32LE(opcode, 0);
-			header.writeInt32LE(Buffer.byteLength(payload), 4);
-			this.ipcSocket.write(Buffer.concat([header, Buffer.from(payload)]));
-		} catch (err) {
-			console.warn("[DiscordBridge] Failed to write IPC frame:", err);
-		}
-	}
-
-	private scheduleReconnect() {
-		if (this.reconnectTimer) return;
-		this.state.connectedToDiscord = false;
-		this.state.users.clear();
-		this.broadcast({
-			type: "discord_status",
-			connected: false,
-			message: "Connecting to Discord desktop client...",
-		});
-
-		this.reconnectTimer = setTimeout(() => {
-			this.reconnectTimer = null;
-			this.connectToDiscordIPC();
-		}, 3500);
-	}
-
-	private connectToDiscordIPC() {
-		if (this.isConnecting) return;
-		const socketPath = this.findDiscordIPCSocket();
-		if (!socketPath) {
-			this.scheduleReconnect();
-			return;
-		}
-
-		this.isConnecting = true;
-		const socket = net.createConnection(socketPath);
-		this.ipcSocket = socket;
-
-		socket.on("connect", () => {
-			this.isConnecting = false;
-			this.state.connectedToDiscord = true;
-			console.log(`[DiscordBridge] Connected to Discord IPC via ${socketPath}`);
-
-			// Opcode 0: Handshake with StreamKit client ID
-			this.sendIPCFrame(0, {
-				v: 1,
-				client_id: "207646673902501888",
-			});
-		});
-
-		let incomingBuffer = Buffer.alloc(0);
-
-		socket.on("data", async (chunk: Buffer) => {
-			incomingBuffer = Buffer.concat([incomingBuffer, chunk]);
-
-			while (incomingBuffer.length >= 8) {
-				const length = incomingBuffer.readInt32LE(4);
-
-				if (incomingBuffer.length < 8 + length) {
-					break;
-				}
-
-				const bodyStr = incomingBuffer.subarray(8, 8 + length).toString("utf8");
-				incomingBuffer = incomingBuffer.subarray(8 + length);
-
-				try {
-					const body = JSON.parse(bodyStr);
-					await this.handleIPCMessage(body);
-				} catch (err) {
-					console.warn("[DiscordBridge] Error parsing IPC frame:", err);
-				}
-			}
-		});
-
-		socket.on("error", (err) => {
-			console.warn("[DiscordBridge] Discord IPC socket error:", err.message);
-			this.isConnecting = false;
-		});
-
-		socket.on("close", () => {
-			console.log("[DiscordBridge] Discord IPC socket closed");
-			this.ipcSocket = null;
-			this.isConnecting = false;
-			this.scheduleReconnect();
-		});
-	}
-
-	private async handleIPCMessage(body: any) {
-		const { cmd, evt, data } = body;
-		if (evt !== "SPEAKING_START" && evt !== "SPEAKING_STOP") {
-			console.log(`[DiscordBridge] IPC -> cmd: ${cmd || "-"}, evt: ${evt || "-"}, data:`, JSON.stringify(data)?.slice(0, 120));
-		}
-
-		// 0. Handle OAuth rejection (e.g., token expired or revoked)
-		if (evt === "ERROR") {
-			if (body.nonce === "auth_cached_token" || cmd === "AUTHENTICATE") {
-				console.log("[DiscordBridge] Cached OAuth token expired or revoked. Requesting fresh authorization...");
-				this.saveCachedToken(null);
-				this.requestAuthorization();
-				return;
-			}
-		}
-
-		// 1. Initial Handshake ready -> Authenticate with cached token or Authorize
-		if (evt === "READY") {
-			const cachedToken = this.getCachedToken();
-			if (cachedToken) {
-				console.log("[DiscordBridge] Using saved OAuth token for zero-prompt authentication...");
-				this.sendIPCFrame(1, {
-					cmd: "AUTHENTICATE",
-					args: {
-						access_token: cachedToken,
-					},
-					nonce: "auth_cached_token",
-				});
-			} else {
-				this.requestAuthorization();
-			}
-			return;
-		}
-
-		// 2. Authorize response -> Exchange code for token and save to cache
-		if (cmd === "AUTHORIZE" && data?.code) {
-			try {
-				const res = await fetch("https://streamkit.discord.com/overlay/token", {
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ code: data.code }),
-				});
-				const tokenRes = (await res.json()) as { access_token?: string };
-
-				if (tokenRes?.access_token) {
-					this.saveCachedToken(tokenRes.access_token);
-					this.sendIPCFrame(1, {
-						cmd: "AUTHENTICATE",
-						args: {
-							access_token: tokenRes.access_token,
-						},
-						nonce: "auth_token_confirm",
-					});
-				}
-			} catch (err) {
-				console.warn("[DiscordBridge] Token exchange error:", err);
-			}
-			return;
-		}
-
-		// 3. Authenticated -> Subscribe to voice channel selection, connection status, and fetch current channel
-		if (cmd === "AUTHENTICATE") {
-			console.log("[DiscordBridge] Successfully authenticated with Discord client.");
-
-			this.sendIPCFrame(1, {
-				cmd: "SUBSCRIBE",
-				args: {},
-				evt: "VOICE_CHANNEL_SELECT",
-				nonce: "sub_voice_select",
-			});
-
-			this.sendIPCFrame(1, {
-				cmd: "SUBSCRIBE",
-				args: {},
-				evt: "VOICE_CONNECTION_STATUS",
-				nonce: "sub_voice_status",
-			});
-
-			this.sendIPCFrame(1, {
-				cmd: "GET_SELECTED_VOICE_CHANNEL",
-				args: {},
-				nonce: "get_selected_voice",
-			});
-			return;
-		}
-
-		if (evt === "VOICE_CONNECTION_STATUS") {
-			console.log(`[DiscordBridge] VOICE_CONNECTION_STATUS:`, JSON.stringify(data));
-			if (data?.state === "CONNECTED" || data?.state === "VOICE_CONNECTED") {
-				if (this.state.currentChannelId) {
-					this.requestSelectedVoiceChannelWithRetry(this.state.currentChannelId, 3);
-				}
-			}
-			return;
-		}
-
-		// 4. Voice Channel Selected / Changed
-		if (evt === "VOICE_CHANNEL_SELECT") {
-			const channelId = data?.channel_id || null;
-			console.log(`[DiscordBridge] VOICE_CHANNEL_SELECT: channel_id =`, channelId);
-
-			if (this.state.currentChannelId !== channelId) {
-				if (this.subscribedChannelId) {
-					this.unsubscribeFromChannelEvents(this.subscribedChannelId);
-					this.subscribedChannelId = null;
-				}
-
-				this.state.currentChannelId = channelId;
-				this.state.users.clear();
-				this.broadcastRoster();
-			}
-
-			if (channelId) {
-				this.requestSelectedVoiceChannelWithRetry(channelId);
-			}
-			return;
-		}
-
-		// 5. Selected voice channel details received
-		if (cmd === "GET_SELECTED_VOICE_CHANNEL") {
-			const channelId = data?.id;
-			console.log(`[DiscordBridge] GET_SELECTED_VOICE_CHANNEL response: id =`, channelId, `users =`, data?.voice_states?.length);
-
-			if (channelId) {
-				this.state.currentChannelId = channelId;
-				this.subscribeToChannelEvents(channelId);
-				this.updateRosterFromVoiceStates(data?.voice_states || []);
-			} else if (this.state.currentChannelId && !data) {
-				console.log(`[DiscordBridge] Channel connection pending for ${this.state.currentChannelId}, waiting for voice states...`);
-			} else {
-				this.state.currentChannelId = null;
-				this.state.users.clear();
-				this.broadcastRoster();
-			}
-			return;
-		}
-
-		// 6. Voice State Create (User joined channel)
-		if (evt === "VOICE_STATE_CREATE") {
-			const user = data?.user;
-			if (user?.id) {
-				const newUser: DiscordUser = {
-					id: user.id,
-					username: user.username,
-					displayName: data.nick || user.global_name || user.username,
-					avatarUrl: this.buildAvatarUrl(user.id, user.avatar, user.discriminator),
-					isSpeaking: false,
-					mute: Boolean(data.voice_state?.mute ?? data.mute),
-					deaf: Boolean(data.voice_state?.deaf ?? data.deaf),
-				};
-				this.state.users.set(user.id, newUser);
-				this.broadcastRoster();
-				this.enrichUserWithOsu(newUser);
-			}
-			return;
-		}
-
-		// 7. Voice State Delete (User left channel)
-		if (evt === "VOICE_STATE_DELETE") {
-			const userId = data?.user?.id || data?.user_id || data?.id;
-			if (userId) {
-				this.state.users.delete(userId);
-				this.broadcastRoster();
-			}
-			return;
-		}
-
-		// 8. Voice State Update (Mute, Deafen, or Channel Switch)
-		if (evt === "VOICE_STATE_UPDATE") {
-			const user = data?.user;
-			const userId = user?.id || data?.user_id;
-			if (!userId) return;
-
-			// If user has moved to another channel or left
-			if (data.channel_id && data.channel_id !== this.state.currentChannelId) {
-				this.state.users.delete(userId);
-				this.broadcastRoster();
-				return;
-			}
-
-			const existing = this.state.users.get(userId);
-			if (existing) {
-				const prevNick = existing.displayName;
-				if (data.nick) existing.displayName = data.nick;
-				if (data.voice_state?.mute !== undefined || data.mute !== undefined) {
-					existing.mute = Boolean(data.voice_state?.mute ?? data.mute);
-					existing.deaf = Boolean(data.voice_state?.deaf ?? data.deaf);
-				}
-				this.broadcastRoster();
-				if (data.nick && data.nick !== prevNick) {
-					this.enrichUserWithOsu(existing);
-				}
-			} else if (user) {
-				const newUser: DiscordUser = {
-					id: user.id,
-					username: user.username,
-					displayName: data.nick || user.global_name || user.username,
-					avatarUrl: this.buildAvatarUrl(user.id, user.avatar, user.discriminator),
-					isSpeaking: false,
-					mute: Boolean(data.voice_state?.mute ?? data.mute),
-					deaf: Boolean(data.voice_state?.deaf ?? data.deaf),
-				};
-				this.state.users.set(user.id, newUser);
-				this.broadcastRoster();
-				this.enrichUserWithOsu(newUser);
-			}
-			return;
-		}
-
-		// 9. Speaking Start / Stop events
-		if (evt === "SPEAKING_START" || evt === "SPEAKING_STOP") {
-			const userId = data?.user_id;
-			const isSpeaking = evt === "SPEAKING_START";
-
-			if (userId) {
-				const user = this.state.users.get(userId);
-				if (user) {
-					user.isSpeaking = isSpeaking;
-				}
-
-				this.broadcast({
-					type: "discord_speaking",
-					userId,
-					isSpeaking,
-				});
-			}
-		}
-	}
-
-	private requestSelectedVoiceChannelWithRetry(targetChannelId: string, attempts = 5) {
-		const query = () => {
-			if (this.state.currentChannelId !== targetChannelId) return;
-			this.sendIPCFrame(1, {
-				cmd: "GET_SELECTED_VOICE_CHANNEL",
-				args: {},
-				nonce: `refresh_voice_${targetChannelId}`,
-			});
-		};
-
-		query();
-
-		const delays = [250, 500, 1000, 1800, 3000];
-		delays.slice(0, attempts).forEach((delay) => {
-			setTimeout(() => {
-				if (this.state.currentChannelId === targetChannelId && this.state.users.size === 0) {
-					query();
-				}
-			}, delay);
-		});
-	}
-
 	private broadcastRoster() {
 		this.broadcast({
 			type: "discord_roster",
@@ -618,74 +790,6 @@ export class DiscordIPCBridge {
 			channelId: this.state.currentChannelId,
 			users: Array.from(this.state.users.values()),
 		});
-	}
-
-	private unsubscribeFromChannelEvents(channelId: string) {
-		const events = [
-			"SPEAKING_START",
-			"SPEAKING_STOP",
-			"VOICE_STATE_CREATE",
-			"VOICE_STATE_UPDATE",
-			"VOICE_STATE_DELETE",
-		];
-		for (const evt of events) {
-			this.sendIPCFrame(1, {
-				cmd: "UNSUBSCRIBE",
-				args: { channel_id: channelId },
-				evt,
-				nonce: `unsub_${evt}_${channelId}`,
-			});
-		}
-	}
-
-	private subscribeToChannelEvents(channelId: string) {
-		if (this.subscribedChannelId === channelId) return;
-
-		if (this.subscribedChannelId) {
-			this.unsubscribeFromChannelEvents(this.subscribedChannelId);
-		}
-
-		this.subscribedChannelId = channelId;
-
-		const events = [
-			"SPEAKING_START",
-			"SPEAKING_STOP",
-			"VOICE_STATE_CREATE",
-			"VOICE_STATE_UPDATE",
-			"VOICE_STATE_DELETE",
-		];
-		for (const evt of events) {
-			this.sendIPCFrame(1, {
-				cmd: "SUBSCRIBE",
-				args: { channel_id: channelId },
-				evt,
-				nonce: `sub_${evt}_${channelId}`,
-			});
-		}
-	}
-
-	private updateRosterFromVoiceStates(voiceStates: any[]) {
-		this.state.users.clear();
-
-		for (const vs of voiceStates) {
-			const user = vs.user;
-			if (!user?.id) continue;
-
-			const discordUser: DiscordUser = {
-				id: user.id,
-				username: user.username,
-				displayName: vs.nick || user.global_name || user.username,
-				avatarUrl: this.buildAvatarUrl(user.id, user.avatar, user.discriminator),
-				isSpeaking: false,
-				mute: Boolean(vs.voice_state?.mute ?? vs.mute),
-				deaf: Boolean(vs.voice_state?.deaf ?? vs.deaf),
-			};
-
-			this.state.users.set(user.id, discordUser);
-			this.enrichUserWithOsu(discordUser);
-		}
-
-		this.broadcastRoster();
 	}
 
 	private buildAvatarUrl(userId: string, avatarHash?: string, discriminator = "0"): string {
