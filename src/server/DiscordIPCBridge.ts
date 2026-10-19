@@ -362,6 +362,9 @@ export class DiscordIPCBridge {
 
 	private async handleIPCMessage(body: any) {
 		const { cmd, evt, data } = body;
+		if (evt !== "SPEAKING_START" && evt !== "SPEAKING_STOP") {
+			console.log(`[DiscordBridge] IPC -> cmd: ${cmd || "-"}, evt: ${evt || "-"}, data:`, JSON.stringify(data)?.slice(0, 120));
+		}
 
 		// 0. Handle OAuth rejection (e.g., token expired or revoked)
 		if (evt === "ERROR") {
@@ -417,7 +420,7 @@ export class DiscordIPCBridge {
 			return;
 		}
 
-		// 3. Authenticated -> Subscribe to voice channel selection and fetch current channel
+		// 3. Authenticated -> Subscribe to voice channel selection, connection status, and fetch current channel
 		if (cmd === "AUTHENTICATE") {
 			console.log("[DiscordBridge] Successfully authenticated with Discord client.");
 
@@ -429,6 +432,13 @@ export class DiscordIPCBridge {
 			});
 
 			this.sendIPCFrame(1, {
+				cmd: "SUBSCRIBE",
+				args: {},
+				evt: "VOICE_CONNECTION_STATUS",
+				nonce: "sub_voice_status",
+			});
+
+			this.sendIPCFrame(1, {
 				cmd: "GET_SELECTED_VOICE_CHANNEL",
 				args: {},
 				nonce: "get_selected_voice",
@@ -436,10 +446,20 @@ export class DiscordIPCBridge {
 			return;
 		}
 
-		// 4. Voice Channel Selected / Changed
+		if (evt === "VOICE_CONNECTION_STATUS") {
+			console.log(`[DiscordBridge] VOICE_CONNECTION_STATUS:`, JSON.stringify(data));
+			if (data?.state === "CONNECTED" || data?.state === "VOICE_CONNECTED") {
+				if (this.state.currentChannelId) {
+					this.requestSelectedVoiceChannelWithRetry(this.state.currentChannelId, 3);
+				}
+			}
+			return;
+		}
+
 		// 4. Voice Channel Selected / Changed
 		if (evt === "VOICE_CHANNEL_SELECT") {
 			const channelId = data?.channel_id || null;
+			console.log(`[DiscordBridge] VOICE_CHANNEL_SELECT: channel_id =`, channelId);
 
 			if (this.state.currentChannelId !== channelId) {
 				if (this.subscribedChannelId) {
@@ -453,11 +473,7 @@ export class DiscordIPCBridge {
 			}
 
 			if (channelId) {
-				this.sendIPCFrame(1, {
-					cmd: "GET_SELECTED_VOICE_CHANNEL",
-					args: {},
-					nonce: "refresh_selected_voice",
-				});
+				this.requestSelectedVoiceChannelWithRetry(channelId);
 			}
 			return;
 		}
@@ -465,12 +481,16 @@ export class DiscordIPCBridge {
 		// 5. Selected voice channel details received
 		if (cmd === "GET_SELECTED_VOICE_CHANNEL") {
 			const channelId = data?.id;
-			this.state.currentChannelId = channelId || null;
+			console.log(`[DiscordBridge] GET_SELECTED_VOICE_CHANNEL response: id =`, channelId, `users =`, data?.voice_states?.length);
 
 			if (channelId) {
+				this.state.currentChannelId = channelId;
 				this.subscribeToChannelEvents(channelId);
 				this.updateRosterFromVoiceStates(data?.voice_states || []);
+			} else if (this.state.currentChannelId && !data) {
+				console.log(`[DiscordBridge] Channel connection pending for ${this.state.currentChannelId}, waiting for voice states...`);
 			} else {
+				this.state.currentChannelId = null;
 				this.state.users.clear();
 				this.broadcastRoster();
 			}
@@ -567,6 +587,28 @@ export class DiscordIPCBridge {
 				});
 			}
 		}
+	}
+
+	private requestSelectedVoiceChannelWithRetry(targetChannelId: string, attempts = 5) {
+		const query = () => {
+			if (this.state.currentChannelId !== targetChannelId) return;
+			this.sendIPCFrame(1, {
+				cmd: "GET_SELECTED_VOICE_CHANNEL",
+				args: {},
+				nonce: `refresh_voice_${targetChannelId}`,
+			});
+		};
+
+		query();
+
+		const delays = [250, 500, 1000, 1800, 3000];
+		delays.slice(0, attempts).forEach((delay) => {
+			setTimeout(() => {
+				if (this.state.currentChannelId === targetChannelId && this.state.users.size === 0) {
+					query();
+				}
+			}, delay);
+		});
 	}
 
 	private broadcastRoster() {
