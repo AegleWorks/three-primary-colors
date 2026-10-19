@@ -5,6 +5,7 @@ import type GameStateHandler from "./handler/GameStateHandler";
 import type ScoreHandler from "./handler/ScoreHandler";
 import type TeamHandler from "./handler/TeamHandler";
 import type OBSHandler from "./handler/OBSHandler";
+import type ResultHandler from "./handler/ResultHandler";
 
 export default class Test {
 	engine: ZEngine;
@@ -16,6 +17,7 @@ export default class Test {
 	scoreHandler?: ScoreHandler;
 	gameStateHandler?: GameStateHandler;
 	obsHandler?: OBSHandler;
+	resultHandler?: ResultHandler;
 
 	constructor(engine: ZEngine) {
 		this.engine = engine;
@@ -52,6 +54,7 @@ export default class Test {
 		scoreHandler,
 		gameStateHandler,
 		obsHandler,
+		resultHandler,
 	}: {
 		beatmapHandler: BeatmapHandler;
 		chatHandler: ChatHandler;
@@ -59,6 +62,7 @@ export default class Test {
 		scoreHandler: ScoreHandler;
 		gameStateHandler: GameStateHandler;
 		obsHandler?: OBSHandler;
+		resultHandler?: ResultHandler;
 	}) {
 		this.beatmapHandler = beatmapHandler;
 		this.chatHandler = chatHandler;
@@ -66,6 +70,7 @@ export default class Test {
 		this.scoreHandler = scoreHandler;
 		this.gameStateHandler = gameStateHandler;
 		this.obsHandler = obsHandler;
+		this.resultHandler = resultHandler;
 	}
 
 	testAll() {

@@ -31,6 +31,14 @@ class BeatmapContainer {
 		ele.classList.add("w-[500px]", "h-[60px]", "flex", "rounded-xl", "overflow-hidden", "border-spacing-custom-border", "border-surface-0", "select-none");
 		this.ele = ele;
 
+		const coverUrl = data.beatmapset?.covers?.slimcover ?? "";
+		const artist = data.beatmapset?.artist ?? "";
+		const title = data.beatmapset?.title ?? "";
+		const version = data.version ?? "";
+		const mappers = Array.isArray(data.owners)
+			? data.owners.map((owner) => owner.username).join(", ")
+			: "";
+
 		this.ele.innerHTML = `
 		<div 
 			class="flex justify-center w-[0px] bg-white text-[10px] font-medium leading-none text-center align-center overflow-hidden transition-all indicator"
@@ -38,15 +46,15 @@ class BeatmapContainer {
 		<div 
 			class="relative flex-1 h-full bg-white flex justify-between items-center gap-5 p-2.5 px-5 text-white overflow-hidden"
 		>
-			<img src="${data.beatmapset.covers.slimcover}" class="absolute top-0 left-0 w-full h-full object-cover object-center"/>
+			<img src="${coverUrl}" class="absolute top-0 left-0 w-full h-full object-cover object-center"/>
 			<div class="absolute top-0 left-0 w-full h-full bg-crust/70"></div>
 			<div class="relative truncate shrink-0 flex-1">
-				<div class="text-xs truncate">${data.beatmapset.artist}</div>
-				<div class="font-medium truncate text-md">${data.beatmapset.title}</div>
+				<div class="text-xs truncate">${artist}</div>
+				<div class="font-medium truncate text-md">${title}</div>
 			</div>
 			<div class="relative truncate text-xs flex flex-col shrink-0 flex-1">
-				<div class="w-full text-right overflow-hidden flex justify-end">[<span class="font-medium truncate">${data.version}</span>]</div> 
-				<div class="truncate w-full text-right">by <span class="font-medium">${data.owners.map((owner) => owner.username).join(", ")}</span></div>
+				<div class="w-full text-right overflow-hidden flex justify-end">[<span class="font-medium truncate">${version}</span>]</div> 
+				<div class="truncate w-full text-right">by <span class="font-medium">${mappers}</span></div>
 			</div>
 			<img src="${icon}" class="relative w-[40px] object-contain object-center" />
 			<div class="absolute top-0 left-0 w-full h-full bg-black/50 opacity-0 transition-all overlay"></div>
@@ -278,29 +286,45 @@ export default class MappoolHandler {
 	async init(beatmapHandler: BeatmapHandler) {
 		try {
 			const json: Data = (await axios.get("./data.json")).data;
+			if (!json?.mappool || !Array.isArray(json.mappool)) return;
+
 			const mapIds: number[] = json.mappool.reduce((acc, currMod) => {
-				acc.push(...currMod.maps);
+				if (Array.isArray(currMod.maps)) {
+					acc.push(...currMod.maps);
+				}
 				return acc;
 			}, [] as number[]);
+
+			if (mapIds.length === 0) return;
 
 			const query = new URLSearchParams();
 			for (const id of mapIds) {
 				query.append("ids", id.toString());
 			}
 
-			const {
-				data: { beatmaps },
-			} = await axios.get(`https://api.try-z.net/beatmaps?${query.toString()}`);
+			const res = await axios.get(
+				`https://api.try-z.net/beatmaps?${query.toString()}`,
+			);
+			const beatmaps: Beatmap[] = res.data?.beatmaps ?? [];
 			this.beatmaps = beatmaps;
 
 			const mappoolContainer = document.querySelector("#mappoolContainer");
+			if (!mappoolContainer) return;
+
+			mappoolContainer.innerHTML = "";
+			this.mods = [];
+
 			for (const mod of json.mappool) {
-				const modContainer = new ModContainer(mod, this.beatmaps, beatmapHandler);
-				if (mappoolContainer) mappoolContainer.append(modContainer.ele);
+				const modContainer = new ModContainer(
+					mod,
+					this.beatmaps,
+					beatmapHandler,
+				);
+				mappoolContainer.append(modContainer.ele);
 				this.mods.push(modContainer);
 			}
 		} catch (e) {
-			console.error((e as Error).message);
+			console.error("[MappoolHandler] Failed to load mappool:", (e as Error).message);
 		}
 	}
 }

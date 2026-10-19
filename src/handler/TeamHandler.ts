@@ -41,26 +41,24 @@ export default class TeamHandler {
 				switch (value.id) {
 					case "nameLeft":
 					case "nameRight": {
-						element.innerText = newValue;
+						element.innerText = newValue ? String(newValue) : "";
 						break;
 					}
 					case "starLeft":
 					case "starRight": {
 						if (value.key === "tourney.manager.bestOF") {
-							this.createStars(
-								element,
-								data.tourney.manager.stars[
+							const stars =
+								data.tourney?.manager?.stars?.[
 									value.id === "starLeft" ? "left" : "right"
-								] ?? 0,
-								newValue ?? 3,
-							);
+								] ?? 0;
+							this.createStars(element, stars, newValue ?? 3);
 							break;
 						}
 
 						this.createStars(
 							element,
 							newValue ?? 0,
-							data.tourney.manager.bestOF ?? 3,
+							data.tourney?.manager?.bestOF ?? 3,
 						);
 
 						break;
@@ -74,13 +72,29 @@ export default class TeamHandler {
 	}
 
 	createStars(element: HTMLElement, number: number, bestOF: number) {
-		const maxStars = Math.floor((bestOF + 1) / 2);
-		const stars = [...Array(maxStars)].map((_, idx: number) =>
-			this.createStar(idx < number),
-		);
+		const safeBestOf = Number.isFinite(bestOF) ? bestOF : 3;
+		const maxStars = Math.max(1, Math.min(15, Math.floor((safeBestOf + 1) / 2)));
+		const count = Number.isFinite(number) ? number : 0;
+
+		if (element.children.length === maxStars) {
+			for (let i = 0; i < maxStars; i++) {
+				const star = element.children[i] as HTMLElement;
+				if (i < count) {
+					star.classList.add("bg-custom-star-fill");
+				} else {
+					star.classList.remove("bg-custom-star-fill");
+				}
+			}
+			return;
+		}
+
+		const fragment = document.createDocumentFragment();
+		for (let idx = 0; idx < maxStars; idx++) {
+			fragment.appendChild(this.createStar(idx < count));
+		}
 
 		element.innerHTML = "";
-		element.append(...stars);
+		element.appendChild(fragment);
 	}
 
 	createStar(isMarked: boolean) {

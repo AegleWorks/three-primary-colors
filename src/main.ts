@@ -6,6 +6,7 @@ import MappoolHandler from "./handler/MappoolHandler";
 import ScoreHandler from "./handler/ScoreHandler";
 import TeamHandler from "./handler/TeamHandler";
 import OBSHandler from "./handler/OBSHandler";
+import ResultHandler from "./handler/ResultHandler";
 import Test from "./Test";
 
 const engine = new ZEngine("ws://127.0.0.1:24050/ws");
@@ -17,6 +18,7 @@ const teamHandler = new TeamHandler(engine, test);
 const scoreHandler = new ScoreHandler(engine, test);
 const gameStateHandler = new GameStateHandler(engine, test);
 const obsHandler = new OBSHandler(engine);
+const resultHandler = new ResultHandler(engine, test);
 new MappoolHandler(beatmapHandler);
 
 test.assign({
@@ -26,6 +28,7 @@ test.assign({
 	scoreHandler,
 	gameStateHandler,
 	obsHandler,
+	resultHandler,
 });
 
 if (typeof window !== "undefined") {

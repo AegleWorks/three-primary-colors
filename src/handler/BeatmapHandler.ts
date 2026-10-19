@@ -109,7 +109,7 @@ export default class BeatmapHandler {
 						break;
 					}
 					default: {
-						element.innerText = newValue;
+						element.innerText = newValue ? String(newValue) : "";
 						break;
 					}
 				}
@@ -160,6 +160,7 @@ export default class BeatmapHandler {
 	}
 
 	private toMinutes(miliseconds: number) {
+		if (!Number.isFinite(miliseconds) || miliseconds <= 0) return "00:00";
 		const seconds = Math.round(miliseconds / 1000);
 		const minutes = Math.floor(seconds / 60);
 
