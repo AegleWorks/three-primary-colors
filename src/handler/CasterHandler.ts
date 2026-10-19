@@ -10,13 +10,6 @@ export default class CasterHandler {
 	casters: Caster[] = [];
 
 	private container: HTMLElement | null = null;
-	private micStream: MediaStream | null = null;
-	private audioCtx: AudioContext | null = null;
-	private analyser: AnalyserNode | null = null;
-	private vadActiveCasterId: string | null = null;
-	private vadAnimationId: number | null = null;
-
-	private autoSpeechTimer: ReturnType<typeof setInterval> | null = null;
 	private discordWs: WebSocket | null = null;
 	private isDiscordConnected = false;
 
@@ -24,12 +17,11 @@ export default class CasterHandler {
 		this.container = document.querySelector<HTMLElement>(containerSelector);
 		this.loadFromURLParams();
 		this.render();
-		this.bindControls();
 		this.initDiscordBridge();
 	}
 
 	/**
-	 * Reads URL parameters to allow quick configuration via OBS Browser Source URL:
+	 * Reads URL parameters to allow optional manual overrides via OBS Browser Source URL:
 	 * e.g., ?c1=Aegle&c1img=https://...&c2=Peppy&c2img=https://...
 	 */
 	private loadFromURLParams() {
@@ -43,10 +35,22 @@ export default class CasterHandler {
 			const c2Name = params.get("c2") || params.get("caster2");
 			const c2Img = params.get("c2img") || params.get("avatar2") || params.get("c2Avatar");
 
-			if (c1Name && this.casters[0]) this.casters[0].name = c1Name;
-			if (c1Img && this.casters[0]) this.casters[0].avatarUrl = c1Img;
-			if (c2Name && this.casters[1]) this.casters[1].name = c2Name;
-			if (c2Img && this.casters[1]) this.casters[1].avatarUrl = c2Img;
+			if (c1Name && c1Img) {
+				this.casters.push({
+					id: "caster-1",
+					name: c1Name,
+					avatarUrl: c1Img,
+					isSpeaking: false,
+				});
+			}
+			if (c2Name && c2Img) {
+				this.casters.push({
+					id: "caster-2",
+					name: c2Name,
+					avatarUrl: c2Img,
+					isSpeaking: false,
+				});
+			}
 		} catch (e) {
 			console.warn("[CasterHandler] Could not parse query params", e);
 		}
@@ -65,12 +69,11 @@ export default class CasterHandler {
 			const card = document.createElement("div");
 			card.id = `caster-${caster.id}`;
 			card.className =
-				"flex flex-col items-center gap-1.5 transition-transform duration-150 cursor-pointer select-none group";
-			card.title = `${caster.name} (Discord Voice)`;
+				"flex flex-col items-center gap-1.5 transition-transform duration-150 select-none pointer-events-none";
 
 			const ringClasses = caster.isSpeaking
 				? "border-emerald-400 ring-4 ring-emerald-500/60 shadow-[0_0_22px_rgba(16,185,129,0.9)] scale-105"
-				: "border-surface-1/80 ring-0 shadow-none scale-100 opacity-85 group-hover:opacity-100";
+				: "border-surface-1/80 ring-0 shadow-none scale-100 opacity-85";
 
 			card.innerHTML = `
 				<div class="relative">
@@ -83,29 +86,6 @@ export default class CasterHandler {
 					${caster.name}
 				</span>
 			`;
-
-			// Click avatar card to toggle speaking
-			card.onclick = (e) => {
-				e.stopPropagation();
-				this.setSpeaking(caster.id, !caster.isSpeaking);
-			};
-
-			// Double-click to customize commentator name and avatar
-			card.ondblclick = (e) => {
-				e.stopPropagation();
-				const newName = window.prompt(`Nombre para ${caster.name}:`, caster.name);
-				if (newName !== null && newName.trim() !== "") {
-					caster.name = newName.trim();
-				}
-				const newAvatar = window.prompt(
-					`URL de avatar para ${caster.name} (Discord CDN o imagen web):`,
-					caster.avatarUrl,
-				);
-				if (newAvatar !== null && newAvatar.trim() !== "") {
-					caster.avatarUrl = newAvatar.trim();
-				}
-				this.render();
-			};
 
 			this.container.appendChild(card);
 		}
@@ -155,188 +135,6 @@ export default class CasterHandler {
 				);
 				avatar.classList.add("border-surface-1/80", "ring-0", "shadow-none", "scale-100", "opacity-85");
 			}
-		}
-	}
-
-	/**
-	 * Connects a physical microphone to drive a commentator's green speaking ring via Web Audio VAD.
-	 */
-	async startMicVAD(casterId = "caster-1"): Promise<boolean> {
-		if (this.vadActiveCasterId) {
-			this.stopMicVAD();
-		}
-
-		try {
-			if (!navigator?.mediaDevices?.getUserMedia) {
-				console.warn("[CasterHandler] MediaDevices API not supported.");
-				return false;
-			}
-
-			this.micStream = await navigator.mediaDevices.getUserMedia({
-				audio: true,
-				video: false,
-			});
-
-			const AudioContextClass =
-				window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-			this.audioCtx = new AudioContextClass();
-			const source = this.audioCtx.createMediaStreamSource(this.micStream);
-
-			this.analyser = this.audioCtx.createAnalyser();
-			this.analyser.fftSize = 512;
-			source.connect(this.analyser);
-
-			this.vadActiveCasterId = casterId;
-
-			const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
-			const threshold = 18; // Voice energy threshold
-
-			const checkAudio = () => {
-				if (!this.analyser || !this.vadActiveCasterId) return;
-
-				this.analyser.getByteFrequencyData(dataArray);
-
-				let sum = 0;
-				for (let i = 0; i < dataArray.length; i++) {
-					sum += dataArray[i];
-				}
-				const avg = sum / dataArray.length;
-
-				const isTalking = avg > threshold;
-				this.setSpeaking(this.vadActiveCasterId, isTalking);
-
-				this.vadAnimationId = requestAnimationFrame(checkAudio);
-			};
-
-			checkAudio();
-			return true;
-		} catch (err) {
-			console.warn("[CasterHandler] Failed to initialize mic VAD:", err);
-			this.stopMicVAD();
-			return false;
-		}
-	}
-
-	stopMicVAD() {
-		if (this.vadAnimationId) {
-			cancelAnimationFrame(this.vadAnimationId);
-			this.vadAnimationId = null;
-		}
-
-		if (this.micStream) {
-			for (const track of this.micStream.getTracks()) {
-				track.stop();
-			}
-			this.micStream = null;
-		}
-
-		if (this.audioCtx) {
-			this.audioCtx.close().catch(() => {});
-			this.audioCtx = null;
-		}
-
-		if (this.vadActiveCasterId) {
-			this.setSpeaking(this.vadActiveCasterId, false);
-			this.vadActiveCasterId = null;
-		}
-	}
-
-	toggleMicVAD(casterId = "caster-1"): Promise<boolean> {
-		if (this.vadActiveCasterId) {
-			this.stopMicVAD();
-			return Promise.resolve(false);
-		}
-		return this.startMicVAD(casterId);
-	}
-
-	/**
-	 * Simulates commentary back-and-forth speech for demos.
-	 */
-	toggleAutoSpeechSimulation(): boolean {
-		if (this.autoSpeechTimer) {
-			clearInterval(this.autoSpeechTimer);
-			this.autoSpeechTimer = null;
-			this.setSpeaking("caster-1", false);
-			this.setSpeaking("caster-2", false);
-			return false;
-		}
-
-		let turn = 0;
-		this.autoSpeechTimer = setInterval(() => {
-			turn++;
-			const cycle = turn % 6;
-
-			if (cycle === 0 || cycle === 1) {
-				// Caster 1 talks
-				this.setSpeaking("caster-1", true);
-				this.setSpeaking("caster-2", false);
-			} else if (cycle === 2) {
-				// Brief pause
-				this.setSpeaking("caster-1", false);
-				this.setSpeaking("caster-2", false);
-			} else if (cycle === 3 || cycle === 4) {
-				// Caster 2 responds
-				this.setSpeaking("caster-1", false);
-				this.setSpeaking("caster-2", true);
-			} else {
-				// Both silent or laughing
-				this.setSpeaking("caster-1", false);
-				this.setSpeaking("caster-2", false);
-			}
-		}, 1400);
-
-		return true;
-	}
-
-	private bindControls() {
-		if (typeof document === "undefined") return;
-
-		const c1Btn = document.querySelector<HTMLButtonElement>("#simTalkCaster1Btn");
-		const c2Btn = document.querySelector<HTMLButtonElement>("#simTalkCaster2Btn");
-		const autoCasterBtn = document.querySelector<HTMLButtonElement>("#simAutoCasterBtn");
-		const micCasterBtn = document.querySelector<HTMLButtonElement>("#simMicCasterBtn");
-
-		const debugC1Btn = document.querySelector<HTMLButtonElement>("#debugSimTalkC1Btn");
-		const debugC2Btn = document.querySelector<HTMLButtonElement>("#debugSimTalkC2Btn");
-		const debugAutoCasterBtn = document.querySelector<HTMLButtonElement>("#debugSimAutoCasterBtn");
-
-		const handleC1 = () => {
-			const current = this.casters.find((c) => c.id === "caster-1")?.isSpeaking;
-			this.setSpeaking("caster-1", !current);
-		};
-
-		const handleC2 = () => {
-			const current = this.casters.find((c) => c.id === "caster-2")?.isSpeaking;
-			this.setSpeaking("caster-2", !current);
-		};
-
-		const handleAuto = () => {
-			const active = this.toggleAutoSpeechSimulation();
-			if (autoCasterBtn) {
-				autoCasterBtn.textContent = active ? "⏹️ Detener Charla" : "🎙️ Auto Casters";
-				autoCasterBtn.classList.toggle("bg-emerald-600", active);
-			}
-			if (debugAutoCasterBtn) {
-				debugAutoCasterBtn.textContent = active ? "⏹️ Detener Charla" : "🎙️ Simular Charla Casters";
-				debugAutoCasterBtn.classList.toggle("bg-emerald-600", active);
-			}
-		};
-
-		if (c1Btn) c1Btn.onclick = handleC1;
-		if (debugC1Btn) debugC1Btn.onclick = handleC1;
-
-		if (c2Btn) c2Btn.onclick = handleC2;
-		if (debugC2Btn) debugC2Btn.onclick = handleC2;
-
-		if (autoCasterBtn) autoCasterBtn.onclick = handleAuto;
-		if (debugAutoCasterBtn) debugAutoCasterBtn.onclick = handleAuto;
-
-		if (micCasterBtn) {
-			micCasterBtn.onclick = async () => {
-				const active = await this.toggleMicVAD("caster-1");
-				micCasterBtn.textContent = active ? "🔴 Mic Activo (C1)" : "🎤 Probar Mic VAD";
-				micCasterBtn.classList.toggle("bg-red-600", active);
-			};
 		}
 	}
 
