@@ -32,6 +32,7 @@
 			<div class="absolute top-0 left-0 w-full h-full" id="resultContainer"></div>
 			<div class="absolute top-0 left-0 w-full h-full p-5 flex flex-col items-center gap-8 transition-all"
 				style="clip-path: polygon(0% 0%, 0% 0%, 0% 100%, 0% 100%)" id="mappoolContainer"></div>
+			<div id="virtualTilingCanvas" class="absolute top-0 left-0 w-full h-full pointer-events-none transition-all duration-300"></div>
 		</div>
 		<div id="bottomBar" class="absolute bottom-0 left-0 w-full h-[260px] text-custom-text">
 			<div id="scoreContainer" class="absolute top-0 left-0 w-full h-full opacity-0 transition-opacity">
@@ -198,7 +199,81 @@
 				<button id="obsApplyBtn" type="button" class="flex-1 py-2 px-4 rounded-xl bg-surface-0 hover:bg-surface-1 cursor-pointer font-medium text-sm">Apply Layout Now</button>
 			</div>
 		</div>
+		<div class="flex flex-col gap-4 p-5 rounded-xl border-1 border-surface-0 bg-base text-text min-w-[320px]">
+			<div class="font-medium text-lg flex items-center justify-between">
+				<span>🎮 Visual Simulation Lab</span>
+				<span class="text-xs bg-blue-600/30 text-blue-400 px-2 py-0.5 rounded font-mono">Live Demo</span>
+			</div>
+			<div class="text-xs text-subtext-0">
+				Prueba todas las animaciones, transiciones y flujos sin necesidad de abrir tosu! ni osu!
+			</div>
+			<div class="grid grid-cols-2 gap-2">
+				<button id="debugSimPlayBtn" type="button" class="py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs cursor-pointer shadow transition-all">
+					▶️ Simular Partida
+				</button>
+				<button id="debugSimSwapLeadBtn" type="button" class="py-2 px-3 rounded-lg bg-surface-0 hover:bg-surface-1 text-text text-xs cursor-pointer font-medium">
+					🔀 Voltear Ventaja
+				</button>
+				<button id="debugSimTiebreakerBtn" type="button" class="py-2 px-3 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs cursor-pointer font-medium">
+					🏆 4-4 Tiebreaker
+				</button>
+				<button id="debugSimNextMapBtn" type="button" class="py-2 px-3 rounded-lg bg-surface-0 hover:bg-surface-1 text-text text-xs cursor-pointer font-medium">
+					🎵 Cambiar Beatmap
+				</button>
+				<button id="debugSimToggleTilingBtn" type="button" class="py-2 px-3 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs cursor-pointer font-medium">
+					🪟 Ver Tiling
+				</button>
+				<button id="debugSimSendChatBtn" type="button" class="py-2 px-3 rounded-lg bg-surface-0 hover:bg-surface-1 text-text text-xs cursor-pointer font-medium">
+					💬 Enviar Chat
+				</button>
+			</div>
+		</div>
 	</div>
+
+	<!-- Interactive Visual Simulator Dock (Human Sandbox) -->
+	<div id="simFloatingDock" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2 select-none font-sans">
+		<div id="simToolbar" class="flex items-center gap-2 p-2 px-3 rounded-2xl bg-base/90 backdrop-blur-md border border-surface-1 shadow-2xl text-xs text-text transition-all">
+			<button id="simPlayBtn" type="button" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold cursor-pointer shadow transition-all">
+				<span id="simPlayIcon">▶️</span> <span id="simPlayText">Simular Partida (25s)</span>
+			</button>
+			<button id="simSwapLeadBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-surface-0 hover:bg-surface-1 cursor-pointer font-medium" title="Voltear Ventaja de Puntos">
+				🔀 Voltear Ventaja
+			</button>
+			<div class="h-4 w-[1px] bg-surface-1 mx-0.5"></div>
+			<button id="simStarLeftBtn" type="button" class="px-2 py-1.5 rounded-xl bg-surface-0 hover:bg-surface-1 cursor-pointer font-medium" title="+1 Estrella Izquierda">
+				⭐ +L
+			</button>
+			<button id="simStarRightBtn" type="button" class="px-2 py-1.5 rounded-xl bg-surface-0 hover:bg-surface-1 cursor-pointer font-medium" title="+1 Estrella Derecha">
+				⭐ +R
+			</button>
+			<button id="simTiebreakerBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-amber-600/80 hover:bg-amber-600 text-white cursor-pointer font-medium" title="Poner en 4-4 Tiebreaker (Match Point)">
+				🏆 4-4 Tiebreaker
+			</button>
+			<div class="h-4 w-[1px] bg-surface-1 mx-0.5"></div>
+			<button id="simNextMapBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-surface-0 hover:bg-surface-1 cursor-pointer font-medium" title="Ciclar Preset de Beatmap (Freedom Dive, Blue Zenith...)">
+				🎵 Mapa
+			</button>
+			<button id="simSendChatBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-surface-0 hover:bg-surface-1 cursor-pointer font-medium" title="Enviar Mensaje de Chat Hype">
+				💬 Chat
+			</button>
+			<button id="simToggleTilingBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-purple-600/80 hover:bg-purple-600 text-white cursor-pointer font-medium" title="Previsualizar Ventanas de Clientes Tiled en Pantalla">
+				🪟 Ver Tiling
+			</button>
+			<button id="simToggleResultBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-surface-0 hover:bg-surface-1 cursor-pointer font-medium" title="Alternar Pantalla de Resultados">
+				🏁 Resultados
+			</button>
+			<button id="simResetBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-red-600/80 hover:bg-red-600 text-white cursor-pointer font-medium" title="Reiniciar a Estado Inicial">
+				🔄 Reset
+			</button>
+			<button id="simCollapseBtn" type="button" class="p-1.5 px-2 rounded-xl text-subtext-0 hover:text-text cursor-pointer" title="Colapsar barra">
+				✖
+			</button>
+		</div>
+		<button id="simExpandBtn" type="button" class="hidden px-4 py-1.5 rounded-full bg-base/90 backdrop-blur-md border border-surface-1 text-xs text-text shadow-xl hover:bg-surface-0 cursor-pointer font-semibold">
+			🎮 Simulador Visual & Testbench
+		</button>
+	</div>
+
 	<script type="module" src="/src/main.ts"></script>
 </body>
 

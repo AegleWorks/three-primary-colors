@@ -7,6 +7,7 @@ import ScoreHandler from "./handler/ScoreHandler";
 import TeamHandler from "./handler/TeamHandler";
 import OBSHandler from "./handler/OBSHandler";
 import ResultHandler from "./handler/ResultHandler";
+import Simulator from "./handler/Simulator";
 import Test from "./Test";
 
 const engine = new ZEngine("ws://127.0.0.1:24050/ws");
@@ -19,6 +20,7 @@ const scoreHandler = new ScoreHandler(engine, test);
 const gameStateHandler = new GameStateHandler(engine, test);
 const obsHandler = new OBSHandler(engine);
 const resultHandler = new ResultHandler(engine, test);
+const simulator = new Simulator(engine, obsHandler);
 new MappoolHandler(beatmapHandler);
 
 test.assign({
@@ -34,4 +36,5 @@ test.assign({
 if (typeof window !== "undefined") {
 	(window as unknown as Record<string, unknown>).__overlayTest__ = test;
 	(window as unknown as Record<string, unknown>).__obsHandler__ = obsHandler;
+	(window as unknown as Record<string, unknown>).__simulator__ = simulator;
 }
