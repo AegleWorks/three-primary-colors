@@ -65,9 +65,42 @@ export default class CasterHandler {
 	render() {
 		if (!this.container) return;
 
-		this.container.innerHTML = "";
-		if (this.casters.length === 0) return;
+		if (this.casters.length === 0) {
+			this.container.innerHTML = "";
+			return;
+		}
 
+		// Smooth in-place DOM update if same casters are present to prevent image flicker
+		const existingCards = this.container.querySelectorAll<HTMLElement>("[id^='caster-']");
+		const existingIds = Array.from(existingCards).map((c) => c.id.replace("caster-", ""));
+		const currentIds = this.casters.map((c) => c.id);
+
+		const isSameRoster =
+			existingIds.length === currentIds.length &&
+			existingIds.every((id, idx) => id === currentIds[idx]);
+
+		if (isSameRoster) {
+			for (const caster of this.casters) {
+				const safeId = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(caster.id) : caster.id;
+				const card = this.container.querySelector<HTMLElement>(`#caster-${safeId}`);
+				if (!card) continue;
+
+				const img = card.querySelector<HTMLImageElement>(".caster-avatar");
+				if (img && img.src !== caster.avatarUrl) {
+					img.src = caster.avatarUrl;
+				}
+
+				const nameSpan = card.querySelector<HTMLElement>(".caster-name");
+				if (nameSpan && nameSpan.textContent !== caster.name) {
+					nameSpan.textContent = caster.name;
+				}
+
+				this.updateCasterDOM(caster);
+			}
+			return;
+		}
+
+		this.container.innerHTML = "";
 		for (const caster of this.casters) {
 			const card = document.createElement("div");
 			card.id = `caster-${caster.id}`;

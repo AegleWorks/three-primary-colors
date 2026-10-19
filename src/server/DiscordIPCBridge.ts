@@ -7,6 +7,8 @@ export interface DiscordUser {
 	username: string;
 	displayName: string;
 	avatarUrl: string;
+	osuId?: string;
+	osuAvatarUrl?: string;
 	isSpeaking: boolean;
 	mute: boolean;
 	deaf: boolean;
@@ -32,6 +34,83 @@ export class DiscordIPCBridge {
 	};
 
 	private subscribedChannelId: string | null = null;
+	private osuCache = new Map<string, { osuId: string; avatarUrl: string } | null>();
+
+	private extractPotentialUsernames(rawName: string): string[] {
+		const names: string[] = [];
+		const clean = rawName.trim();
+		if (!clean) return names;
+		names.push(clean);
+
+		// Remove clan tag brackets: [XYZ] Name or (XYZ) Name
+		const strippedBrackets = clean.replace(/^\[[^\]]+\]\s*/, "").replace(/^\([^\)]+\)\s*/, "").trim();
+		if (strippedBrackets && !names.includes(strippedBrackets)) names.push(strippedBrackets);
+
+		// Remove pipe prefix: XYZ | Name
+		const strippedPipe = clean.replace(/^[^|]+\|\s*/, "").trim();
+		if (strippedPipe && !names.includes(strippedPipe)) names.push(strippedPipe);
+
+		// Remove trailing role info: Name (Caster) or Name [Caster]
+		const strippedSuffix = clean.replace(/\s*(\[[^\]]+\]|\([^\)]+\))$/, "").trim();
+		if (strippedSuffix && !names.includes(strippedSuffix)) names.push(strippedSuffix);
+
+		return names;
+	}
+
+	private async resolveOsuProfile(nickname: string): Promise<{ osuId: string; avatarUrl: string } | null> {
+		const candidates = this.extractPotentialUsernames(nickname);
+		for (const candidate of candidates) {
+			const key = candidate.toLowerCase();
+			if (this.osuCache.has(key)) {
+				const cached = this.osuCache.get(key);
+				if (cached) return cached;
+				continue;
+			}
+
+			try {
+				const res = await fetch(`https://osu.ppy.sh/users/${encodeURIComponent(candidate)}`, {
+					method: "HEAD",
+					redirect: "manual",
+					headers: { "User-Agent": "Mozilla/5.0 (VCL-Overlay/1.0)" },
+				});
+
+				const location = res.headers.get("location");
+				if (location) {
+					const match = location.match(/\/users\/(\d+)/);
+					if (match && match[1]) {
+						const osuId = match[1];
+						const result = {
+							osuId,
+							avatarUrl: `https://a.ppy.sh/${osuId}`,
+						};
+						this.osuCache.set(key, result);
+						return result;
+					}
+				}
+
+				this.osuCache.set(key, null);
+			} catch (err) {
+				console.warn(`[DiscordBridge] Error checking osu user "${candidate}":`, err);
+			}
+		}
+
+		return null;
+	}
+
+	private async enrichUserWithOsu(user: DiscordUser) {
+		const targetId = user.id;
+		const targetNick = user.displayName;
+		const profile = await this.resolveOsuProfile(targetNick);
+
+		const current = this.state.users.get(targetId);
+		if (!current || current.displayName !== targetNick) return;
+
+		if (profile) {
+			current.osuId = profile.osuId;
+			current.osuAvatarUrl = profile.avatarUrl;
+			this.broadcastRoster();
+		}
+	}
 
 	constructor(port = 24052) {
 		this.port = port;
@@ -342,6 +421,7 @@ export class DiscordIPCBridge {
 				};
 				this.state.users.set(user.id, newUser);
 				this.broadcastRoster();
+				this.enrichUserWithOsu(newUser);
 			}
 			return;
 		}
@@ -371,12 +451,16 @@ export class DiscordIPCBridge {
 
 			const existing = this.state.users.get(userId);
 			if (existing) {
+				const prevNick = existing.displayName;
 				if (data.nick) existing.displayName = data.nick;
 				if (data.voice_state?.mute !== undefined || data.mute !== undefined) {
 					existing.mute = Boolean(data.voice_state?.mute ?? data.mute);
 					existing.deaf = Boolean(data.voice_state?.deaf ?? data.deaf);
 				}
 				this.broadcastRoster();
+				if (data.nick && data.nick !== prevNick) {
+					this.enrichUserWithOsu(existing);
+				}
 			} else if (user) {
 				const newUser: DiscordUser = {
 					id: user.id,
@@ -389,6 +473,7 @@ export class DiscordIPCBridge {
 				};
 				this.state.users.set(user.id, newUser);
 				this.broadcastRoster();
+				this.enrichUserWithOsu(newUser);
 			}
 			return;
 		}
@@ -484,6 +569,7 @@ export class DiscordIPCBridge {
 			};
 
 			this.state.users.set(user.id, discordUser);
+			this.enrichUserWithOsu(discordUser);
 		}
 
 		this.broadcastRoster();

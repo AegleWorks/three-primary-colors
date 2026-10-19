@@ -36,6 +36,8 @@ export function resolveCasterProfile(discordUser: {
 	username?: string;
 	displayName?: string;
 	avatarUrl?: string;
+	osuId?: string | number;
+	osuAvatarUrl?: string;
 }): { name: string; avatarUrl: string; osuId?: string | number } {
 	const mapping = DISCORD_TO_CASTER_MAP[discordUser.id];
 
@@ -53,7 +55,7 @@ export function resolveCasterProfile(discordUser: {
 		}
 	}
 
-	const resolvedOsuId = urlOsuId || mapping?.osuId;
+	const resolvedOsuId = urlOsuId || mapping?.osuId || discordUser.osuId;
 	const resolvedName =
 		urlOsuName ||
 		mapping?.osuName ||
@@ -61,11 +63,14 @@ export function resolveCasterProfile(discordUser: {
 		discordUser.username ||
 		"Commentator";
 
-	let resolvedAvatar = discordUser.avatarUrl || "https://cdn.discordapp.com/embed/avatars/0.png";
+	let resolvedAvatar =
+		discordUser.osuAvatarUrl ||
+		discordUser.avatarUrl ||
+		"https://cdn.discordapp.com/embed/avatars/0.png";
 
 	if (mapping?.avatarUrl) {
 		resolvedAvatar = mapping.avatarUrl;
-	} else if (resolvedOsuId) {
+	} else if (urlOsuId || mapping?.osuId) {
 		resolvedAvatar = `https://a.ppy.sh/${resolvedOsuId}`;
 	}
 
