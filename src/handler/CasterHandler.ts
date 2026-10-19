@@ -78,9 +78,6 @@ export default class CasterHandler {
 						class="caster-avatar w-11 h-11 rounded-full object-cover border-2 transition-all duration-150 ${ringClasses}"
 						onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'"
 					/>
-					<span class="caster-indicator absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-base transition-colors duration-150 ${
-						caster.isSpeaking ? "bg-emerald-400 shadow-sm shadow-emerald-400" : "bg-surface-1"
-					}"></span>
 				</div>
 				<span class="caster-name px-2 py-0.5 rounded-full bg-black/60 backdrop-blur text-[11px] font-semibold text-white/90 border border-white/10 tracking-wide truncate max-w-[110px]">
 					${caster.name}
@@ -135,7 +132,6 @@ export default class CasterHandler {
 		if (!card) return;
 
 		const avatar = card.querySelector<HTMLElement>(".caster-avatar");
-		const indicator = card.querySelector<HTMLElement>(".caster-indicator");
 
 		if (avatar) {
 			if (caster.isSpeaking) {
@@ -158,16 +154,6 @@ export default class CasterHandler {
 					"opacity-100",
 				);
 				avatar.classList.add("border-surface-1/80", "ring-0", "shadow-none", "scale-100", "opacity-85");
-			}
-		}
-
-		if (indicator) {
-			if (caster.isSpeaking) {
-				indicator.classList.remove("bg-surface-1");
-				indicator.classList.add("bg-emerald-400", "shadow-sm", "shadow-emerald-400");
-			} else {
-				indicator.classList.remove("bg-emerald-400", "shadow-sm", "shadow-emerald-400");
-				indicator.classList.add("bg-surface-1");
 			}
 		}
 	}
