@@ -8,6 +8,7 @@ import TeamHandler from "./handler/TeamHandler";
 import OBSHandler from "./handler/OBSHandler";
 import ResultHandler from "./handler/ResultHandler";
 import ChokeImpactHandler from "./handler/ChokeImpactHandler";
+import CasterHandler from "./handler/CasterHandler";
 import Simulator from "./handler/Simulator";
 import Test from "./Test";
 
@@ -22,7 +23,8 @@ const gameStateHandler = new GameStateHandler(engine, test);
 const obsHandler = new OBSHandler(engine);
 const resultHandler = new ResultHandler(engine, test);
 const chokeImpactHandler = new ChokeImpactHandler(engine);
-const simulator = new Simulator(engine, obsHandler, chokeImpactHandler);
+const casterHandler = new CasterHandler("#commentatorDeck");
+const simulator = new Simulator(engine, obsHandler, chokeImpactHandler, casterHandler);
 new MappoolHandler(beatmapHandler);
 
 test.assign({
@@ -39,4 +41,5 @@ if (typeof window !== "undefined") {
 	(window as unknown as Record<string, unknown>).__overlayTest__ = test;
 	(window as unknown as Record<string, unknown>).__obsHandler__ = obsHandler;
 	(window as unknown as Record<string, unknown>).__simulator__ = simulator;
+	(window as unknown as Record<string, unknown>).__casterHandler__ = casterHandler;
 }

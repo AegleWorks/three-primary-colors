@@ -23,6 +23,8 @@
 				<div id="nameLeft" class="text-xl">Team Left</div>
 				<div id="starLeft" class="flex gap-1"></div>
 			</div>
+			<!-- Discord-Style Reactive Commentators / Casters Deck -->
+			<div id="commentatorDeck" class="flex items-center gap-6 z-10"></div>
 			<div class="flex flex-col items-end gap-2.5">
 				<div id="nameRight" class="text-xl">Team Right</div>
 				<div id="starRight" class="flex gap-1 flex-row-reverse"></div>
@@ -262,6 +264,15 @@
 				<button id="debugSimChokeRightBtn" type="button" class="py-2 px-3 rounded-lg bg-red-700 hover:bg-red-600 text-white font-bold text-xs cursor-pointer shadow">
 					💥 Choke Derecha
 				</button>
+				<button id="debugSimTalkC1Btn" type="button" class="py-2 px-3 rounded-lg bg-surface-0 hover:bg-surface-1 text-text text-xs cursor-pointer font-medium">
+					🎙️ Hablar Caster 1
+				</button>
+				<button id="debugSimTalkC2Btn" type="button" class="py-2 px-3 rounded-lg bg-surface-0 hover:bg-surface-1 text-text text-xs cursor-pointer font-medium">
+					🎙️ Hablar Caster 2
+				</button>
+				<button id="debugSimAutoCasterBtn" type="button" class="col-span-2 py-2 px-3 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-xs cursor-pointer shadow transition-all">
+					🎙️ Simular Charla Casters
+				</button>
 			</div>
 		</div>
 	</div>
@@ -303,6 +314,19 @@
 			</button>
 			<button id="simChokeRightBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-red-700/80 hover:bg-red-700 text-white cursor-pointer font-bold" title="Simular Choke / Quiebre de Combo en Equipo Derecho">
 				💥 Choke R
+			</button>
+			<div class="h-4 w-[1px] bg-surface-1 mx-0.5"></div>
+			<button id="simTalkCaster1Btn" type="button" class="px-2 py-1.5 rounded-xl bg-surface-0 hover:bg-surface-1 cursor-pointer font-medium" title="Hablar / Silenciar Caster 1">
+				🎙️ C1
+			</button>
+			<button id="simTalkCaster2Btn" type="button" class="px-2 py-1.5 rounded-xl bg-surface-0 hover:bg-surface-1 cursor-pointer font-medium" title="Hablar / Silenciar Caster 2">
+				🎙️ C2
+			</button>
+			<button id="simAutoCasterBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-emerald-700/80 hover:bg-emerald-600 text-white cursor-pointer font-medium" title="Simular Diálogo de Comentaristas">
+				🎙️ Auto Casters
+			</button>
+			<button id="simMicCasterBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-surface-0 hover:bg-surface-1 cursor-pointer font-medium text-amber-300" title="Activar Detección de Micrófono Web Audio (VAD)">
+				🎤 Probar Mic
 			</button>
 			<button id="simResetBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-red-600/80 hover:bg-red-600 text-white cursor-pointer font-medium" title="Reiniciar a Estado Inicial">
 				🔄 Reset

@@ -2,6 +2,7 @@ import type ZEngine from "@fukutotojido/z-engine";
 import TilingEngine, { type TilingLayoutMode } from "./TilingEngine";
 import type OBSHandler from "./OBSHandler";
 import type ChokeImpactHandler from "./ChokeImpactHandler";
+import type CasterHandler from "./CasterHandler";
 
 export interface BeatmapPreset {
 	id: number;
@@ -86,16 +87,19 @@ export default class Simulator {
 
 	// Internal state matching tosu WebSocket contract
 	chokeImpactHandler?: ChokeImpactHandler;
+	casterHandler?: CasterHandler;
 	mockData: any;
 
 	constructor(
 		engine: ZEngine,
 		obsHandler?: OBSHandler,
 		chokeImpactHandler?: ChokeImpactHandler,
+		casterHandler?: CasterHandler,
 	) {
 		this.engine = engine;
 		this.obsHandler = obsHandler;
 		this.chokeImpactHandler = chokeImpactHandler;
+		this.casterHandler = casterHandler;
 		this.initMockData();
 		this.bindUI();
 
@@ -306,10 +310,20 @@ export default class Simulator {
 			// Simulated commentary triggers
 			if (Math.abs(this.simElapsedSeconds - 6.0) < 0.1) {
 				this.sendChat("Left team pulls ahead by 30k!", "bot");
+				this.casterHandler?.setSpeaking("caster-1", true);
+				setTimeout(() => this.casterHandler?.setSpeaking("caster-1", false), 2200);
 			} else if (Math.abs(this.simElapsedSeconds - 14.0) < 0.1) {
 				this.sendChat("INCREDIBLE CLUTCH! Right team overtakes!!", "right");
+				this.casterHandler?.setSpeaking("caster-2", true);
+				setTimeout(() => this.casterHandler?.setSpeaking("caster-2", false), 2600);
 			} else if (Math.abs(this.simElapsedSeconds - 20.0) < 0.1) {
 				this.sendChat("NECK AND NECK FINAL STRETCH!", "left");
+				this.casterHandler?.setSpeaking("caster-1", true);
+				this.casterHandler?.setSpeaking("caster-2", true);
+				setTimeout(() => {
+					this.casterHandler?.setSpeaking("caster-1", false);
+					this.casterHandler?.setSpeaking("caster-2", false);
+				}, 2400);
 			}
 
 			this.broadcastUpdate();
@@ -328,6 +342,8 @@ export default class Simulator {
 			clearInterval(this.simulationTimer);
 			this.simulationTimer = null;
 		}
+		this.casterHandler?.setSpeaking("caster-1", false);
+		this.casterHandler?.setSpeaking("caster-2", false);
 		this.isSimulating = false;
 	}
 
@@ -374,6 +390,12 @@ export default class Simulator {
 				isSessionRecord: true,
 				missNumber: client.gameplay.hits[0],
 			});
+		}
+
+		if (this.casterHandler) {
+			const reactingCaster = Math.random() > 0.5 ? "caster-1" : "caster-2";
+			this.casterHandler.setSpeaking(reactingCaster, true);
+			setTimeout(() => this.casterHandler?.setSpeaking(reactingCaster, false), 2500);
 		}
 
 		this.sendChat(
