@@ -62,7 +62,18 @@ export class DiscordIPCBridge {
 	private initWebSocketServer() {
 		try {
 			this.wss = new WebSocketServer({ port: this.port });
-			console.log(`[DiscordBridge] WebSocket broadcast server listening on ws://127.0.0.1:${this.port}`);
+
+			this.wss.on("error", (err: any) => {
+				if (err?.code === "EADDRINUSE") {
+					console.warn(`[DiscordBridge] Port ${this.port} is already in use, reusing existing listener.`);
+				} else {
+					console.warn(`[DiscordBridge] WebSocket error:`, err);
+				}
+			});
+
+			this.wss.on("listening", () => {
+				console.log(`[DiscordBridge] WebSocket broadcast server listening on ws://127.0.0.1:${this.port}`);
+			});
 
 			this.wss.on("connection", (ws: WebSocket) => {
 				// Send immediate current state
@@ -163,9 +174,11 @@ export class DiscordIPCBridge {
 		}
 
 		this.isConnecting = true;
-		const socket = net.createConnection(socketPath, () => {
+		const socket = net.createConnection(socketPath);
+		this.ipcSocket = socket;
+
+		socket.on("connect", () => {
 			this.isConnecting = false;
-			this.ipcSocket = socket;
 			this.state.connectedToDiscord = true;
 			console.log(`[DiscordBridge] Connected to Discord IPC via ${socketPath}`);
 

@@ -4,20 +4,21 @@ import { defineConfig, type Plugin } from "vite";
 import { DiscordIPCBridge } from "./src/server/DiscordIPCBridge";
 
 function discordBridgePlugin(): Plugin {
-	let bridge: DiscordIPCBridge | null = null;
-
 	return {
 		name: "discord-ipc-bridge-plugin",
 		configureServer() {
-			if (!bridge) {
-				bridge = new DiscordIPCBridge(24052);
-				bridge.start();
+			const g = globalThis as unknown as { __discordBridge__?: DiscordIPCBridge };
+			if (g.__discordBridge__) {
+				g.__discordBridge__.stop();
 			}
+			g.__discordBridge__ = new DiscordIPCBridge(24052);
+			g.__discordBridge__.start();
 		},
 		closeBundle() {
-			if (bridge) {
-				bridge.stop();
-				bridge = null;
+			const g = globalThis as unknown as { __discordBridge__?: DiscordIPCBridge };
+			if (g.__discordBridge__) {
+				g.__discordBridge__.stop();
+				g.__discordBridge__ = undefined;
 			}
 		},
 	};
