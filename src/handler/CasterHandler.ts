@@ -30,12 +30,15 @@ export default class CasterHandler {
 	private vadAnimationId: number | null = null;
 
 	private autoSpeechTimer: ReturnType<typeof setInterval> | null = null;
+	private discordWs: WebSocket | null = null;
+	private isDiscordConnected = false;
 
 	constructor(containerSelector = "#commentatorDeck") {
 		this.container = document.querySelector<HTMLElement>(containerSelector);
 		this.loadFromURLParams();
 		this.render();
 		this.bindControls();
+		this.initDiscordBridge();
 	}
 
 	/**
@@ -81,6 +84,10 @@ export default class CasterHandler {
 				? "border-emerald-400 ring-4 ring-emerald-500/60 shadow-[0_0_22px_rgba(16,185,129,0.9)] scale-105"
 				: "border-surface-1/80 ring-0 shadow-none scale-100 opacity-85 group-hover:opacity-100";
 
+			const discordIndicator = this.isDiscordConnected && caster.discordId
+				? `<span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-2 ring-base" title="Discord Voice Live"></span>`
+				: "";
+
 			card.innerHTML = `
 				<div class="relative">
 					<img src="${caster.avatarUrl}" alt="${caster.name}"
@@ -90,6 +97,7 @@ export default class CasterHandler {
 					<span class="caster-indicator absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-base transition-colors duration-150 ${
 						caster.isSpeaking ? "bg-emerald-400 shadow-sm shadow-emerald-400" : "bg-surface-1"
 					}"></span>
+					${discordIndicator}
 				</div>
 				<span class="caster-name px-2 py-0.5 rounded-full bg-black/60 backdrop-blur text-[11px] font-semibold text-white/90 border border-white/10 tracking-wide truncate max-w-[110px]">
 					${caster.name}
@@ -127,7 +135,9 @@ export default class CasterHandler {
 	 * Updates the speaking state of a specific commentator.
 	 */
 	setSpeaking(casterId: string, isSpeaking: boolean) {
-		const caster = this.casters.find((c) => c.id === casterId);
+		const caster = this.casters.find(
+			(c) => c.id === casterId || c.discordId === casterId,
+		);
 		if (!caster) return;
 
 		if (caster.isSpeaking === isSpeaking) return;
@@ -137,7 +147,8 @@ export default class CasterHandler {
 	}
 
 	private updateCasterDOM(caster: Caster) {
-		const card = this.container?.querySelector(`#caster-${caster.id}`);
+		const safeId = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(caster.id) : caster.id;
+		const card = this.container?.querySelector(`#caster-${safeId}`);
 		if (!card) return;
 
 		const avatar = card.querySelector<HTMLElement>(".caster-avatar");
@@ -358,5 +369,84 @@ export default class CasterHandler {
 				micCasterBtn.classList.toggle("bg-red-600", active);
 			};
 		}
+	}
+
+	/**
+	 * Connects to the local Discord IPC Bridge WebSocket to receive real commentator
+	 * Discord avatars and speaking events with zero external bot requirement.
+	 */
+	private initDiscordBridge(wsUrl = "ws://127.0.0.1:24052") {
+		if (typeof window === "undefined") return;
+
+		let retryTimeout: ReturnType<typeof setTimeout> | null = null;
+
+		const connect = () => {
+			try {
+				const ws = new WebSocket(wsUrl);
+				this.discordWs = ws;
+
+				ws.onopen = () => {
+					this.isDiscordConnected = true;
+					console.log("[CasterHandler] Connected to Discord IPC Bridge");
+				};
+
+				ws.onmessage = (event) => {
+					try {
+						const msg = JSON.parse(event.data);
+						if (msg.type === "discord_roster") {
+							if (Array.isArray(msg.users) && msg.users.length > 0) {
+								this.casters = msg.users.map((u: any) => ({
+									id: u.id,
+									discordId: u.id,
+									name: u.displayName || u.username,
+									avatarUrl: u.avatarUrl,
+									isSpeaking: Boolean(u.isSpeaking),
+								}));
+								this.render();
+							}
+						} else if (msg.type === "discord_speaking") {
+							this.setSpeaking(msg.userId, Boolean(msg.isSpeaking));
+						}
+					} catch (e) {
+						console.warn("[CasterHandler] Discord message parse error:", e);
+					}
+				};
+
+				ws.onclose = () => {
+					this.isDiscordConnected = false;
+					if (!retryTimeout) {
+						retryTimeout = setTimeout(() => {
+							retryTimeout = null;
+							connect();
+						}, 3500);
+					}
+				};
+
+				ws.onerror = () => {
+					ws.close();
+				};
+			} catch {
+				if (!retryTimeout) {
+					retryTimeout = setTimeout(() => {
+						retryTimeout = null;
+						connect();
+					}, 3500);
+				}
+			}
+		};
+
+		connect();
+	}
+
+	disconnectDiscordBridge() {
+		if (this.discordWs) {
+			this.discordWs.close();
+			this.discordWs = null;
+		}
+		this.isDiscordConnected = false;
+	}
+
+	get hasDiscordBridgeActive(): boolean {
+		return this.isDiscordConnected;
 	}
 }

@@ -1,9 +1,30 @@
 import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
+import { DiscordIPCBridge } from "./src/server/DiscordIPCBridge";
+
+function discordBridgePlugin(): Plugin {
+	let bridge: DiscordIPCBridge | null = null;
+
+	return {
+		name: "discord-ipc-bridge-plugin",
+		configureServer() {
+			if (!bridge) {
+				bridge = new DiscordIPCBridge(24052);
+				bridge.start();
+			}
+		},
+		closeBundle() {
+			if (bridge) {
+				bridge.stop();
+				bridge = null;
+			}
+		},
+	};
+}
 
 export default defineConfig({
-	plugins: [tailwindcss()],
+	plugins: [tailwindcss(), discordBridgePlugin()],
 	base: "./",
 	build: {
 		target: "esnext", //browsers can handle the latest ES features,
