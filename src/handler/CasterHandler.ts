@@ -1,9 +1,12 @@
+import { resolveCasterProfile } from "../config/casters";
+
 export interface Caster {
 	id: string;
 	name: string;
 	avatarUrl: string;
 	isSpeaking: boolean;
 	discordId?: string;
+	osuId?: string | number;
 }
 
 export default class CasterHandler {
@@ -161,13 +164,17 @@ export default class CasterHandler {
 					try {
 						const msg = JSON.parse(event.data);
 						if (msg.type === "discord_roster" && Array.isArray(msg.users)) {
-							this.casters = msg.users.map((u: any) => ({
-								id: u.id,
-								discordId: u.id,
-								name: u.displayName || u.username,
-								avatarUrl: u.avatarUrl,
-								isSpeaking: Boolean(u.isSpeaking),
-							}));
+							this.casters = msg.users.map((u: any) => {
+								const profile = resolveCasterProfile(u);
+								return {
+									id: u.id,
+									discordId: u.id,
+									name: profile.name,
+									avatarUrl: profile.avatarUrl,
+									osuId: profile.osuId,
+									isSpeaking: Boolean(u.isSpeaking),
+								};
+							});
 							this.render();
 						} else if (msg.type === "discord_speaking") {
 							this.setSpeaking(msg.userId, Boolean(msg.isSpeaking));
