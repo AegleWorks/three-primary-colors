@@ -32,10 +32,10 @@
 	--spacing-custom-border: 0;
 	/* Text Color */
 	--color-custom-text: white;
-	/* Left Side Color */
-	--color-custom-side-left: #ff4f75;
-	/* Right Side Color */
-	--color-custom-side-right: #4f92ff;
+	/* Left Side Color (Amarillo) */
+	--color-custom-side-left: #FFCD00;
+	/* Right Side Color (Azul) */
+	--color-custom-side-right: #003087;
 	/* Bot Side Color in Chatbox */
 	--color-custom-side-bot: var(--color-yellow);
 	/* Border Color of Stars Counter */

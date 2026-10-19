@@ -11,7 +11,7 @@
 	<link rel="stylesheet" href="/src/styles/score.css">
 	<link rel="stylesheet" href="/src/styles/scrollbar.css">
 	<link rel="stylesheet" href="/src/styles/test.css">
-	<title>Vietnam Community League Overlay</title>
+	<title>Operation TRICOLOR // Overlay</title>
 </head>
 
 <body>
@@ -149,6 +149,53 @@
 						class="appearance-none w-5 h-5 rounded-full border-2 border-surface-0 checked:border-text before:content-['_'] before:transition-all before:w-0 before:h-0 checked:before:w-2.5 checked:before:h-2.5 before:rounded-full before:block before:bg-text flex items-center justify-center transition-all">
 					<label for="scoring-miss">Lowest Misscount</label>
 				</div>
+			</div>
+		</div>
+		<div class="flex flex-col gap-5 p-5 rounded-xl border-1 border-surface-0 bg-base text-text">
+			<div class="font-medium text-lg flex items-center justify-between">
+				<span>OBS Auto-Tiling (Hyprland Mode)</span>
+				<span id="obsStatusDot" class="w-3 h-3 rounded-full bg-red-500 inline-block" title="Disconnected"></span>
+			</div>
+			<div class="flex flex-col gap-2.5 text-sm">
+				<div class="flex items-center gap-2">
+					<label for="obsUrl" class="w-24">WS URL:</label>
+					<input type="text" id="obsUrl" value="ws://127.0.0.1:4455" class="bg-surface-0 px-2 py-1 rounded border border-surface-1 text-text flex-1">
+				</div>
+				<div class="flex items-center gap-2">
+					<label for="obsPassword" class="w-24">Password:</label>
+					<input type="password" id="obsPassword" placeholder="(Optional)" class="bg-surface-0 px-2 py-1 rounded border border-surface-1 text-text flex-1">
+				</div>
+				<div class="flex items-center gap-2">
+					<label for="obsSceneName" class="w-24">Scene Name:</label>
+					<input type="text" id="obsSceneName" value="osu! rempalago" class="bg-surface-0 px-2 py-1 rounded border border-surface-1 text-text flex-1">
+				</div>
+				<div class="flex items-center gap-2">
+					<label for="obsLayoutMode" class="w-24">Layout:</label>
+					<select id="obsLayoutMode" class="bg-surface-0 px-2 py-1 rounded border border-surface-1 text-text flex-1">
+						<option value="dwindle">Dwindle (Hyprland)</option>
+						<option value="grid">Balanced Grid</option>
+						<option value="master-stack">Master-Stack</option>
+						<option value="team-split">Team Split (Left vs Right)</option>
+					</select>
+				</div>
+				<div class="flex items-center gap-4 mt-1">
+					<div class="flex items-center gap-2">
+						<label for="obsGap">Gap:</label>
+						<input type="number" id="obsGap" value="8" min="0" max="64" class="w-16 bg-surface-0 px-2 py-1 rounded border border-surface-1 text-text">
+					</div>
+					<div class="flex items-center gap-2">
+						<input type="checkbox" id="obsAutoTile" checked>
+						<label for="obsAutoTile">Auto-Tile on Client Change</label>
+					</div>
+				</div>
+			</div>
+			<div class="flex flex-col gap-2">
+				<button id="obsAutoSetupBtn" type="button" class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white cursor-pointer font-semibold text-sm transition-colors shadow">⚡ Auto-Setup 'osu! rempalago' Scene</button>
+				<div id="obsSetupStatus" class="text-xs min-h-[1rem]"></div>
+			</div>
+			<div class="flex gap-2.5">
+				<button id="obsConnectBtn" type="button" class="flex-1 py-2 px-4 rounded-xl bg-surface-0 hover:bg-surface-1 cursor-pointer font-medium text-sm">Connect to OBS</button>
+				<button id="obsApplyBtn" type="button" class="flex-1 py-2 px-4 rounded-xl bg-surface-0 hover:bg-surface-1 cursor-pointer font-medium text-sm">Apply Layout Now</button>
 			</div>
 		</div>
 	</div>
