@@ -7,20 +7,7 @@ export interface Caster {
 }
 
 export default class CasterHandler {
-	casters: Caster[] = [
-		{
-			id: "caster-1",
-			name: "Caster Alpha",
-			avatarUrl: "https://a.ppy.sh/2", // Peppy / default iconic avatar fallback
-			isSpeaking: false,
-		},
-		{
-			id: "caster-2",
-			name: "Caster Omega",
-			avatarUrl: "https://a.ppy.sh/3", // BanchoBot / caster fallback
-			isSpeaking: false,
-		},
-	];
+	casters: Caster[] = [];
 
 	private container: HTMLElement | null = null;
 	private micStream: MediaStream | null = null;
@@ -72,32 +59,28 @@ export default class CasterHandler {
 		if (!this.container) return;
 
 		this.container.innerHTML = "";
+		if (this.casters.length === 0) return;
 
 		for (const caster of this.casters) {
 			const card = document.createElement("div");
 			card.id = `caster-${caster.id}`;
 			card.className =
 				"flex flex-col items-center gap-1.5 transition-transform duration-150 cursor-pointer select-none group";
-			card.title = `${caster.name} - Click para alternar voz | Doble click para editar`;
+			card.title = `${caster.name} (Discord Voice)`;
 
 			const ringClasses = caster.isSpeaking
 				? "border-emerald-400 ring-4 ring-emerald-500/60 shadow-[0_0_22px_rgba(16,185,129,0.9)] scale-105"
 				: "border-surface-1/80 ring-0 shadow-none scale-100 opacity-85 group-hover:opacity-100";
 
-			const discordIndicator = this.isDiscordConnected && caster.discordId
-				? `<span class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-indigo-500 ring-2 ring-base" title="Discord Voice Live"></span>`
-				: "";
-
 			card.innerHTML = `
 				<div class="relative">
 					<img src="${caster.avatarUrl}" alt="${caster.name}"
 						class="caster-avatar w-11 h-11 rounded-full object-cover border-2 transition-all duration-150 ${ringClasses}"
-						onerror="this.src='https://a.ppy.sh/2'"
+						onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'"
 					/>
 					<span class="caster-indicator absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-base transition-colors duration-150 ${
 						caster.isSpeaking ? "bg-emerald-400 shadow-sm shadow-emerald-400" : "bg-surface-1"
 					}"></span>
-					${discordIndicator}
 				</div>
 				<span class="caster-name px-2 py-0.5 rounded-full bg-black/60 backdrop-blur text-[11px] font-semibold text-white/90 border border-white/10 tracking-wide truncate max-w-[110px]">
 					${caster.name}
