@@ -153,16 +153,14 @@ export default class ScoreHandler {
 				break;
 			}
 			case ScoringCondition.MAX_COMBO: {
-				const maxComboLeft = Math.max(
-					...this.clients
-						.filter((client) => client.team === "left")
-						.map((client) => client.maxCombo),
-				);
-				const maxComboRight = Math.max(
-					...this.clients
-						.filter((client) => client.team === "right")
-						.map((client) => client.maxCombo),
-				);
+				const leftCombos = this.clients
+					.filter((client) => client.team === "left")
+					.map((client) => client.maxCombo);
+				const rightCombos = this.clients
+					.filter((client) => client.team === "right")
+					.map((client) => client.maxCombo);
+				const maxComboLeft = leftCombos.length > 0 ? Math.max(...leftCombos) : 0;
+				const maxComboRight = rightCombos.length > 0 ? Math.max(...rightCombos) : 0;
 				this.updateScoring(maxComboLeft, maxComboRight);
 				break;
 			}
@@ -174,6 +172,7 @@ export default class ScoreHandler {
 					.filter((client) => client.team === "right")
 					.reduce((acc, curr) => acc + curr.h0, 0);
 				this.updateScoring(missCountLeft, missCountRight);
+				break;
 			}
 		}
 	}
@@ -214,16 +213,16 @@ export default class ScoreHandler {
 				return Math.min(0.4, (Math.abs(difference) / 1) ** 0.5 / 2);
 			}
 			case ScoringCondition.MAX_COMBO: {
+				const maxCombo = this.engine.cache?.menu?.bm?.stats?.maxCombo ?? 1;
 				return Math.min(
 					0.4,
-					(Math.abs(difference) /
-						Math.max(1, this.engine.cache.menu.bm.stats.maxCombo)) **
-						0.5 /
-						2,
+					(Math.abs(difference) / Math.max(1, maxCombo)) ** 0.5 / 2,
 				);
 			}
 			case ScoringCondition.MISS_COUNT: {
-				return Math.min(0.6, Math.abs(difference) / (left + right));
+				const totalMisses = left + right;
+				if (totalMisses <= 0) return 0;
+				return Math.min(0.6, Math.abs(difference) / totalMisses);
 			}
 		}
 	}
@@ -264,11 +263,15 @@ export default class ScoreHandler {
 			difference < 0 ===
 			(this.scoringCondition !== ScoringCondition.MISS_COUNT);
 
+		const safeFactor = Number.isFinite(lineDiffFactor)
+			? Math.min(1, Math.max(0, lineDiffFactor))
+			: 0;
+
 		this.barLeftElement.style.width = isLeftLeading
-			? `calc(${Math.min(1, lineDiffFactor)} * 960px)`
+			? `calc(${safeFactor} * 960px)`
 			: "0px";
 		this.barRightElement.style.width = isRightLeading
-			? `calc(${Math.min(1, lineDiffFactor)} * 960px)`
+			? `calc(${safeFactor} * 960px)`
 			: "0px";
 
 		if (isLeftLeading) {

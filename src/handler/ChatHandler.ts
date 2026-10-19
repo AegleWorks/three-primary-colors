@@ -9,6 +9,8 @@ interface Chat {
 }
 
 export default class ChatHandler {
+	private lastChatCount = 0;
+
 	static map = [
 		{
 			id: "chatInner",
@@ -40,11 +42,27 @@ export default class ChatHandler {
 	}
 
 	createChats(element: HTMLElement, chats: Chat[]) {
-		element.innerHTML = "";
+		if (!chats || chats.length === 0) {
+			element.innerHTML = "";
+			this.lastChatCount = 0;
+			return;
+		}
 
-		const elements = chats.map(this.createChat);
-		element.append(...elements);
-		element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
+		if (chats.length < this.lastChatCount) {
+			element.innerHTML = "";
+			this.lastChatCount = 0;
+		}
+
+		const newChats = chats.slice(this.lastChatCount);
+		if (newChats.length > 0) {
+			const fragment = document.createDocumentFragment();
+			for (const chat of newChats) {
+				fragment.appendChild(this.createChat(chat));
+			}
+			element.appendChild(fragment);
+			this.lastChatCount = chats.length;
+			element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });
+		}
 	}
 
 	createChat({

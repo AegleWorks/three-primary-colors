@@ -24,5 +24,11 @@ test.assign({
 	chatHandler,
 	teamHandler,
 	scoreHandler,
-    gameStateHandler
+	gameStateHandler,
+	obsHandler,
 });
+
+if (typeof window !== "undefined") {
+	(window as unknown as Record<string, unknown>).__overlayTest__ = test;
+	(window as unknown as Record<string, unknown>).__obsHandler__ = obsHandler;
+}

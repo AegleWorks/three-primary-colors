@@ -90,7 +90,11 @@ export default class BeatmapHandler {
 						break;
 					}
 					case "metadata": {
-						element.style.backgroundImage = `url("http://127.0.0.1:24050/Songs/${encodeURIComponent(newValue)}")`;
+						const host =
+							typeof window !== "undefined" && window.location?.hostname
+								? window.location.hostname
+								: "127.0.0.1";
+						element.style.backgroundImage = `url("http://${host}:24050/Songs/${encodeURIComponent(newValue)}")`;
 						break;
 					}
 					case "picker": {

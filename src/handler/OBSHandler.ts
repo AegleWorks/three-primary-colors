@@ -343,7 +343,7 @@ export default class OBSHandler {
 		// If no clients tracked yet from ZEngine, treat all mapped scene items as active
 		const hasTelemetry = Array.from(this.clientStates.values()).some((c) => c.name.length > 0);
 
-		for (const [clientIdx, sceneItemId] of this.activeSceneItemIdMap.entries()) {
+		for (const clientIdx of this.activeSceneItemIdMap.keys()) {
 			if (!hasTelemetry) {
 				activeClients.push(clientIdx);
 			} else {

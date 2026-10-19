@@ -41,15 +41,16 @@ export default class IPCClient {
 		this.idx = idx;
 
 		this.callbacks = IPCClient.VALUE_MAP.map(([ key, id ]) => {
+			const fullKey = `tourney.ipcClients.${this.idx}.${key}`;
 			// biome-ignore lint/suspicious/noExplicitAny: Var unused
 			const callback = (_: any, newValue: string | number) => this.updateValue(id, newValue);
-			engine.register(`tourney.ipcClients.${this.idx}.${key}`, callback);
+			engine.register(fullKey, callback);
 
 			return {
-				key,
+				key: fullKey,
 				callback
-			}
-		})
+			};
+		});
 	}
 
 	destruct() {
@@ -59,7 +60,6 @@ export default class IPCClient {
 	}
 
 	updateValue(key: string, value: string | number) {
-		// @ts-ignore
-		this[key] = value;
+		(this as unknown as Record<string, string | number>)[key] = value;
 	}
 }
