@@ -1,6 +1,7 @@
 import net from "node:net";
 import fs from "node:fs";
 import http from "node:http";
+import path from "node:path";
 import { WebSocketServer, WebSocket } from "ws";
 
 export interface DiscordUser {
@@ -114,6 +115,41 @@ export class DiscordIPCBridge {
 	}
 
 	private httpServer: http.Server | null = null;
+	private tokenFilePath = path.join(process.cwd(), ".discord_token.json");
+
+	private getCachedToken(): string | null {
+		try {
+			if (fs.existsSync(this.tokenFilePath)) {
+				const content = fs.readFileSync(this.tokenFilePath, "utf8");
+				const json = JSON.parse(content);
+				return json?.access_token || null;
+			}
+		} catch {}
+		return null;
+	}
+
+	private saveCachedToken(token: string | null) {
+		try {
+			if (token) {
+				fs.writeFileSync(this.tokenFilePath, JSON.stringify({ access_token: token }, null, 2), "utf8");
+			} else if (fs.existsSync(this.tokenFilePath)) {
+				fs.unlinkSync(this.tokenFilePath);
+			}
+		} catch (err) {
+			console.warn("[DiscordBridge] Failed to update token cache:", err);
+		}
+	}
+
+	private requestAuthorization() {
+		this.sendIPCFrame(1, {
+			cmd: "AUTHORIZE",
+			args: {
+				client_id: "207646673902501888",
+				scopes: ["rpc", "identify", "rpc.voice.read"],
+			},
+			nonce: "auth_init",
+		});
+	}
 
 	constructor(port = 24052) {
 		this.port = port;
@@ -327,20 +363,35 @@ export class DiscordIPCBridge {
 	private async handleIPCMessage(body: any) {
 		const { cmd, evt, data } = body;
 
-		// 1. Initial Handshake ready -> Authorize StreamKit
+		// 0. Handle OAuth rejection (e.g., token expired or revoked)
+		if (evt === "ERROR") {
+			if (body.nonce === "auth_cached_token" || cmd === "AUTHENTICATE") {
+				console.log("[DiscordBridge] Cached OAuth token expired or revoked. Requesting fresh authorization...");
+				this.saveCachedToken(null);
+				this.requestAuthorization();
+				return;
+			}
+		}
+
+		// 1. Initial Handshake ready -> Authenticate with cached token or Authorize
 		if (evt === "READY") {
-			this.sendIPCFrame(1, {
-				cmd: "AUTHORIZE",
-				args: {
-					client_id: "207646673902501888",
-					scopes: ["rpc", "identify", "rpc.voice.read"],
-				},
-				nonce: "auth_init",
-			});
+			const cachedToken = this.getCachedToken();
+			if (cachedToken) {
+				console.log("[DiscordBridge] Using saved OAuth token for zero-prompt authentication...");
+				this.sendIPCFrame(1, {
+					cmd: "AUTHENTICATE",
+					args: {
+						access_token: cachedToken,
+					},
+					nonce: "auth_cached_token",
+				});
+			} else {
+				this.requestAuthorization();
+			}
 			return;
 		}
 
-		// 2. Authorize response -> Exchange code for token
+		// 2. Authorize response -> Exchange code for token and save to cache
 		if (cmd === "AUTHORIZE" && data?.code) {
 			try {
 				const res = await fetch("https://streamkit.discord.com/overlay/token", {
@@ -351,6 +402,7 @@ export class DiscordIPCBridge {
 				const tokenRes = (await res.json()) as { access_token?: string };
 
 				if (tokenRes?.access_token) {
+					this.saveCachedToken(tokenRes.access_token);
 					this.sendIPCFrame(1, {
 						cmd: "AUTHENTICATE",
 						args: {
