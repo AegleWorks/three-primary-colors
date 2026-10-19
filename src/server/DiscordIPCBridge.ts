@@ -1,5 +1,6 @@
 import net from "node:net";
 import fs from "node:fs";
+import http from "node:http";
 import { WebSocketServer, WebSocket } from "ws";
 
 export interface DiscordUser {
@@ -112,6 +113,8 @@ export class DiscordIPCBridge {
 		}
 	}
 
+	private httpServer: http.Server | null = null;
+
 	constructor(port = 24052) {
 		this.port = port;
 	}
@@ -121,7 +124,7 @@ export class DiscordIPCBridge {
 		this.connectToDiscordIPC();
 	}
 
-	stop() {
+	stop(cb?: () => void) {
 		if (this.reconnectTimer) {
 			clearTimeout(this.reconnectTimer);
 			this.reconnectTimer = null;
@@ -136,26 +139,44 @@ export class DiscordIPCBridge {
 			this.wss.close();
 			this.wss = null;
 		}
+
+		if (this.httpServer) {
+			const server = this.httpServer;
+			this.httpServer = null;
+			server.close(() => {
+				cb?.();
+			});
+		} else {
+			cb?.();
+		}
 	}
 
-	private initWebSocketServer() {
-		try {
-			this.wss = new WebSocketServer({ port: this.port });
+	private initWebSocketServer(retries = 10) {
+		const server = http.createServer();
+		this.httpServer = server;
 
-			this.wss.on("error", (err: any) => {
-				if (err?.code === "EADDRINUSE") {
-					console.warn(`[DiscordBridge] Port ${this.port} is already in use, reusing existing listener.`);
+		server.on("error", (err: any) => {
+			if (err?.code === "EADDRINUSE") {
+				if (retries > 0) {
+					console.warn(`[DiscordBridge] Port ${this.port} is busy, retrying in 300ms... (${retries} attempts left)`);
+					setTimeout(() => {
+						this.initWebSocketServer(retries - 1);
+					}, 300);
 				} else {
-					console.warn(`[DiscordBridge] WebSocket error:`, err);
+					console.warn(`[DiscordBridge] Port ${this.port} is already in use.`);
 				}
-			});
+			} else {
+				console.warn(`[DiscordBridge] Server error:`, err);
+			}
+		});
 
-			this.wss.on("listening", () => {
-				console.log(`[DiscordBridge] WebSocket broadcast server listening on ws://127.0.0.1:${this.port}`);
-			});
+		server.listen(this.port, () => {
+			console.log(`[DiscordBridge] WebSocket broadcast server listening on ws://127.0.0.1:${this.port}`);
+			const wss = new WebSocketServer({ server });
+			this.wss = wss;
 
-			this.wss.on("connection", (ws: WebSocket) => {
-				// Send immediate current state
+			wss.on("connection", (ws: WebSocket) => {
+				console.log(`[DiscordBridge] Overlay client connected to WebSocket broadcast`);
 				this.sendToClient(ws, {
 					type: "discord_roster",
 					connected: this.state.connectedToDiscord,
@@ -163,9 +184,7 @@ export class DiscordIPCBridge {
 					users: Array.from(this.state.users.values()),
 				});
 			});
-		} catch (err) {
-			console.warn(`[DiscordBridge] Could not start WebSocketServer on port ${this.port}:`, err);
-		}
+		});
 	}
 
 	private broadcast(payload: unknown) {

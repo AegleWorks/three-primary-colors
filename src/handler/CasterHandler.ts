@@ -87,8 +87,7 @@ export default class CasterHandler {
 
 		// 2. Handle additions & in-place updates with entry animation
 		for (const caster of this.casters) {
-			const safeId = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(caster.id) : caster.id;
-			let card = this.container.querySelector<HTMLElement>(`#caster-${safeId}`);
+			let card = this.container.querySelector<HTMLElement>(`[data-caster-id="${caster.id}"]`);
 
 			if (card) {
 				if (card.classList.contains("caster-card-exit")) {
@@ -158,8 +157,7 @@ export default class CasterHandler {
 	}
 
 	private updateCasterDOM(caster: Caster) {
-		const safeId = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(caster.id) : caster.id;
-		const card = this.container?.querySelector(`#caster-${safeId}`);
+		const card = this.container?.querySelector<HTMLElement>(`[data-caster-id="${caster.id}"]`);
 		if (!card) return;
 
 		const avatar = card.querySelector<HTMLElement>(".caster-avatar");
