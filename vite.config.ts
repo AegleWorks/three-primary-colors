@@ -6,20 +6,19 @@ import { DiscordIPCBridge } from "./src/server/DiscordIPCBridge";
 function discordBridgePlugin(): Plugin {
 	return {
 		name: "discord-ipc-bridge-plugin",
-		configureServer() {
+		configureServer(server) {
 			const g = globalThis as unknown as { __discordBridge__?: DiscordIPCBridge };
 			if (g.__discordBridge__) {
 				g.__discordBridge__.stop();
 			}
-			g.__discordBridge__ = new DiscordIPCBridge(24052);
-			g.__discordBridge__.start();
-		},
-		closeBundle() {
-			const g = globalThis as unknown as { __discordBridge__?: DiscordIPCBridge };
-			if (g.__discordBridge__) {
-				g.__discordBridge__.stop();
+			const bridge = new DiscordIPCBridge(24052);
+			g.__discordBridge__ = bridge;
+			bridge.start();
+
+			server.httpServer?.on("close", () => {
+				bridge.stop();
 				g.__discordBridge__ = undefined;
-			}
+			});
 		},
 	};
 }
