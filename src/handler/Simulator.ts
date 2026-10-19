@@ -1,6 +1,7 @@
 import type ZEngine from "@fukutotojido/z-engine";
 import TilingEngine, { type TilingLayoutMode } from "./TilingEngine";
 import type OBSHandler from "./OBSHandler";
+import type ChokeImpactHandler from "./ChokeImpactHandler";
 
 export interface BeatmapPreset {
 	id: number;
@@ -84,11 +85,17 @@ export default class Simulator {
 	currentLayoutMode: TilingLayoutMode = "dwindle";
 
 	// Internal state matching tosu WebSocket contract
+	chokeImpactHandler?: ChokeImpactHandler;
 	mockData: any;
 
-	constructor(engine: ZEngine, obsHandler?: OBSHandler) {
+	constructor(
+		engine: ZEngine,
+		obsHandler?: OBSHandler,
+		chokeImpactHandler?: ChokeImpactHandler,
+	) {
 		this.engine = engine;
 		this.obsHandler = obsHandler;
+		this.chokeImpactHandler = chokeImpactHandler;
 		this.initMockData();
 		this.bindUI();
 
@@ -337,6 +344,42 @@ export default class Simulator {
 		} else {
 			this.mockData.tourney.manager.gameplay.score.left = right + diff;
 		}
+		this.broadcastUpdate();
+	}
+
+	/**
+	 * Simulates a dramatic heartbreak choke for the specified team.
+	 */
+	simulateChoke(team: "left" | "right") {
+		const clients = this.mockData.tourney.ipcClients ?? [];
+		const client =
+			clients.find((c: any) => c.team === team) ??
+			clients[team === "left" ? 0 : 2];
+		if (!client) return;
+
+		const brokenCombo = Math.floor(Math.random() * 350) + 650;
+		const playerName =
+			client.gameplay.name ||
+			(team === "left" ? "Alpha_AimGod" : "Omega_Carry");
+
+		// Drop current combo to 0 and increment miss count
+		client.gameplay.combo.current = 0;
+		client.gameplay.hits[0] = (client.gameplay.hits[0] || 0) + 1;
+
+		if (this.chokeImpactHandler) {
+			this.chokeImpactHandler.triggerImpactFX({
+				team,
+				playerName,
+				comboBroken: brokenCombo,
+				isSessionRecord: true,
+				missNumber: client.gameplay.hits[0],
+			});
+		}
+
+		this.sendChat(
+			`💔 CHOKE CRÍTICO! ${playerName} acaba de perder su combo de ${brokenCombo}x!`,
+			"bot",
+		);
 		this.broadcastUpdate();
 	}
 
@@ -609,6 +652,17 @@ export default class Simulator {
 		);
 		const resetBtn = document.querySelector<HTMLButtonElement>("#simResetBtn");
 
+		const chokeLeftBtn =
+			document.querySelector<HTMLButtonElement>("#simChokeLeftBtn");
+		const chokeRightBtn =
+			document.querySelector<HTMLButtonElement>("#simChokeRightBtn");
+		const debugChokeLeftBtn = document.querySelector<HTMLButtonElement>(
+			"#debugSimChokeLeftBtn",
+		);
+		const debugChokeRightBtn = document.querySelector<HTMLButtonElement>(
+			"#debugSimChokeRightBtn",
+		);
+
 		const collapseBtn =
 			document.querySelector<HTMLButtonElement>("#simCollapseBtn");
 		const expandBtn =
@@ -709,6 +763,14 @@ export default class Simulator {
 		if (toggleResultBtn) {
 			toggleResultBtn.onclick = () => this.toggleResultScreen();
 		}
+
+		if (chokeLeftBtn) chokeLeftBtn.onclick = () => this.simulateChoke("left");
+		if (chokeRightBtn)
+			chokeRightBtn.onclick = () => this.simulateChoke("right");
+		if (debugChokeLeftBtn)
+			debugChokeLeftBtn.onclick = () => this.simulateChoke("left");
+		if (debugChokeRightBtn)
+			debugChokeRightBtn.onclick = () => this.simulateChoke("right");
 
 		if (resetBtn) {
 			resetBtn.onclick = () => {

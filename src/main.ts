@@ -7,6 +7,7 @@ import ScoreHandler from "./handler/ScoreHandler";
 import TeamHandler from "./handler/TeamHandler";
 import OBSHandler from "./handler/OBSHandler";
 import ResultHandler from "./handler/ResultHandler";
+import ChokeImpactHandler from "./handler/ChokeImpactHandler";
 import Simulator from "./handler/Simulator";
 import Test from "./Test";
 
@@ -20,7 +21,8 @@ const scoreHandler = new ScoreHandler(engine, test);
 const gameStateHandler = new GameStateHandler(engine, test);
 const obsHandler = new OBSHandler(engine);
 const resultHandler = new ResultHandler(engine, test);
-const simulator = new Simulator(engine, obsHandler);
+const chokeImpactHandler = new ChokeImpactHandler(engine);
+const simulator = new Simulator(engine, obsHandler, chokeImpactHandler);
 new MappoolHandler(beatmapHandler);
 
 test.assign({

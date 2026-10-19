@@ -88,6 +88,36 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- Choke / High Impact Heartbreak Vignettes & Cards -->
+		<div id="chokeVignetteLeft" class="absolute top-0 left-0 w-[50%] h-full pointer-events-none opacity-0 z-20"
+			style="background: radial-gradient(circle at center left, rgba(239, 68, 68, 0.45) 0%, transparent 75%);"></div>
+		<div id="chokeVignetteRight" class="absolute top-0 right-0 w-[50%] h-full pointer-events-none opacity-0 z-20"
+			style="background: radial-gradient(circle at center right, rgba(239, 68, 68, 0.45) 0%, transparent 75%);"></div>
+
+		<!-- Left Player Choke Card (Anchored above score area) -->
+		<div id="chokeCardLeft" class="hidden opacity-0 translate-y-4 absolute bottom-[275px] left-[25%] -translate-x-1/2 z-30 transition-all duration-300 pointer-events-none">
+			<div class="relative flex flex-col items-center gap-1.5 p-4 px-6 rounded-2xl bg-black/85 backdrop-blur-md shadow-2xl min-w-[320px] text-center text-white overflow-hidden border border-white/10">
+				<div class="choke-glow absolute inset-0 rounded-2xl pointer-events-none"></div>
+				<span class="choke-badge">💔 COMBO BREAK</span>
+				<div class="choke-title text-2xl font-black tracking-wider text-red-500 drop-shadow-md">COMBO BREAK!</div>
+				<div class="text-sm font-medium text-white/80">
+					<span class="choke-player font-bold text-white">Player</span> perdió su racha de <span class="choke-streak font-black text-amber-300 text-base">0x</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Right Player Choke Card (Anchored above score area) -->
+		<div id="chokeCardRight" class="hidden opacity-0 translate-y-4 absolute bottom-[275px] right-[25%] translate-x-1/2 z-30 transition-all duration-300 pointer-events-none">
+			<div class="relative flex flex-col items-center gap-1.5 p-4 px-6 rounded-2xl bg-black/85 backdrop-blur-md shadow-2xl min-w-[320px] text-center text-white overflow-hidden border border-white/10">
+				<div class="choke-glow absolute inset-0 rounded-2xl pointer-events-none"></div>
+				<span class="choke-badge">💔 COMBO BREAK</span>
+				<div class="choke-title text-2xl font-black tracking-wider text-red-500 drop-shadow-md">COMBO BREAK!</div>
+				<div class="text-sm font-medium text-white/80">
+					<span class="choke-player font-bold text-white">Player</span> perdió su racha de <span class="choke-streak font-black text-amber-300 text-base">0x</span>
+				</div>
+			</div>
+		</div>
 	</div>
 	<div id="debug" class="absolute top-[1080px] p-5 bg-mantle w-[1920px] flex gap-5 text-text">
 		<div class="flex flex-col gap-5 p-5 rounded-xl border-1 border-surface-0 bg-base">
@@ -226,6 +256,12 @@
 				<button id="debugSimSendChatBtn" type="button" class="py-2 px-3 rounded-lg bg-surface-0 hover:bg-surface-1 text-text text-xs cursor-pointer font-medium">
 					💬 Enviar Chat
 				</button>
+				<button id="debugSimChokeLeftBtn" type="button" class="py-2 px-3 rounded-lg bg-red-700 hover:bg-red-600 text-white font-bold text-xs cursor-pointer shadow">
+					💥 Choke Izquierda
+				</button>
+				<button id="debugSimChokeRightBtn" type="button" class="py-2 px-3 rounded-lg bg-red-700 hover:bg-red-600 text-white font-bold text-xs cursor-pointer shadow">
+					💥 Choke Derecha
+				</button>
 			</div>
 		</div>
 	</div>
@@ -261,6 +297,12 @@
 			</button>
 			<button id="simToggleResultBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-surface-0 hover:bg-surface-1 cursor-pointer font-medium" title="Alternar Pantalla de Resultados">
 				🏁 Resultados
+			</button>
+			<button id="simChokeLeftBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-red-700/80 hover:bg-red-700 text-white cursor-pointer font-bold" title="Simular Choke / Quiebre de Combo en Equipo Izquierdo">
+				💥 Choke L
+			</button>
+			<button id="simChokeRightBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-red-700/80 hover:bg-red-700 text-white cursor-pointer font-bold" title="Simular Choke / Quiebre de Combo en Equipo Derecho">
+				💥 Choke R
 			</button>
 			<button id="simResetBtn" type="button" class="px-2.5 py-1.5 rounded-xl bg-red-600/80 hover:bg-red-600 text-white cursor-pointer font-medium" title="Reiniciar a Estado Inicial">
 				🔄 Reset

@@ -12,6 +12,7 @@ export default class IPCClient {
 	name = "";
 	score = 0;
 	accuracy = 0;
+	currentCombo = 0;
 	maxCombo = 0;
 	h0 = 0;
 	h50 = 0;
@@ -26,6 +27,7 @@ export default class IPCClient {
 		["gameplay.name", "name"],
 		["gameplay.score", "score"],
 		["gameplay.accuracy", "accuracy"],
+		["gameplay.combo.current", "currentCombo"],
 		["gameplay.combo.max", "maxCombo"],
 		["gameplay.hits.0", "h0"],
 		["gameplay.hits.50", "h50"],
