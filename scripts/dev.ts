@@ -2,14 +2,18 @@ import { spawn } from "node:child_process";
 
 console.log("[DevRunner] Starting Discord IPC Bridge and Vite dev server...");
 
+const isWin = process.platform === "win32";
+
 const bridge = spawn("bun", ["src/server/DiscordIPCBridge.ts"], {
 	stdio: "inherit",
 	env: process.env,
+	shell: isWin,
 });
 
 const vite = spawn("bun", ["x", "vite"], {
 	stdio: "inherit",
 	env: process.env,
+	shell: isWin,
 });
 
 function cleanup() {

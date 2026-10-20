@@ -321,6 +321,7 @@ export class DiscordIPCBridge {
 
 	private tokenFilePath = path.join(process.cwd(), ".discord_token.json");
 	private osuCache = new Map<string, { osuId: string; avatarUrl: string } | null>();
+	private failedPipes = new Map<string, number>();
 
 	readonly state: DiscordVoiceState = {
 		connectedToDiscord: false,
@@ -421,9 +422,15 @@ export class DiscordIPCBridge {
 	private getCandidateSockets(): string[] {
 		const isWin = process.platform === "win32";
 		if (isWin) {
+			const now = Date.now();
 			const pipes: string[] = [];
 			for (let i = 0; i < 10; i++) {
-				pipes.push(`\\\\.\\pipe\\discord-ipc-${i}`);
+				const p = `\\\\.\\pipe\\discord-ipc-${i}`;
+				const lastFailed = this.failedPipes.get(p) ?? 0;
+				// On Windows, keep discord-ipc-0 and 1 responsive; back off higher index pipes
+				if (i <= 1 || now - lastFailed > 15000) {
+					pipes.push(p);
+				}
 			}
 			return pipes;
 		}
@@ -475,11 +482,13 @@ export class DiscordIPCBridge {
 		}
 	}
 
-	onSessionReady(_session: IPCSocketSession) {
+	onSessionReady(session: IPCSocketSession) {
+		this.failedPipes.delete(session.path);
 		this.state.connectedToDiscord = true;
 	}
 
 	onSessionClosed(session: IPCSocketSession) {
+		this.failedPipes.set(session.path, Date.now());
 		this.sessions.delete(session.path);
 		if (this.activeSession === session) {
 			this.activeSession = null;
