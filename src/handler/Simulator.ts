@@ -152,8 +152,8 @@ export default class Simulator {
 					ipcState: 3,
 					bestOF: 9,
 					teamName: {
-						left: "Team Alpha (COL)",
-						right: "Team Omega (VEN)",
+						left: "Player 1",
+						right: "Player 2",
 					},
 					stars: {
 						left: 2,
@@ -173,13 +173,13 @@ export default class Simulator {
 						{
 							team: "left",
 							time: "14:01",
-							name: "Alpha_Leader",
-							messageBody: "gl hf everyone!",
+							name: "Player 1",
+							messageBody: "gl hf!",
 						},
 						{
 							team: "right",
 							time: "14:01",
-							name: "Omega_Sniper",
+							name: "Player 2",
 							messageBody: "buena suerte, que gane el mejor!",
 						},
 					],
@@ -194,8 +194,8 @@ export default class Simulator {
 					{
 						team: "left",
 						gameplay: {
-							name: "Alpha_AimGod",
-							score: 165000,
+							name: "Player 1",
+							score: 320000,
 							accuracy: 99.45,
 							combo: { current: 480, max: 480 },
 							hits: { 0: 0, 50: 0, 100: 3, 300: 477, grade: { current: "S" }, unstableRate: 72.4 },
@@ -204,37 +204,13 @@ export default class Simulator {
 						},
 					},
 					{
-						team: "left",
+						team: "right",
 						gameplay: {
-							name: "Alpha_Speedster",
-							score: 155000,
+							name: "Player 2",
+							score: 345000,
 							accuracy: 98.85,
-							combo: { current: 420, max: 420 },
-							hits: { 0: 1, 50: 1, 100: 7, 300: 412, grade: { current: "A" }, unstableRate: 84.1 },
-							mods: { num: 0 },
-							sliderbreaks: 1,
-						},
-					},
-					{
-						team: "right",
-						gameplay: {
-							name: "Omega_Carry",
-							score: 180000,
-							accuracy: 99.80,
 							combo: { current: 510, max: 510 },
-							hits: { 0: 0, 50: 0, 100: 1, 300: 509, grade: { current: "SS" }, unstableRate: 64.2 },
-							mods: { num: 0 },
-							sliderbreaks: 0,
-						},
-					},
-					{
-						team: "right",
-						gameplay: {
-							name: "Omega_Anchor",
-							score: 165000,
-							accuracy: 99.10,
-							combo: { current: 460, max: 460 },
-							hits: { 0: 0, 50: 1, 100: 4, 300: 455, grade: { current: "S" }, unstableRate: 76.5 },
+							hits: { 0: 0, 50: 1, 100: 4, 300: 505, grade: { current: "S" }, unstableRate: 76.5 },
 							mods: { num: 0 },
 							sliderbreaks: 0,
 						},
@@ -295,33 +271,28 @@ export default class Simulator {
 			this.mockData.tourney.manager.gameplay.score.left = Math.max(0, scoreLeft);
 			this.mockData.tourney.manager.gameplay.score.right = Math.max(0, scoreRight);
 
-			// Update individual clients
-			if (this.mockData.tourney.ipcClients?.length >= 4) {
+			// Update individual clients (1v1)
+			if (this.mockData.tourney.ipcClients?.length >= 2) {
 				const c0 = this.mockData.tourney.ipcClients[0].gameplay;
 				const c1 = this.mockData.tourney.ipcClients[1].gameplay;
-				const c2 = this.mockData.tourney.ipcClients[2].gameplay;
-				const c3 = this.mockData.tourney.ipcClients[3].gameplay;
 
-				c0.score = Math.floor(scoreLeft * 0.55);
-				c1.score = Math.floor(scoreLeft * 0.45);
-				c2.score = Math.floor(scoreRight * 0.52);
-				c3.score = Math.floor(scoreRight * 0.48);
+				c0.score = Math.max(0, scoreLeft);
+				c1.score = Math.max(0, scoreRight);
 
 				c0.combo.current = Math.floor(progress * 1200);
-				c2.combo.current = Math.floor(progress * 1350);
+				c1.combo.current = Math.floor(progress * 1350);
 
 				c0.hits[100] = Math.floor(progress * 14);
 				c0.hits[50] = Math.floor(progress * 2);
-				c1.hits[100] = 7 + Math.floor(progress * 18);
-				c2.hits[100] = Math.floor(progress * 8);
-				c3.hits[100] = 4 + Math.floor(progress * 12);
+				c1.hits[100] = Math.floor(progress * 10);
+				c1.hits[50] = Math.floor(progress * 1);
 			}
 
-			// Simulated commentary triggers
+			// Simulated commentary triggers (1v1)
 			if (Math.abs(this.simElapsedSeconds - 6.0) < 0.1) {
-				this.sendChat("Left team pulls ahead by 30k!", "bot");
+				this.sendChat("Player 1 pulls ahead by 30k!", "bot");
 			} else if (Math.abs(this.simElapsedSeconds - 14.0) < 0.1) {
-				this.sendChat("INCREDIBLE CLUTCH! Right team overtakes!!", "right");
+				this.sendChat("INCREDIBLE CLUTCH! Player 2 overtakes!!", "right");
 			} else if (Math.abs(this.simElapsedSeconds - 20.0) < 0.1) {
 				this.sendChat("NECK AND NECK FINAL STRETCH!", "left");
 			}
@@ -374,7 +345,7 @@ export default class Simulator {
 		const brokenCombo = Math.floor(Math.random() * 350) + 650;
 		const playerName =
 			client.gameplay.name ||
-			(team === "left" ? "Alpha_AimGod" : "Omega_Carry");
+			(team === "left" ? "Player 1" : "Player 2");
 
 		// Drop current combo to 0
 		client.gameplay.combo.current = 0;
@@ -472,8 +443,8 @@ export default class Simulator {
 			(team === "bot"
 				? "BanchoBot"
 				: team === "left"
-					? "Alpha_Player"
-					: "Omega_Sniper");
+					? "Player 1"
+					: "Player 2");
 
 		const now = new Date();
 		const timeStr = `${now.getHours().toString().padStart(2, "0")}:${now
@@ -614,7 +585,7 @@ export default class Simulator {
 				<div class="flex items-center justify-between z-10 gap-2">
 					<div class="flex items-center gap-2 min-w-0">
 						<span class="px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 ${teamBadge}">
-							${isLeft ? "Team Left" : "Team Right"}
+							${isLeft ? "Player 1" : "Player 2"}
 						</span>
 						<span class="font-bold text-white text-base truncate">${client.gameplay.name}</span>
 					</div>
@@ -782,12 +753,12 @@ export default class Simulator {
 			{
 				msg: "¡QUÉ AIM POR DIOS! 🔥",
 				team: "left" as const,
-				name: "Alpha_AimGod",
+				name: "Player 1",
 			},
 			{
 				msg: "se le trabó la tableta noooo",
 				team: "right" as const,
-				name: "Omega_Anchor",
+				name: "Player 2",
 			},
 			{
 				msg: "MATCH POINT TIEBREAKER!!",
@@ -802,12 +773,12 @@ export default class Simulator {
 			{
 				msg: "VAMOS COLOMBIAAA 🇨🇴",
 				team: "left" as const,
-				name: "Alpha_Fan",
+				name: "Player 1",
 			},
 			{
 				msg: "CLUTCH GOD! 500 combo reverse!",
 				team: "right" as const,
-				name: "Omega_Carry",
+				name: "Player 2",
 			},
 		];
 		let chatIndex = 0;
