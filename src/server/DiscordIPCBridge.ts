@@ -323,6 +323,13 @@ export class DiscordIPCBridge {
 	private osuCache = new Map<string, { osuId: string; avatarUrl: string } | null>();
 	private failedPipes = new Map<string, number>();
 
+	/**
+	 * Feature flag: whether to automatically scrape/resolve osu! avatars
+	 * by matching the user's Discord nickname to their osu! profile.
+	 * Kept in codebase but disabled by default.
+	 */
+	public enableOsuAvatarResolution = process.env.ENABLE_OSU_AVATAR_RESOLUTION === "true";
+
 	readonly state: DiscordVoiceState = {
 		connectedToDiscord: false,
 		currentChannelId: null,
@@ -726,6 +733,11 @@ export class DiscordIPCBridge {
 	}
 
 	private async enrichUserWithOsu(user: DiscordUser) {
+		// Auto-resolution by nickname is disabled by default; function remains preserved in codebase.
+		if (!this.enableOsuAvatarResolution) {
+			return;
+		}
+
 		const targetId = user.id;
 		const targetNick = user.displayName;
 		const profile = await this.resolveOsuProfile(targetNick);
