@@ -200,6 +200,7 @@ export default class Simulator {
 							combo: { current: 480, max: 480 },
 							hits: { 0: 0, 50: 0, 100: 3, 300: 477, grade: { current: "S" }, unstableRate: 72.4 },
 							mods: { num: 0 },
+							sliderbreaks: 0,
 						},
 					},
 					{
@@ -211,6 +212,7 @@ export default class Simulator {
 							combo: { current: 420, max: 420 },
 							hits: { 0: 1, 50: 1, 100: 7, 300: 412, grade: { current: "A" }, unstableRate: 84.1 },
 							mods: { num: 0 },
+							sliderbreaks: 1,
 						},
 					},
 					{
@@ -222,6 +224,7 @@ export default class Simulator {
 							combo: { current: 510, max: 510 },
 							hits: { 0: 0, 50: 0, 100: 1, 300: 509, grade: { current: "SS" }, unstableRate: 64.2 },
 							mods: { num: 0 },
+							sliderbreaks: 0,
 						},
 					},
 					{
@@ -233,6 +236,7 @@ export default class Simulator {
 							combo: { current: 460, max: 460 },
 							hits: { 0: 0, 50: 1, 100: 4, 300: 455, grade: { current: "S" }, unstableRate: 76.5 },
 							mods: { num: 0 },
+							sliderbreaks: 0,
 						},
 					},
 				],
@@ -305,6 +309,12 @@ export default class Simulator {
 
 				c0.combo.current = Math.floor(progress * 1200);
 				c2.combo.current = Math.floor(progress * 1350);
+
+				c0.hits[100] = Math.floor(progress * 14);
+				c0.hits[50] = Math.floor(progress * 2);
+				c1.hits[100] = 7 + Math.floor(progress * 18);
+				c2.hits[100] = Math.floor(progress * 8);
+				c3.hits[100] = 4 + Math.floor(progress * 12);
 			}
 
 			// Simulated commentary triggers
@@ -352,9 +362,9 @@ export default class Simulator {
 	}
 
 	/**
-	 * Simulates a dramatic heartbreak choke for the specified team.
+	 * Simulates a dramatic heartbreak choke (miss or sliderbreak) for the specified team.
 	 */
-	simulateChoke(team: "left" | "right") {
+	simulateChoke(team: "left" | "right", isSliderBreak = false) {
 		const clients = this.mockData.tourney.ipcClients ?? [];
 		const client =
 			clients.find((c: any) => c.team === team) ??
@@ -366,9 +376,22 @@ export default class Simulator {
 			client.gameplay.name ||
 			(team === "left" ? "Alpha_AimGod" : "Omega_Carry");
 
-		// Drop current combo to 0 and increment miss count
+		// Drop current combo to 0
 		client.gameplay.combo.current = 0;
-		client.gameplay.hits[0] = (client.gameplay.hits[0] || 0) + 1;
+
+		if (isSliderBreak) {
+			client.gameplay.sliderbreaks = (client.gameplay.sliderbreaks || 0) + 1;
+			this.sendChat(
+				`⚠️ SLIDERBREAK! ${playerName} rompió combo en un slider a ${brokenCombo}x!`,
+				"bot",
+			);
+		} else {
+			client.gameplay.hits[0] = (client.gameplay.hits[0] || 0) + 1;
+			this.sendChat(
+				`💔 CHOKE CRÍTICO! ${playerName} acaba de perder su combo de ${brokenCombo}x!`,
+				"bot",
+			);
+		}
 
 		if (this.chokeImpactHandler) {
 			this.chokeImpactHandler.triggerImpactFX({
@@ -376,15 +399,15 @@ export default class Simulator {
 				playerName,
 				comboBroken: brokenCombo,
 				isSessionRecord: true,
-				missNumber: client.gameplay.hits[0],
+				missNumber: isSliderBreak ? client.gameplay.sliderbreaks : client.gameplay.hits[0],
 			});
 		}
 
-		this.sendChat(
-			`💔 CHOKE CRÍTICO! ${playerName} acaba de perder su combo de ${brokenCombo}x!`,
-			"bot",
-		);
 		this.broadcastUpdate();
+	}
+
+	simulateSliderBreak(team: "left" | "right") {
+		this.simulateChoke(team, true);
 	}
 
 	/**
@@ -588,15 +611,18 @@ export default class Simulator {
 
 			tile.innerHTML = `
 				<div class="absolute inset-0 ${teamGlow} pointer-events-none"></div>
-				<div class="flex items-center justify-between z-10">
-					<div class="flex items-center gap-2">
-						<span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${teamBadge}">
+				<div class="flex items-center justify-between z-10 gap-2">
+					<div class="flex items-center gap-2 min-w-0">
+						<span class="px-2.5 py-0.5 rounded-full text-xs font-bold shrink-0 ${teamBadge}">
 							${isLeft ? "Team Left" : "Team Right"}
 						</span>
 						<span class="font-bold text-white text-base truncate">${client.gameplay.name}</span>
 					</div>
-					<div class="text-xs text-white/70 font-mono bg-black/40 px-2 py-0.5 rounded">
-						Window #${i + 1}
+					<div class="flex items-center gap-2 shrink-0">
+						${Simulator.renderHitPill(client.gameplay.hits, client.gameplay.sliderbreaks)}
+						<span class="text-xs text-white/50 font-mono bg-black/40 px-2 py-1 rounded-full border border-white/5">
+							#${i + 1}
+						</span>
 					</div>
 				</div>
 				<div class="flex items-end justify-between z-10 text-white">
@@ -612,6 +638,38 @@ export default class Simulator {
 			`;
 			tile.className = `absolute rounded-2xl border-2 ${teamBorder} shadow-2xl flex flex-col justify-between p-4 overflow-hidden backdrop-blur-sm transition-all duration-300 ease-out`;
 		}
+	}
+
+	/**
+	 * Formats hit counts and combo health into a sleek competitive telemetry pill.
+	 */
+	static renderHitPill(hits?: { 0?: number; 50?: number; 100?: number; 300?: number }, sliderbreaks = 0): string {
+		const h0 = hits?.[0] ?? 0;
+		const h50 = hits?.[50] ?? 0;
+		const h100 = hits?.[100] ?? 0;
+		const sb = sliderbreaks ?? 0;
+		const isFC = h0 === 0 && sb === 0;
+
+		return `
+			<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-md border border-white/10 text-xs font-mono shadow-md select-none transition-all duration-200">
+				${
+					isFC
+						? `<span class="px-2 py-0.5 rounded-full bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 font-bold text-[10px] tracking-wider flex items-center gap-1 shadow-[0_0_8px_rgba(16,185,129,0.3)]">
+							<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-fc-pulse"></span>FC
+						</span>`
+						: `
+						${h0 > 0 ? `<span class="px-1.5 py-0.5 rounded bg-red-500/30 text-red-300 font-bold border border-red-500/50 text-[11px] animate-badge-pop shadow-[0_0_8px_rgba(239,68,68,0.4)]">✕ ${h0}</span>` : ""}
+						${sb > 0 ? `<span class="px-1.5 py-0.5 rounded bg-orange-500/30 text-orange-300 font-bold border border-orange-500/50 text-[11px] animate-badge-pop shadow-[0_0_8px_rgba(249,115,22,0.4)]">SB ${sb}</span>` : ""}
+					`
+				}
+				<span class="text-emerald-400/90 flex items-center gap-0.5">
+					<span class="text-[10px] text-emerald-500/70 font-sans">100:</span><b class="text-white">${h100}</b>
+				</span>
+				<span class="${h50 > 0 ? "text-amber-400 flex items-center gap-0.5 font-bold" : "text-white/40 flex items-center gap-0.5 font-normal"}">
+					<span class="text-[10px] ${h50 > 0 ? "text-amber-500/80" : "text-white/30"} font-sans">50:</span><b class="${h50 > 0 ? "text-amber-200" : "text-white/40"}">${h50}</b>
+				</span>
+			</div>
+		`;
 	}
 
 	/**
@@ -660,11 +718,22 @@ export default class Simulator {
 			document.querySelector<HTMLButtonElement>("#simChokeLeftBtn");
 		const chokeRightBtn =
 			document.querySelector<HTMLButtonElement>("#simChokeRightBtn");
+		const sbLeftBtn =
+			document.querySelector<HTMLButtonElement>("#simSbLeftBtn");
+		const sbRightBtn =
+			document.querySelector<HTMLButtonElement>("#simSbRightBtn");
+
 		const debugChokeLeftBtn = document.querySelector<HTMLButtonElement>(
 			"#debugSimChokeLeftBtn",
 		);
 		const debugChokeRightBtn = document.querySelector<HTMLButtonElement>(
 			"#debugSimChokeRightBtn",
+		);
+		const debugSbLeftBtn = document.querySelector<HTMLButtonElement>(
+			"#debugSimSbLeftBtn",
+		);
+		const debugSbRightBtn = document.querySelector<HTMLButtonElement>(
+			"#debugSimSbRightBtn",
 		);
 
 		const collapseBtn =
@@ -771,10 +840,18 @@ export default class Simulator {
 		if (chokeLeftBtn) chokeLeftBtn.onclick = () => this.simulateChoke("left");
 		if (chokeRightBtn)
 			chokeRightBtn.onclick = () => this.simulateChoke("right");
+		if (sbLeftBtn) sbLeftBtn.onclick = () => this.simulateSliderBreak("left");
+		if (sbRightBtn)
+			sbRightBtn.onclick = () => this.simulateSliderBreak("right");
+
 		if (debugChokeLeftBtn)
 			debugChokeLeftBtn.onclick = () => this.simulateChoke("left");
 		if (debugChokeRightBtn)
 			debugChokeRightBtn.onclick = () => this.simulateChoke("right");
+		if (debugSbLeftBtn)
+			debugSbLeftBtn.onclick = () => this.simulateSliderBreak("left");
+		if (debugSbRightBtn)
+			debugSbRightBtn.onclick = () => this.simulateSliderBreak("right");
 
 		if (resetBtn) {
 			resetBtn.onclick = () => {

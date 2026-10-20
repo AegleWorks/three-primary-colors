@@ -50,6 +50,26 @@ body {
 	}
 }
 
+/* Competitive Hit Pill Animations */
+@keyframes badgePop {
+	0% { transform: scale(0.6); opacity: 0; }
+	75% { transform: scale(1.2); opacity: 1; }
+	100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes fcPulse {
+	0%, 100% { opacity: 1; transform: scale(1); }
+	50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+.animate-badge-pop {
+	animation: badgePop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.animate-fc-pulse {
+	animation: fcPulse 1.8s ease-in-out infinite;
+}
+
 .caster-card {
 	max-width: 120px;
 	will-change: transform, opacity;

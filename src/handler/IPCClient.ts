@@ -22,6 +22,10 @@ export default class IPCClient {
 	UR = 0;
 	mods = 0;
 
+	prevCombo = 0;
+	prevH0 = 0;
+	sliderbreaks = 0;
+
 	static VALUE_MAP = [
 		["team", "team"],
 		["gameplay.name", "name"],
@@ -62,6 +66,22 @@ export default class IPCClient {
 	}
 
 	updateValue(key: string, value: string | number) {
+		if (key === "currentCombo") {
+			const num = Number(value);
+			// Sliderbreak detection: combo dropped without an h0 (miss) increment
+			if (num < this.prevCombo && this.h0 === this.prevH0 && this.prevCombo > 0) {
+				this.sliderbreaks++;
+			}
+			this.prevCombo = num;
+		} else if (key === "h0") {
+			this.prevH0 = this.h0;
+		} else if (key === "score" && Number(value) === 0) {
+			// Map restart or new match reset
+			this.sliderbreaks = 0;
+			this.prevCombo = 0;
+			this.prevH0 = 0;
+		}
+
 		(this as unknown as Record<string, string | number>)[key] = value;
 	}
 }
