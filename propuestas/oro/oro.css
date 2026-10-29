@@ -1,0 +1,6107 @@
+/* Direction D — Oro.
+   Broadcast-grade, in the register of the big osu! tournament overlays.
+   One moving canvas (the gold shard loop) sits behind every scene and is
+   graded per scene; HUD panels are smoked glass over it. Colombian identity
+   comes from pre-Columbian goldwork (the sun pectoral crest); the flag shows
+   only as player accents and one small tricolour mark.
+   Type: Torus for names and numbers, Comfortaa for spaced labels, Nunito for
+   reading text. */
+
+@font-face {
+	font-family: "Torus";
+	src: url("fonts/Torus-Regular.woff2") format("woff2");
+	font-weight: 400;
+	font-display: block;
+}
+
+@font-face {
+	font-family: "Torus";
+	src: url("fonts/Torus-SemiBold.woff2") format("woff2");
+	font-weight: 600;
+	font-display: block;
+}
+
+@font-face {
+	font-family: "Torus";
+	src: url("fonts/Torus-Heavy.woff2") format("woff2");
+	font-weight: 900;
+	font-display: block;
+}
+
+@property --spin {
+	syntax: "<angle>";
+	inherits: false;
+	initial-value: 0deg;
+}
+
+:root {
+	--gold: #e2b866;
+	--gold-hi: #ffe3a3;
+	--gold-deep: #8a6420;
+	--gold-line: rgba(226, 184, 102, 0.3);
+	--hair: rgba(255, 240, 210, 0.1);
+	--left: #ff4d5e;
+	--right: #4c7dff;
+	--red: #ef3347;
+	--text: #f4f1ea;
+	--dim: #a8a091;
+	--faint: #6d6658;
+	--display: "Torus", "Nunito", sans-serif;
+	--label: "Comfortaa", sans-serif;
+	--body: "Nunito", sans-serif;
+	--out: cubic-bezier(0.2, 0.8, 0.2, 1);
+	--snap: cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.stage {
+	background: #000;
+	color: var(--text);
+	font-family: var(--body);
+}
+
+[data-scene] {
+	z-index: 1;
+}
+
+/* ---------- type primitives ---------- */
+
+.label {
+	font: 700 13px/1 var(--label);
+	letter-spacing: 0.32em;
+	text-transform: uppercase;
+	color: var(--gold-hi);
+}
+
+.label--lg {
+	font-size: 17px;
+	letter-spacing: 0.5em;
+	padding-left: 0.5em;
+}
+
+.pill {
+	display: inline-flex;
+	align-items: center;
+	height: 20px;
+	padding: 0 14px;
+	font: 700 10px/1 var(--label);
+	letter-spacing: 0.24em;
+	text-transform: uppercase;
+}
+
+.pill--gold {
+	background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+	color: #1a1205;
+}
+
+.pill--line {
+	border: 1px solid var(--gold-line);
+	color: var(--gold);
+}
+
+/* Live numbers render into fixed cells (Torus has no tabular figures). */
+[data-cells] .d {
+	display: inline-block;
+	width: var(--dw, 0.6em);
+	text-align: center;
+}
+
+/* ---------- backdrop: the gold shard loop ---------- */
+
+.backdrop {
+	position: absolute;
+	inset: 0;
+	z-index: 0;
+	overflow: hidden;
+}
+
+.backdrop-video {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	filter: saturate(0.95) contrast(1.05);
+}
+
+.backdrop-grade {
+	position: absolute;
+	inset: 0;
+	background:
+		radial-gradient(75% 85% at 50% 45%, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.85)),
+		rgba(0, 0, 0, 0.35);
+}
+
+body[data-scene="mappool"] .backdrop-grade {
+	background:
+		radial-gradient(80% 80% at 50% 40%, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.9)),
+		rgba(0, 0, 0, 0.35);
+}
+
+body[data-scene="gameplay"] .backdrop-grade {
+	background: rgba(0, 0, 0, 0.45);
+}
+
+body[data-scene="champion"] .backdrop-grade {
+	background:
+		radial-gradient(55% 60% at 50% 40%, rgba(40, 24, 0, 0.1), rgba(0, 0, 0, 0.8)),
+		rgba(0, 0, 0, 0.2);
+}
+
+/* Smoked glass over the moving gold. */
+.glass {
+	background: linear-gradient(180deg, rgba(14, 11, 5, 0.74), rgba(4, 3, 1, 0.86));
+	-webkit-backdrop-filter: blur(16px) saturate(1.25);
+	backdrop-filter: blur(16px) saturate(1.25);
+	box-shadow: inset 0 1px 0 rgba(255, 236, 190, 0.08);
+}
+
+/* ---------- shared bits ---------- */
+
+.stars {
+	display: flex;
+	gap: 7px;
+}
+
+.stars svg {
+	width: 16px;
+	height: 16px;
+	fill: none;
+	stroke: rgba(255, 255, 255, 0.35);
+	stroke-width: 1.2;
+}
+
+.stars svg.on {
+	stroke: none;
+}
+
+[data-stars="l"] svg.on {
+	fill: var(--left);
+}
+
+[data-stars="r"] svg.on {
+	fill: var(--right);
+}
+
+.corner--r .stars,
+.tally--r .stars {
+	flex-direction: row-reverse;
+}
+
+[data-stars] svg.on {
+	animation: glint 5s ease-in-out infinite;
+}
+
+[data-stars] svg.on:nth-child(2) {
+	animation-delay: 0.25s;
+}
+
+[data-stars] svg.on:nth-child(3) {
+	animation-delay: 0.5s;
+}
+
+[data-stars] svg.on:nth-child(4) {
+	animation-delay: 0.75s;
+}
+
+/* Transform only: a filter here would restyle every star every frame. */
+@keyframes glint {
+
+	0%,
+	84%,
+	100% {
+		transform: none;
+	}
+
+	90% {
+		transform: scale(1.45) rotate(45deg);
+	}
+}
+
+.series {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 14px;
+}
+
+.series-name {
+	font: 700 10px/1 var(--label);
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--dim);
+}
+
+.series-pips {
+	display: flex;
+	gap: 5px;
+}
+
+.series-pips[data-pips="l"] {
+	flex-direction: row-reverse;
+}
+
+.series-pips i {
+	position: relative;
+	width: 26px;
+	height: 4px;
+	border-radius: 2px;
+	background: rgba(255, 255, 255, 0.13);
+}
+
+.series-pips[data-pips="l"] i.on {
+	background: var(--left);
+	box-shadow: 0 0 8px rgba(255, 77, 94, 0.45);
+}
+
+.series-pips[data-pips="r"] i.on {
+	background: var(--right);
+	box-shadow: 0 0 8px rgba(76, 125, 255, 0.5);
+}
+
+.series-n {
+	font: 900 18px/1 var(--display);
+	color: var(--gold-hi);
+}
+
+.series-n i {
+	font-style: normal;
+	font-weight: 400;
+	color: var(--faint);
+	margin: 0 3px;
+}
+
+/* ---------- keyframes ---------- */
+
+@keyframes track-in {
+	from {
+		opacity: 0;
+		letter-spacing: 0.9em;
+		filter: blur(6px);
+	}
+}
+
+@keyframes rise {
+	from {
+		opacity: 0;
+		transform: translateY(14px);
+	}
+}
+
+@keyframes fade {
+	from {
+		opacity: 0;
+	}
+}
+
+@keyframes grow {
+	from {
+		transform: scaleX(0);
+	}
+}
+
+@keyframes grow-y {
+	from {
+		transform: scaleY(0);
+	}
+}
+
+@keyframes turn {
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes wipe-in {
+	from {
+		clip-path: inset(0 100% 0 0);
+		transform: translateX(-10px);
+	}
+
+	to {
+		clip-path: inset(0 0 0 0);
+	}
+}
+
+@keyframes winner-in {
+	from {
+		opacity: 0;
+		letter-spacing: 0.22em;
+		transform: scale(1.1);
+		filter: blur(14px);
+	}
+}
+
+/* While the stinger covers the screen the incoming scene waits at frame 0. */
+.stage.hold [data-scene] *,
+.stage.hold [data-scene] *::before,
+.stage.hold [data-scene] *::after {
+	animation-play-state: paused !important;
+}
+
+/* =====================================================================
+   GAMEPLAY
+   ===================================================================== */
+
+.top {
+	position: absolute;
+	inset: 0 0 auto;
+	height: 100px;
+	display: grid;
+	grid-template-columns: 1fr 600px 1fr;
+}
+
+.corner {
+	position: relative;
+	display: flex;
+	align-items: flex-start;
+	gap: 20px;
+	overflow: hidden;
+}
+
+.corner::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+
+.corner--l::before {
+	background: radial-gradient(110% 170% at 0 0, rgba(255, 77, 94, 0.24), transparent 55%);
+}
+
+.corner--r {
+	justify-content: flex-end;
+}
+
+.corner--r::before {
+	background: radial-gradient(110% 170% at 100% 0, rgba(76, 125, 255, 0.28), transparent 55%);
+}
+
+.crest {
+	position: relative;
+	flex: none;
+	width: 78px;
+	height: 94px;
+	margin-left: 34px;
+	display: grid;
+	place-items: center;
+	padding-bottom: 14px;
+	background: linear-gradient(180deg, #1b160c, #070604);
+	clip-path: polygon(0 0, 100% 0, 100% 74%, 50% 100%, 0 74%);
+}
+
+.corner--r .crest {
+	margin: 0 34px 0 0;
+}
+
+.crest::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(105deg, transparent 35%, rgba(255, 236, 190, 0.35) 50%, transparent 65%) no-repeat;
+	background-size: 260% 100%;
+	background-position: 150% 0;
+	animation: crest-sheen 6s 2s ease-in-out infinite;
+}
+
+.corner--r .crest::after {
+	animation-delay: 2.4s;
+}
+
+@keyframes crest-sheen {
+	0% {
+		background-position: 150% 0;
+	}
+
+	25%,
+	100% {
+		background-position: -50% 0;
+	}
+}
+
+.crest .pfp {
+	--pfp: 60px;
+	font-size: 28px;
+}
+
+.corner--l .crest {
+	box-shadow: inset 0 -34px 40px -20px rgba(255, 77, 94, 0.3);
+}
+
+.corner--r .crest {
+	box-shadow: inset 0 -34px 40px -20px rgba(76, 125, 255, 0.35);
+}
+
+.corner-text {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+	padding-top: 13px;
+}
+
+.corner--r .corner-text {
+	align-items: flex-end;
+}
+
+.corner-name {
+	font: 900 28px/1 var(--display);
+	letter-spacing: 0.01em;
+}
+
+.corner-meta {
+	font: 700 13px/1 var(--body);
+	color: var(--dim);
+	letter-spacing: 0.04em;
+}
+
+.corner--l .corner-meta b {
+	color: var(--left);
+}
+
+.corner--r .corner-meta b {
+	color: var(--right);
+}
+
+.corner-text .stars {
+	margin-top: 3px;
+}
+
+.masthead {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 9px;
+}
+
+.masthead-title {
+	display: flex;
+	align-items: baseline;
+	gap: 0.6em;
+	font: 700 20px/1 var(--label);
+	letter-spacing: 0.34em;
+	padding-left: 0.34em;
+	text-transform: uppercase;
+}
+
+/* The sheen is clipped to this word only: background-clip:text can crop
+   text in descendants, so the gold numeral sits outside it. The padding
+   gives the glyphs room inside the clip; the margin cancels it. */
+.masthead-title span {
+	padding: 0.2em 0.1em;
+	margin: -0.2em -0.1em;
+	color: transparent;
+	background: linear-gradient(100deg, var(--text) 42%, #fff6d6 50%, var(--text) 58%);
+	background-size: 300% 100%;
+	background-position: 120% 0;
+	-webkit-background-clip: text;
+	background-clip: text;
+}
+
+.masthead-title b {
+	font-weight: 700;
+	color: var(--gold);
+}
+
+@keyframes title-sheen {
+	0% {
+		background-position: 120% 0;
+	}
+
+	30%,
+	100% {
+		background-position: -20% 0;
+	}
+}
+
+.casters {
+	display: grid;
+	grid-template-columns: 170px auto 170px;
+	align-items: center;
+	gap: 14px;
+}
+
+.caster {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font: 800 13px/1 var(--body);
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--dim);
+}
+
+.casters .caster:first-child {
+	justify-self: end;
+}
+
+.caster.is-talking {
+	color: var(--text);
+}
+
+.wave {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	height: 12px;
+}
+
+/* Bars are full height and scaled down: animating height would re-run
+   layout every frame. */
+.wave i {
+	width: 2px;
+	height: 12px;
+	border-radius: 1px;
+	background: var(--faint);
+	transform: scaleY(0.25);
+}
+
+.is-talking .wave i {
+	background: var(--gold);
+	animation: wave 0.9s ease-in-out infinite;
+}
+
+.is-talking .wave i:nth-child(2) {
+	animation-delay: -0.3s;
+}
+
+.is-talking .wave i:nth-child(3) {
+	animation-delay: -0.6s;
+}
+
+@keyframes wave {
+	50% {
+		transform: scaleY(1);
+	}
+}
+
+.rule {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 1px;
+	background: linear-gradient(90deg, transparent, var(--gold-line) 20%, var(--gold-line) 80%, transparent);
+}
+
+.rule i {
+	position: absolute;
+	left: 50%;
+	top: -1px;
+	width: 96px;
+	height: 3px;
+	margin-left: -48px;
+	background: linear-gradient(90deg, var(--left) 0 50%, var(--right) 50% 75%, var(--red) 75%);
+}
+
+/* clients + name tags */
+
+.gp .client {
+	background-size: cover;
+	background-position: center;
+}
+
+.gp .client::after {
+	display: none;
+}
+
+.tags {
+	position: absolute;
+	top: 100px;
+	left: 0;
+	width: 1920px;
+	height: 720px;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+	pointer-events: none;
+}
+
+.tag {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	justify-content: flex-end;
+	padding: 0 26px 12px;
+	background: linear-gradient(180deg, transparent 82%, rgba(0, 0, 0, 0.66));
+}
+
+.tag::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+}
+
+.tag-name {
+	font: 900 52px/1 var(--display);
+	transition: color 0.2s;
+}
+
+.tag--l .tag-name {
+	color: var(--left);
+}
+
+.tag--r .tag-name {
+	color: var(--right);
+}
+
+.tag-break {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 8px;
+	padding: 6px 12px;
+	background: var(--red);
+	opacity: 0;
+	transform: translateX(16px);
+}
+
+.tag-break b {
+	font: 700 10px/1 var(--label);
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+}
+
+.tag-break span {
+	font: 900 17px/1 var(--display);
+}
+
+.tag.is-broken::before {
+	animation: hurt 1.6s ease-out;
+}
+
+.tag.is-broken .tag-break {
+	animation: break-in 2.2s var(--out);
+}
+
+.tag.is-broken .tag-name {
+	animation: name-hurt 1.2s ease-out;
+}
+
+@keyframes hurt {
+	12% {
+		box-shadow: inset 0 0 140px 0 rgba(239, 51, 71, 0.55);
+	}
+}
+
+@keyframes break-in {
+
+	8%,
+	80% {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes name-hurt {
+	10% {
+		color: var(--red);
+	}
+}
+
+/* ---------- FC choke (3.6s) ----------
+   Over the choking player's half. Times in comments are ms from the break:
+   flash and letterbox at once, the combo glitches in, the slash cuts it at
+   540ms and the halves drift apart while the monitor (oro.js canvas)
+   races and flatlines; everything clears from 2950ms. */
+
+.choke {
+	position: absolute;
+	top: 100px;
+	left: 0;
+	width: 956px;
+	height: 720px;
+	overflow: hidden;
+	pointer-events: none;
+	visibility: hidden;
+	--C: 3.6s;
+}
+
+.choke[data-side="r"] {
+	left: 964px;
+}
+
+.choke.run {
+	visibility: visible;
+}
+
+.choke-vignette {
+	position: absolute;
+	inset: 0;
+	background:
+		radial-gradient(70% 65% at 50% 50%, transparent 28%, rgba(90, 0, 12, 0.55) 68%, rgba(12, 0, 3, 0.94) 100%),
+		rgba(20, 0, 4, 0.28);
+	opacity: 0;
+}
+
+/* The hit: a red wash that drains out. */
+.choke-vignette::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: rgba(239, 51, 71, 0.5);
+	opacity: 0;
+}
+
+/* Smoked band so the card reads over any gameplay. */
+.choke-band {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 50%;
+	height: 440px;
+	margin-top: -220px;
+	background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.72) 28%, rgba(0, 0, 0, 0.72) 72%, transparent);
+	opacity: 0;
+}
+
+.choke-fx {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.choke-bar {
+	position: absolute;
+	left: 0;
+	right: 0;
+	height: 72px;
+	background: #000;
+	transform: scaleY(0);
+}
+
+.choke-bar--top {
+	top: 0;
+	transform-origin: 50% 0;
+	box-shadow: 0 1px 0 rgba(239, 51, 71, 0.55);
+}
+
+.choke-bar--bot {
+	bottom: 0;
+	transform-origin: 50% 100%;
+	box-shadow: 0 -1px 0 rgba(239, 51, 71, 0.55);
+}
+
+.choke-card {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+
+.choke-kicker {
+	font: 700 17px/1 var(--label);
+	letter-spacing: 0.5em;
+	padding-left: 0.5em;
+	text-transform: uppercase;
+	color: #ffd6da;
+	opacity: 0;
+}
+
+/* The lost combo, in two pieces cut along the slash. The whole number is
+   tilted (a dutch angle) so the cut is horizontal inside it and always
+   lines up with the slash, whatever the combo's width. */
+.choke-num {
+	position: relative;
+	transform: rotate(-3.6deg);
+	margin: 18px 0 22px;
+	font: 900 200px/1 var(--display);
+	white-space: nowrap;
+}
+
+.choke-half {
+	display: block;
+	padding: 0.05em 0.25em 0.12em;
+	color: #fff;
+	text-shadow:
+		-6px 0 rgba(239, 51, 71, 0.85),
+		6px 0 rgba(70, 200, 255, 0.55),
+		0 0 70px rgba(239, 51, 71, 0.55);
+	opacity: 0;
+}
+
+.choke-half--a {
+	clip-path: polygon(-10% -30%, 110% -30%, 110% 50.5%, -10% 50.5%);
+}
+
+.choke-half--b {
+	position: absolute;
+	inset: 0;
+	clip-path: polygon(-10% 49.5%, 110% 49.5%, 110% 130%, -10% 130%);
+}
+
+.choke-slash {
+	position: absolute;
+	left: -6%;
+	right: -6%;
+	top: 50%;
+	height: 4px;
+	margin-top: -2px;
+	background: linear-gradient(90deg, transparent, #fff 12%, #fff 88%, transparent);
+	box-shadow: 0 0 18px 4px rgba(255, 120, 130, 0.85);
+	transform: scaleX(0);
+	transform-origin: 0 50%;
+	opacity: 0;
+}
+
+.choke-sub {
+	font: 700 19px/1.2 var(--body);
+	color: rgba(244, 241, 234, 0.85);
+	opacity: 0;
+}
+
+.choke[data-side="l"] .choke-sub b:first-child {
+	color: var(--left);
+}
+
+.choke[data-side="r"] .choke-sub b:first-child {
+	color: var(--right);
+}
+
+.choke-sub b:last-child {
+	font-family: var(--display);
+	font-weight: 900;
+}
+
+/* choreography */
+
+.choke.run .choke-vignette {
+	animation: choke-vignette var(--C) linear both;
+}
+
+@keyframes choke-vignette {
+	/* in 0-110ms, hold, out 2950-3420ms */
+	0% {
+		opacity: 0;
+	}
+
+	3%,
+	82% {
+		opacity: 1;
+	}
+
+	95%,
+	100% {
+		opacity: 0;
+	}
+}
+
+.choke.run .choke-vignette::after {
+	animation: choke-wash var(--C) ease-out both;
+}
+
+@keyframes choke-wash {
+	/* peak at 70ms, drained by 720ms */
+	0% {
+		opacity: 0;
+	}
+
+	2% {
+		opacity: 1;
+	}
+
+	20%,
+	100% {
+		opacity: 0;
+	}
+}
+
+.choke.run .choke-band {
+	animation: choke-band var(--C) linear both;
+}
+
+@keyframes choke-band {
+	0% {
+		opacity: 0;
+	}
+
+	4%,
+	82% {
+		opacity: 1;
+	}
+
+	94%,
+	100% {
+		opacity: 0;
+	}
+}
+
+.choke.run .choke-bar {
+	animation: choke-bar var(--C) both;
+}
+
+@keyframes choke-bar {
+	/* close 0-360ms, open 2950-3350ms */
+	0% {
+		transform: scaleY(0);
+		animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+
+	10%,
+	82% {
+		transform: scaleY(1);
+		animation-timing-function: cubic-bezier(0.6, 0, 0.8, 0.4);
+	}
+
+	93%,
+	100% {
+		transform: scaleY(0);
+	}
+}
+
+.choke.run .choke-kicker {
+	animation: choke-kicker var(--C) both;
+}
+
+@keyframes choke-kicker {
+	/* 100-430ms, out 2950-3310ms */
+	0%,
+	3% {
+		opacity: 0;
+		letter-spacing: 1.1em;
+		filter: blur(6px);
+	}
+
+	12%,
+	82% {
+		opacity: 1;
+		letter-spacing: 0.5em;
+		filter: none;
+	}
+
+	92%,
+	100% {
+		opacity: 0;
+		letter-spacing: 0.5em;
+	}
+}
+
+/* Glitch in on hard steps, hold, then the halves drift apart after the cut. */
+.choke.run .choke-half--a {
+	animation: choke-a var(--C) both;
+}
+
+.choke.run .choke-half--b {
+	animation: choke-b var(--C) both;
+}
+
+@keyframes choke-a {
+	0% {
+		opacity: 0;
+		transform: scale(1.35);
+	}
+
+	2% {
+		opacity: 1;
+		transform: scale(1.12) translateX(-14px);
+	}
+
+	4% {
+		transform: scale(1.04) translateX(10px);
+	}
+
+	6% {
+		transform: scale(0.98) translateX(-4px);
+	}
+
+	8%,
+	16% {
+		opacity: 1;
+		transform: none;
+		animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+	}
+
+	62% {
+		opacity: 1;
+	}
+
+	80%,
+	100% {
+		opacity: 0;
+		transform: translate(-34px, -30px) rotate(-2.5deg);
+	}
+}
+
+@keyframes choke-b {
+	0% {
+		opacity: 0;
+		transform: scale(1.35);
+	}
+
+	2% {
+		opacity: 1;
+		transform: scale(1.12) translateX(-14px);
+	}
+
+	4% {
+		transform: scale(1.04) translateX(10px);
+	}
+
+	6% {
+		transform: scale(0.98) translateX(-4px);
+	}
+
+	8%,
+	16% {
+		opacity: 1;
+		transform: none;
+		animation-timing-function: cubic-bezier(0.2, 0.7, 0.4, 1);
+	}
+
+	55% {
+		opacity: 0.9;
+	}
+
+	76%,
+	100% {
+		opacity: 0;
+		transform: translate(30px, 58px) rotate(3deg);
+	}
+}
+
+.choke.run .choke-slash {
+	animation: choke-slash var(--C) both;
+}
+
+@keyframes choke-slash {
+	/* cuts 540-650ms, burns out by 1150ms */
+	0%,
+	15% {
+		opacity: 0;
+		transform: scaleX(0);
+	}
+
+	15.1% {
+		opacity: 1;
+		transform: scaleX(0);
+		animation-timing-function: cubic-bezier(0.5, 0, 0.2, 1);
+	}
+
+	18% {
+		opacity: 1;
+		transform: scaleX(1);
+	}
+
+	32%,
+	100% {
+		opacity: 0;
+		transform: scaleX(1) scaleY(0.2);
+	}
+}
+
+.choke.run .choke-sub {
+	animation: choke-sub var(--C) both;
+}
+
+@keyframes choke-sub {
+	/* 900-1190ms, out 2950-3310ms */
+	0%,
+	25% {
+		opacity: 0;
+		transform: translateY(10px);
+	}
+
+	33%,
+	82% {
+		opacity: 1;
+		transform: none;
+	}
+
+	92%,
+	100% {
+		opacity: 0;
+	}
+}
+
+/* The rest of the HUD flinches, and the choker's score bleeds red. */
+.gp.is-choking .top,
+.gp.is-choking .deck {
+	animation: shake 0.5s linear;
+}
+
+.duel-side.is-choked .duel-score {
+	animation: choke-score 3.6s ease-out;
+}
+
+@keyframes choke-score {
+	0%,
+	6%,
+	12% {
+		color: var(--red);
+		text-shadow: 0 0 30px rgba(239, 51, 71, 0.8);
+	}
+
+	3%,
+	9% {
+		color: #fff;
+	}
+
+	70% {
+		color: var(--red);
+		text-shadow: none;
+	}
+}
+
+/* deck */
+
+.deck {
+	position: absolute;
+	inset: auto 0 0;
+	height: 260px;
+	display: grid;
+	grid-template-columns: 290px 1fr 620px;
+	grid-template-rows: minmax(0, 1fr);
+	border-top: 1px solid var(--gold-line);
+	--flip: var(--gold);
+}
+
+.deck[data-flip="l"] {
+	--flip: var(--left);
+}
+
+.deck[data-flip="r"] {
+	--flip: var(--right);
+}
+
+.disc {
+	position: relative;
+	display: grid;
+	place-items: center;
+}
+
+.disc-ring {
+	position: absolute;
+	width: 226px;
+	height: 226px;
+	transform: rotate(-90deg);
+	fill: none;
+}
+
+.disc-ring circle {
+	stroke: var(--hair);
+	stroke-width: 0.8;
+}
+
+.disc-ring circle + circle {
+	stroke: var(--gold);
+	stroke-width: 1.3;
+	stroke-dasharray: 0 100;
+	filter: drop-shadow(0 0 3px rgba(226, 184, 102, 0.7));
+}
+
+.disc-vinyl {
+	position: relative;
+	width: 200px;
+	height: 200px;
+	border-radius: 50%;
+	background-size: cover;
+	background-position: center;
+	box-shadow: 0 12px 34px rgba(0, 0, 0, 0.7);
+	animation: turn 14s linear infinite;
+}
+
+.disc-vinyl::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	background:
+		radial-gradient(circle, #000 0 7px, var(--gold) 7px 8.5px, transparent 9px 26px, rgba(0, 0, 0, 0.55) 26px 27px, transparent 27px),
+		repeating-radial-gradient(circle, transparent 0 3px, rgba(0, 0, 0, 0.16) 3px 4px),
+		conic-gradient(from 30deg, transparent 0 40deg, rgba(255, 240, 200, 0.18) 60deg, transparent 80deg 220deg, rgba(255, 240, 200, 0.12) 240deg, transparent 260deg),
+		radial-gradient(circle, transparent 55%, rgba(0, 0, 0, 0.45));
+}
+
+.disc-time {
+	position: absolute;
+	bottom: 8px;
+	padding: 4px 10px 3px;
+	background: #000;
+	border: 1px solid var(--gold-line);
+	font: 600 15px/1 var(--display);
+	--dw: 0.58em;
+}
+
+.duel {
+	display: flex;
+	flex-direction: column;
+	padding: 18px 40px 14px;
+	border-left: 1px solid var(--hair);
+	border-right: 1px solid var(--hair);
+	min-width: 0;
+	min-height: 0;
+}
+
+.duel-scores {
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+	align-items: end;
+}
+
+.duel-side {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.duel-side--r {
+	align-items: flex-end;
+}
+
+.duel-score {
+	contain: layout style;
+	font: 900 46px/0.9 var(--display);
+	color: #a9a293;
+	transition: color 0.3s;
+	--dw: 0.62em;
+}
+
+.duel-score .p {
+	margin: 0 -0.04em;
+}
+
+.duel-score.is-lead {
+	color: #fff;
+}
+
+.duel-sub {
+	display: flex;
+	gap: 14px;
+	font: 600 14px/1 var(--display);
+	color: var(--dim);
+	--dw: 0.58em;
+}
+
+/* Judgements: osu!'s own colours for 100 and 50, the overlay red for a
+   miss. Misses sit nearest the centre on both sides so they compare at a
+   glance; with no misses the slot is a gold FC pill until it breaks. */
+.hits {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-left: 4px;
+}
+
+.duel-side--r .hits {
+	margin: 0 4px 0 0;
+}
+
+.hit {
+	position: relative;
+	display: flex;
+	align-items: baseline;
+	gap: 5px;
+}
+
+.hit i {
+	font: 800 10px/1 var(--body);
+	font-style: normal;
+}
+
+.hit b {
+	font: 600 14px/1 var(--display);
+	color: var(--text);
+}
+
+.hit--100 i {
+	color: #6fe07a;
+}
+
+.hit--50 i {
+	color: #ffa24a;
+}
+
+.hit--miss i {
+	font-size: 11px;
+	color: var(--red);
+}
+
+.hit--miss b {
+	color: #ff8c97;
+}
+
+.hit em {
+	display: none;
+}
+
+.hit--miss.is-fc i,
+.hit--miss.is-fc b {
+	display: none;
+}
+
+.hit--miss.is-fc em {
+	display: block;
+	padding: 3px 7px 2px;
+	font: 900 10px/1 var(--display);
+	font-style: normal;
+	letter-spacing: 0.08em;
+	color: #1a1205;
+	background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+	box-shadow: 0 0 10px rgba(255, 210, 120, 0.35);
+}
+
+.hit.is-pop b {
+	animation: hit-pop 0.45s var(--snap);
+}
+
+.hit--100.is-pop b {
+	--pop: #6fe07a;
+}
+
+.hit--50.is-pop b {
+	--pop: #ffa24a;
+}
+
+.hit--miss.is-pop b {
+	--pop: var(--red);
+}
+
+@keyframes hit-pop {
+	0% {
+		color: var(--pop);
+		transform: scale(1.5);
+		text-shadow: 0 0 14px var(--pop);
+	}
+}
+
+/* The FC pill breaks: a red flash and a shake as the miss count lands. */
+.hit--miss.is-broke {
+	animation: hit-broke 0.6s linear;
+}
+
+.hit--miss.is-broke::after {
+	content: "";
+	position: absolute;
+	inset: -4px -6px;
+	border: 1px solid var(--red);
+	box-shadow: 0 0 14px rgba(239, 51, 71, 0.7);
+	animation: hit-ring 0.6s ease-out both;
+}
+
+@keyframes hit-broke {
+	15% {
+		transform: translateX(-3px);
+	}
+
+	30% {
+		transform: translateX(3px);
+	}
+
+	45% {
+		transform: translateX(-2px);
+	}
+
+	60% {
+		transform: none;
+	}
+}
+
+@keyframes hit-ring {
+	from {
+		opacity: 1;
+		transform: scale(0.8);
+	}
+
+	to {
+		opacity: 0;
+		transform: scale(1.6);
+	}
+}
+
+.duel-mid {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	padding-bottom: 2px;
+}
+
+.duel-diff {
+	font: 600 20px/1 var(--display);
+	--dw: 0.58em;
+}
+
+.duel-diff[data-lead="l"] {
+	color: var(--left);
+}
+
+.duel-diff[data-lead="l"]::before {
+	content: "◂ ";
+	font-size: 13px;
+}
+
+.duel-diff[data-lead="r"] {
+	color: var(--right);
+}
+
+.duel-diff[data-lead="r"]::after {
+	content: " ▸";
+	font-size: 13px;
+}
+
+.duel-flip {
+	padding: 5px 12px 4px;
+	border: 1px solid currentColor;
+	font: 700 9px/1 var(--label);
+	letter-spacing: 0.24em;
+	text-transform: uppercase;
+	white-space: nowrap;
+	opacity: 0;
+}
+
+.duel-flip[data-lead="l"] {
+	color: var(--left);
+}
+
+.duel-flip[data-lead="r"] {
+	color: var(--right);
+}
+
+.duel-flip.is-flip {
+	animation: flip-chip 2.6s var(--out) both;
+}
+
+@keyframes flip-chip {
+	0% {
+		opacity: 0;
+		transform: translateY(8px);
+		letter-spacing: 0.6em;
+	}
+
+	12%,
+	78% {
+		opacity: 1;
+		transform: none;
+		letter-spacing: 0.24em;
+	}
+
+	100% {
+		opacity: 0;
+		transform: translateY(-4px);
+	}
+}
+
+.track {
+	position: relative;
+	height: 4px;
+	margin: 13px 0 11px;
+	background: rgba(255, 255, 255, 0.09);
+}
+
+.track::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	top: -5px;
+	width: 1px;
+	height: 14px;
+	background: var(--gold);
+}
+
+/* The fill spans the track and is scaled and shifted into place, and the
+   marker rides a full-width rail that slides: both are transforms, so a
+   score change never re-runs layout. oro.js sets them each frame. */
+.track-fill {
+	position: absolute;
+	inset: 0;
+	transform: scaleX(0);
+	transition: transform 0.25s ease-out;
+	box-shadow: 0 0 12px color-mix(in srgb, currentColor 45%, transparent);
+}
+
+.track-fill[data-lead="l"] {
+	color: var(--left);
+	background: linear-gradient(90deg, rgba(255, 77, 94, 0.2), var(--left));
+}
+
+.track-fill[data-lead="r"] {
+	color: var(--right);
+	background: linear-gradient(270deg, rgba(76, 125, 255, 0.2), var(--right));
+}
+
+.track-pos {
+	position: absolute;
+	inset: 0;
+	transition: transform 0.25s ease-out;
+}
+
+.track-dot {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 10px;
+	height: 10px;
+	margin: -5px 0 0 -5px;
+	border-radius: 50%;
+	background: #fff;
+	box-shadow: 0 0 10px 3px currentColor;
+}
+
+.track-pos[data-lead="l"] {
+	color: var(--left);
+}
+
+.track-pos[data-lead="r"] {
+	color: var(--right);
+}
+
+.feed {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	overflow: hidden;
+	font: 600 15px/1.5 var(--body);
+	color: #d8d3c8;
+}
+
+.msg {
+	flex: none;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.msg time {
+	margin-right: 12px;
+	color: var(--faint);
+	font-variant-numeric: tabular-nums;
+}
+
+.msg b {
+	margin-right: 8px;
+	font-weight: 800;
+}
+
+.msg--l b {
+	color: var(--left);
+}
+
+.msg--r b {
+	color: var(--right);
+}
+
+.msg--bot b {
+	color: var(--gold);
+}
+
+.map {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	padding: 20px 36px 18px;
+	overflow: hidden;
+	min-width: 0;
+}
+
+.map-bg {
+	position: absolute;
+	inset: 0;
+	background-size: cover;
+	background-position: center;
+	opacity: 0.32;
+	-webkit-mask-image: linear-gradient(90deg, transparent, #000 70%);
+	mask-image: linear-gradient(90deg, transparent, #000 70%);
+	animation: drift 24s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+	from {
+		transform: scale(1.12) translateX(-20px);
+	}
+
+	to {
+		transform: scale(1) translateX(0);
+	}
+}
+
+.map > :not(.map-bg) {
+	position: relative;
+}
+
+.map-top {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.map-slot {
+	padding: 5px 9px 4px;
+	background: var(--red);
+	font: 700 11px/1 var(--label);
+	letter-spacing: 0.16em;
+}
+
+.map-pick {
+	font: 600 14px/1 var(--body);
+	color: var(--dim);
+}
+
+.map-pick {
+	display: flex;
+	align-items: center;
+	gap: 7px;
+}
+
+.map-pick .pfp {
+	--pfp: 22px;
+}
+
+.map-pick b {
+	color: var(--side-c, var(--gold-hi));
+	font-weight: 800;
+}
+
+.map-len {
+	margin-left: auto;
+	font: 600 17px/1 var(--display);
+}
+
+.map-title {
+	margin-top: 14px;
+	font: 900 29px/1.08 var(--display);
+	letter-spacing: 0.005em;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.map-artist {
+	margin-top: 5px;
+	font: 600 16px/1.3 var(--body);
+	color: #c9c2b4;
+}
+
+.map-diff {
+	font: 800 15px/1.4 var(--body);
+	color: var(--gold);
+}
+
+.map-stats {
+	display: flex;
+	gap: 26px;
+	margin-top: auto;
+}
+
+.stat {
+	display: flex;
+	align-items: baseline;
+	gap: 7px;
+}
+
+.stat dt {
+	font: 700 10px/1 var(--label);
+	letter-spacing: 0.14em;
+}
+
+.stat dd {
+	font: 900 23px/1 var(--display);
+	--dw: 0.6em;
+}
+
+.stat--sr dt {
+	color: var(--gold-hi);
+}
+
+.stat--bpm dt {
+	color: #d1cabc;
+}
+
+.stat--ar dt {
+	color: #ff7584;
+}
+
+.stat--od dt {
+	color: #86a8ff;
+}
+
+.stat--cs dt {
+	color: #85d8bf;
+}
+
+/* lead change: light runs along the deck edge, the new leader pops */
+
+.deck::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: -1px;
+	height: 2px;
+	background: linear-gradient(90deg, transparent, var(--flip), #fff, var(--flip), transparent) no-repeat;
+	background-size: 30% 100%;
+	background-position: -40% 0;
+	opacity: 0;
+	z-index: 1;
+}
+
+.deck.is-flip::before {
+	animation: edge-run 1.2s ease-out both;
+}
+
+.deck.is-flip[data-flip="l"]::before {
+	animation-name: edge-run-l;
+}
+
+@keyframes edge-run {
+	from {
+		opacity: 1;
+		background-position: -40% 0;
+	}
+
+	to {
+		opacity: 1;
+		background-position: 140% 0;
+	}
+}
+
+@keyframes edge-run-l {
+	from {
+		opacity: 1;
+		background-position: 140% 0;
+	}
+
+	to {
+		opacity: 1;
+		background-position: -40% 0;
+	}
+}
+
+.deck.is-flip[data-flip="l"] .duel-side--l .duel-score,
+.deck.is-flip[data-flip="r"] .duel-side--r .duel-score {
+	animation: score-pop 0.6s var(--snap);
+}
+
+@keyframes score-pop {
+	40% {
+		transform: scale(1.08);
+		text-shadow: 0 0 18px var(--flip);
+	}
+}
+
+/* gameplay entrance */
+
+.gp[data-active] .top {
+	animation: drop-in 0.7s var(--out) both;
+}
+
+.gp[data-active] .deck {
+	animation: rise-in 0.7s 0.08s var(--out) both;
+}
+
+@keyframes drop-in {
+	from {
+		transform: translateY(-100%);
+	}
+}
+
+@keyframes rise-in {
+	from {
+		transform: translateY(100%);
+	}
+}
+
+.gp[data-active] .crest {
+	animation: crest-in 0.8s 0.25s var(--out) both;
+}
+
+@keyframes crest-in {
+	from {
+		transform: translateY(-100%);
+	}
+}
+
+.gp[data-active] .corner-name {
+	animation: track-in 1s 0.35s var(--out) both;
+}
+
+.gp[data-active] .masthead-title {
+	animation: track-in 1s 0.35s var(--out) both;
+}
+
+.gp[data-active] .masthead-title span {
+	animation: title-sheen 7s 2.5s ease-in-out infinite;
+}
+
+.gp[data-active] .corner-meta,
+.gp[data-active] .corner-text .stars,
+.gp[data-active] .masthead .pill,
+.gp[data-active] .casters {
+	animation: rise 0.6s 0.55s ease-out both;
+}
+
+.gp[data-active] .rule i {
+	animation: grow 0.5s 0.6s ease-out both;
+}
+
+.gp[data-active] .disc {
+	animation: disc-in 1s 0.3s var(--out) both;
+}
+
+@keyframes disc-in {
+	from {
+		opacity: 0;
+		transform: scale(0.6) rotate(-120deg);
+	}
+}
+
+.gp[data-active] .duel-side,
+.gp[data-active] .series,
+.gp[data-active] .feed {
+	animation: rise 0.7s 0.45s ease-out both;
+}
+
+.gp[data-active] .series {
+	animation-delay: 0.6s;
+}
+
+.gp[data-active] .feed {
+	animation-delay: 0.7s;
+}
+
+.gp[data-active] .track {
+	animation: grow 0.9s 0.5s var(--out) both;
+}
+
+.gp[data-active] .map-title {
+	animation: wipe-in 0.9s 0.45s var(--out) both;
+}
+
+.gp[data-active] .map-top,
+.gp[data-active] .map-artist,
+.gp[data-active] .map-diff {
+	animation: rise 0.6s 0.6s ease-out both;
+}
+
+.gp[data-active] .tag-name {
+	animation: track-in 0.9s 0.7s var(--out) both;
+}
+
+/* =====================================================================
+   INTRO
+   ===================================================================== */
+
+.intro {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	background:
+		radial-gradient(55% 80% at 0% 55%, rgba(255, 77, 94, 0.18), transparent 60%),
+		radial-gradient(55% 80% at 100% 55%, rgba(76, 125, 255, 0.24), transparent 60%);
+}
+
+.dust {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+.intro-line {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 52%;
+	height: 1px;
+	background: linear-gradient(90deg, transparent, var(--gold) 30%, var(--gold-hi) 50%, var(--gold) 70%, transparent);
+	opacity: 0;
+}
+
+.intro-head {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 16px;
+	margin-top: 86px;
+}
+
+.intro-sol {
+	width: 64px;
+	height: 64px;
+	color: var(--gold);
+	filter: drop-shadow(0 0 18px rgba(226, 184, 102, 0.45));
+}
+
+.intro-title {
+	font: 900 76px/1 var(--display);
+	letter-spacing: 0.02em;
+	color: transparent;
+	background: linear-gradient(180deg, #fff6d8 0%, #f3d38a 36%, #b8873a 52%, #ebc77c 70%, #fff3c8 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+}
+
+.intro-duel {
+	position: relative;
+	flex: 1;
+	width: 100%;
+	display: grid;
+	grid-template-columns: 1fr 140px 1fr;
+	align-items: center;
+	padding: 0 80px;
+}
+
+.duelist {
+	display: flex;
+	align-items: center;
+	gap: 44px;
+}
+
+.duelist--l {
+	justify-content: flex-end;
+}
+
+.duelist--r {
+	flex-direction: row-reverse;
+	justify-content: flex-end;
+}
+
+.medal {
+	position: relative;
+	flex: none;
+	width: 230px;
+	height: 230px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	border: 1px solid var(--gold-line);
+	box-shadow: inset 0 0 0 10px #000, inset 0 0 0 11px var(--gold-line), 0 20px 60px rgba(0, 0, 0, 0.6);
+	font: 900 104px/1 var(--display);
+}
+
+.medal::before {
+	content: "";
+	position: absolute;
+	inset: -70px;
+	border-radius: 50%;
+	background: repeating-conic-gradient(from 0deg, color-mix(in srgb, currentColor 34%, transparent) 0 1.5deg, transparent 1.5deg 12deg);
+	-webkit-mask-image: radial-gradient(circle, transparent 47%, #000 52%, transparent 72%);
+	mask-image: radial-gradient(circle, transparent 47%, #000 52%, transparent 72%);
+	animation: turn 50s linear infinite;
+}
+
+.duelist--r .medal::before {
+	animation-direction: reverse;
+}
+
+.medal .pfp {
+	--pfp: 196px;
+	font-size: 96px;
+}
+
+.duelist--l .medal {
+	background: radial-gradient(circle at 50% 30%, #5a0f18, #0b0404 70%);
+	color: var(--left);
+}
+
+.duelist--r .medal {
+	background: radial-gradient(circle at 50% 30%, #13265e, #05070f 70%);
+	color: var(--right);
+}
+
+.duelist-text {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	max-width: 520px;
+}
+
+.duelist--r .duelist-text {
+	align-items: flex-end;
+}
+
+.duelist--l .duelist-seed {
+	color: var(--left);
+}
+
+.duelist--r .duelist-seed {
+	color: var(--right);
+}
+
+.duelist h1 {
+	font: 900 108px/0.95 var(--display);
+	letter-spacing: -0.005em;
+	text-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.tape {
+	display: flex;
+	gap: 30px;
+	margin-top: 10px;
+	padding-top: 14px;
+	border-top: 1px solid var(--gold-line);
+}
+
+.tape div {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.duelist--r .tape div {
+	align-items: flex-end;
+}
+
+.tape dt {
+	font: 700 10px/1 var(--label);
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--dim);
+}
+
+.tape dd {
+	font: 900 28px/1 var(--display);
+	--dw: 0.6em;
+}
+
+.intro-vs {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 18px;
+}
+
+.intro-vs i {
+	width: 1px;
+	height: 130px;
+	background: linear-gradient(180deg, transparent, var(--gold));
+}
+
+.intro-vs i:last-of-type {
+	background: linear-gradient(0deg, transparent, var(--gold));
+}
+
+.intro-vs span {
+	font: 700 24px/1 var(--label);
+	letter-spacing: 0.2em;
+	padding-left: 0.2em;
+	color: var(--gold-hi);
+}
+
+.intro-flare {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 700px;
+	height: 2px;
+	margin: -1px 0 0 -350px;
+	background: linear-gradient(90deg, transparent, var(--gold-hi), #fff, var(--gold-hi), transparent);
+	opacity: 0;
+}
+
+.intro-foot {
+	position: relative;
+	margin-bottom: 70px;
+	color: var(--dim);
+}
+
+/* intro choreography */
+
+.intro[data-active] .intro-line {
+	animation: intro-line 1.6s var(--out) both;
+}
+
+@keyframes intro-line {
+	0% {
+		opacity: 1;
+		transform: scaleX(0);
+	}
+
+	35% {
+		opacity: 1;
+		transform: scaleX(1);
+	}
+
+	100% {
+		opacity: 0;
+		transform: scaleX(1) scaleY(30);
+	}
+}
+
+.intro[data-active] .intro-sol {
+	animation: sol-in 1.2s 0.1s var(--out) both;
+}
+
+.intro[data-active] .intro-head .label {
+	animation: track-in 1.1s 0.2s var(--out) both;
+}
+
+.intro[data-active] .intro-title {
+	animation: winner-in 1.1s 0.35s var(--out) both;
+}
+
+.intro[data-active] .medal {
+	animation: medal-in 1s 0.45s var(--out) both;
+}
+
+@keyframes medal-in {
+	from {
+		opacity: 0;
+		transform: scale(0.55) rotate(-50deg);
+		filter: blur(10px);
+	}
+}
+
+.intro[data-active] .duelist h1 {
+	animation: track-in 1s 0.65s var(--out) both;
+}
+
+.intro[data-active] .duelist-seed {
+	animation: rise 0.7s 0.9s ease-out both;
+}
+
+.intro[data-active] .tape {
+	animation: rise 0.8s 1.1s ease-out both;
+}
+
+.intro[data-active] .intro-vs i {
+	animation: grow-y 0.7s 1s var(--out) both;
+}
+
+.intro[data-active] .intro-vs span {
+	animation: vs-in 0.6s 1.15s var(--snap) both;
+}
+
+.intro[data-active] .intro-flare {
+	animation: vs-flare 1.1s 1.15s ease-out both;
+}
+
+.intro[data-active] .intro-foot {
+	animation: track-in 1s 1.4s var(--out) both;
+}
+
+.intro[data-active] .dust {
+	animation: fade 2s 0.3s ease-out both;
+}
+
+@keyframes vs-in {
+	from {
+		opacity: 0;
+		transform: scale(2.4);
+		filter: blur(8px);
+	}
+}
+
+@keyframes vs-flare {
+	0% {
+		opacity: 0;
+		transform: scaleX(0);
+	}
+
+	20% {
+		opacity: 1;
+		transform: scaleX(1);
+	}
+
+	100% {
+		opacity: 0;
+		transform: scaleX(1.3);
+	}
+}
+
+/* =====================================================================
+   MAPPOOL
+   ===================================================================== */
+
+.pool {
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+	padding: 38px 70px 40px;
+}
+
+.pool-head {
+	position: relative;
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+	align-items: center;
+	padding-bottom: 22px;
+}
+
+.pool-head::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 1px;
+	background: linear-gradient(90deg, transparent, var(--gold-line) 15%, var(--gold) 50%, var(--gold-line) 85%, transparent);
+}
+
+.tally {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+}
+
+.tally--r {
+	justify-content: flex-end;
+}
+
+.tally-name {
+	font: 900 30px/1 var(--display);
+}
+
+.tally--l .tally-name {
+	color: var(--left);
+}
+
+.tally--r .tally-name {
+	color: var(--right);
+}
+
+.pool-title {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+}
+
+.pool-turn {
+	font: 600 28px/1 var(--display);
+	color: var(--dim);
+}
+
+.pool-turn {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.pool-turn .pfp {
+	--pfp: 38px;
+}
+
+.pool-turn b {
+	font-weight: 900;
+	color: var(--side-c);
+}
+
+.pool-grid {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 11px;
+}
+
+.pool-row {
+	flex: 1;
+	display: flex;
+	gap: 11px;
+}
+
+.pool-mod {
+	width: 76px;
+	display: flex;
+	align-items: center;
+	font: 700 19px/1 var(--label);
+	letter-spacing: 0.1em;
+}
+
+.mod--nm {
+	color: #e1dcd0;
+}
+
+.mod--hd {
+	color: var(--gold-hi);
+}
+
+.mod--hr {
+	color: #ff7584;
+}
+
+.mod--dt {
+	color: #b1a3ff;
+}
+
+.mod--fm {
+	color: #85d8bf;
+}
+
+.mod--tb {
+	color: var(--gold);
+}
+
+.card {
+	position: relative;
+	width: 340px;
+	overflow: hidden;
+	background: rgba(6, 5, 3, 0.8);
+	border: 1px solid var(--hair);
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.card-art {
+	position: absolute;
+	inset: 0;
+	background-size: cover;
+	background-position: center;
+}
+
+.card-art::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(90deg, rgba(4, 3, 1, 0.94) 22%, rgba(4, 3, 1, 0.5));
+}
+
+.card-body {
+	position: relative;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	padding: 0 20px;
+}
+
+.card-body::before {
+	content: "";
+	position: absolute;
+	inset: 0 -20px;
+	background: linear-gradient(105deg, transparent 38%, rgba(255, 227, 163, 0.25) 50%, transparent 62%) no-repeat;
+	background-size: 250% 100%;
+	background-position: 140% 0;
+	pointer-events: none;
+}
+
+.card-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 7px;
+}
+
+.card-id {
+	font: 700 11px/1 var(--label);
+	letter-spacing: 0.14em;
+	color: var(--dim);
+}
+
+.card-state {
+	font: 800 11px/1 var(--body);
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+}
+
+.card-title {
+	font: 900 21px/1.12 var(--display);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.card-artist {
+	margin-top: 2px;
+	font: 600 13px/1.3 var(--body);
+	color: var(--dim);
+}
+
+/* Role colours: --by is who picked (or banned) the map, --won who took it.
+   A pick wears the picker's colour as its frame and title and the winner's
+   as a thick bottom edge; a ban wears the banner's colour, darkened. */
+.by-l {
+	--by: var(--left);
+}
+
+.by-r {
+	--by: var(--right);
+}
+
+.won-l {
+	--won: var(--left);
+}
+
+.won-r {
+	--won: var(--right);
+}
+
+.card.is-pick,
+.card.is-live {
+	border-color: var(--by);
+	box-shadow: inset 0 0 0 1px var(--by), 0 0 26px color-mix(in srgb, var(--by) 22%, transparent), 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.card.is-pick .card-title,
+.card.is-live .card-title {
+	color: color-mix(in srgb, var(--by) 70%, #fff);
+}
+
+.card.is-pick::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 5px;
+	z-index: 1;
+	background: var(--won);
+	box-shadow: 0 0 14px var(--won);
+}
+
+.card.is-pick .card-state {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--won);
+}
+
+.card.is-ban {
+	--ban: color-mix(in srgb, var(--by) 48%, #000);
+	border-color: var(--ban);
+	background: color-mix(in srgb, var(--ban) 40%, #000);
+}
+
+.card.is-ban .card-art {
+	filter: grayscale(1) brightness(0.32);
+}
+
+.card.is-ban .card-art::after {
+	background: linear-gradient(90deg, color-mix(in srgb, var(--ban) 88%, #000) 22%, color-mix(in srgb, var(--ban) 55%, transparent));
+}
+
+.card.is-ban .card-title {
+	color: color-mix(in srgb, var(--by) 45%, #6d6658);
+	text-decoration: line-through;
+	text-decoration-color: color-mix(in srgb, var(--by) 60%, #000);
+	text-decoration-thickness: 2px;
+}
+
+.card.is-ban .card-state,
+.card.is-live .card-state {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: color-mix(in srgb, var(--by) 60%, #fff);
+}
+
+.card.is-ban .card-state .pfp {
+	filter: grayscale(0.6) brightness(0.7);
+}
+
+.card-state .pfp {
+	--pfp: 18px;
+}
+
+.card.is-live::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	padding: 2px;
+	background: conic-gradient(from var(--spin), transparent 0 55%, var(--by) 72%, #fff 78%, var(--by) 84%, transparent 100%);
+	-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+	-webkit-mask-composite: xor;
+	mask-composite: exclude;
+	animation: spin-border 2.6s linear infinite;
+	pointer-events: none;
+}
+
+@keyframes spin-border {
+	to {
+		--spin: 360deg;
+	}
+}
+
+.pool-order {
+	display: flex;
+	justify-content: center;
+	gap: 10px;
+	list-style: none;
+}
+
+.pool-order li {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 16px;
+	background: rgba(6, 5, 3, 0.7);
+	border: 1px solid var(--hair);
+	font: 900 16px/1 var(--display);
+}
+
+.pool-order b {
+	font: 700 10px/1 var(--label);
+	color: var(--faint);
+}
+
+.pool-order li {
+	border-color: var(--by);
+	color: color-mix(in srgb, var(--by) 70%, #fff);
+}
+
+.pool-order li[class*="won-"] {
+	border-bottom: 4px solid var(--won);
+}
+
+.pool-order li.is-live {
+	box-shadow: 0 0 18px color-mix(in srgb, var(--by) 40%, transparent);
+}
+
+.pool-order .pfp {
+	--pfp: 20px;
+}
+
+/* mappool choreography */
+
+.pool[data-active] .pool-head::after {
+	animation: grow 1s 0.1s var(--out) both;
+}
+
+.pool[data-active] .tally-name,
+.pool[data-active] .pool-title .label {
+	animation: track-in 1s 0.1s var(--out) both;
+}
+
+.pool[data-active] .pool-turn {
+	animation: rise 0.6s 0.35s ease-out both;
+}
+
+.pool[data-active] .card {
+	animation: card-wipe 0.7s calc(0.15s + var(--i, 0) * 0.035s) var(--out) both;
+}
+
+@keyframes card-wipe {
+	from {
+		opacity: 0;
+		clip-path: inset(0 100% 0 0);
+		transform: translateX(-16px);
+	}
+
+	to {
+		clip-path: inset(0 0 0 0);
+	}
+}
+
+.pool[data-active] .card-body::before {
+	animation: sheen-once 1s calc(0.5s + var(--i, 0) * 0.035s) ease-out both;
+}
+
+@keyframes sheen-once {
+	to {
+		background-position: -40% 0;
+	}
+}
+
+.pool[data-active] .pool-order li {
+	animation: rise 0.5s calc(0.9s + var(--i, 0) * 0.06s) ease-out both;
+}
+
+/* =====================================================================
+   TIEBREAKER — gameplay in godmode. oro.js sets on .stage:
+     data-tb               the tiebreaker is on
+     data-tb-mode          calm | lead-l | lead-r | clash
+     data-tb-final         the last stretch of the map
+     data-tb-ten           the last ten seconds
+     --ti                  intensity, 0.12 at the start to 1 at the end
+     --beat                1 on each beat of the map, decaying to 0
+     --gl, --gr            glow per side, from mode, intensity and beat
+   Everything stays off the playfields except thin frames at their edges.
+   ===================================================================== */
+
+.stage {
+	--ti: 0;
+	--beat: 0;
+	--gl: 0;
+	--gr: 0;
+}
+
+.tb {
+	position: absolute;
+	inset: 0;
+	display: none;
+	pointer-events: none;
+}
+
+.stage[data-tb] .tb {
+	display: block;
+}
+
+.tb-fx {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+/* ---------- frames around the clients ---------- */
+
+.tb-frame {
+	position: absolute;
+	top: 100px;
+	width: 956px;
+	height: 720px;
+	--c: var(--left);
+	--g: var(--gl);
+}
+
+.tb-frame--l {
+	left: 0;
+}
+
+.tb-frame--r {
+	left: 964px;
+	--c: var(--right);
+	--g: var(--gr);
+}
+
+.tb-frame::before,
+.tb-frame::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+}
+
+/* Border: a faint ring, plus two bright arcs chasing round it. The arcs
+   are a fixed conic gradient on an oversized square that rotates inside a
+   ring mask, so the spin is a compositor transform, not a repaint. */
+.tb-frame::before {
+	border: 2px solid color-mix(in srgb, var(--c) 30%, transparent);
+	opacity: calc(0.3 + 0.7 * var(--g));
+}
+
+.tb-arc {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+	padding: 3px;
+	-webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+	-webkit-mask-composite: xor;
+	mask-composite: exclude;
+	opacity: calc(var(--g) * 1.1);
+	will-change: opacity;
+}
+
+.tb-arc::before {
+	content: "";
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 1300px;
+	height: 1300px;
+	margin: -650px 0 0 -650px;
+	background: conic-gradient(var(--c) 0deg, transparent 55deg 125deg, #fff 180deg, var(--c) 195deg, transparent 250deg 320deg, var(--c) 360deg);
+	animation: turn 3.2s linear infinite;
+	will-change: transform;
+}
+
+/* Each second of the last ten flashes the frames. */
+.tb.tb-tick .tb-frame::after {
+	animation: tb-tick-flash 0.5s ease-out;
+}
+
+@keyframes tb-tick-flash {
+	from {
+		opacity: 1;
+	}
+}
+
+.tb-frame::after {
+	box-shadow: inset 0 0 80px 4px var(--c);
+	opacity: calc(var(--g) * 0.6);
+	will-change: opacity;
+}
+
+/* Corner brackets: they grow with the intensity. */
+.tb-frame i {
+	position: absolute;
+	width: 54px;
+	height: 54px;
+	border: 0 solid var(--c);
+	opacity: calc(0.35 + 0.65 * var(--g));
+	scale: calc(0.55 + 0.45 * var(--ti));
+	filter: drop-shadow(0 0 8px var(--c));
+}
+
+.tb-frame i:nth-child(1) {
+	top: 12px;
+	left: 12px;
+	border-width: 4px 0 0 4px;
+	transform-origin: 0 0;
+}
+
+.tb-frame i:nth-child(2) {
+	top: 12px;
+	right: 12px;
+	border-width: 4px 4px 0 0;
+	transform-origin: 100% 0;
+}
+
+.tb-frame i:nth-child(3) {
+	bottom: 12px;
+	right: 12px;
+	border-width: 0 4px 4px 0;
+	transform-origin: 100% 100%;
+}
+
+.tb-frame i:nth-child(4) {
+	bottom: 12px;
+	left: 12px;
+	border-width: 0 0 4px 4px;
+	transform-origin: 0 100%;
+}
+
+/* ---------- the seam between the clients ---------- */
+
+.tb-seam {
+	position: absolute;
+	left: 956px;
+	top: 100px;
+	width: 8px;
+	height: 720px;
+	--s: var(--gold);
+	background: var(--s);
+	box-shadow: 0 0 calc(10px + 40px * var(--ti)) var(--s);
+	opacity: calc(0.2 + 0.8 * var(--ti));
+}
+
+.stage[data-tb-mode="lead-l"] .tb-seam {
+	--s: var(--left);
+}
+
+.stage[data-tb-mode="lead-r"] .tb-seam {
+	--s: var(--right);
+}
+
+/* Clash: the two colours fight up and down the seam (a striped strip
+   sliding by transform inside it). */
+.tb-seam::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: -80px;
+	bottom: 0;
+	background: repeating-linear-gradient(180deg, var(--left) 0 36px, #fff 36px 40px, var(--right) 40px 76px, #fff 76px 80px);
+	opacity: 0;
+}
+
+.stage[data-tb-mode="clash"] .tb-seam {
+	overflow: hidden;
+	box-shadow: 0 0 calc(20px + 50px * var(--ti)) rgba(255, 255, 255, 0.6);
+}
+
+.stage[data-tb-mode="clash"] .tb-seam::before {
+	opacity: 1;
+	animation: seam-flow 0.5s linear infinite;
+}
+
+@keyframes seam-flow {
+	to {
+		transform: translateY(80px);
+	}
+}
+
+/* ---------- rails: light running along the clients' edges ----------
+   Last stretch only. They run towards the leader, or into the seam from
+   both sides in a clash. */
+
+/* The dashes are an oversized strip sliding by transform (composited), not
+   an animated background-position (a repaint every frame). */
+.tb-rail {
+	position: absolute;
+	width: 960px;
+	height: 3px;
+	overflow: hidden;
+	--c: var(--gold);
+	--dir: 60px;
+	filter: drop-shadow(0 0 6px var(--c));
+	opacity: 0;
+	transition: opacity 0.6s;
+}
+
+.tb-rail::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: -60px;
+	right: -60px;
+	background: repeating-linear-gradient(90deg, var(--c) 0 26px, transparent 26px 60px);
+}
+
+.stage[data-tb-final] .tb-rail::before {
+	animation: tb-rail 0.45s linear infinite;
+}
+
+.tb-rail--tl,
+.tb-rail--tr {
+	top: 99px;
+}
+
+.tb-rail--bl,
+.tb-rail--br {
+	top: 818px;
+}
+
+.tb-rail--tl,
+.tb-rail--bl {
+	left: 0;
+}
+
+.tb-rail--tr,
+.tb-rail--br {
+	left: 960px;
+	--dir: -60px;
+}
+
+.stage[data-tb-final] .tb-rail {
+	opacity: 0.9;
+}
+
+.stage[data-tb-mode="clash"] .tb-rail--tl,
+.stage[data-tb-mode="clash"] .tb-rail--bl {
+	--c: var(--left);
+}
+
+.stage[data-tb-mode="clash"] .tb-rail--tr,
+.stage[data-tb-mode="clash"] .tb-rail--br {
+	--c: var(--right);
+}
+
+.stage[data-tb-mode="lead-l"] .tb-rail {
+	--c: var(--left);
+	--dir: -60px;
+}
+
+.stage[data-tb-mode="lead-r"] .tb-rail {
+	--c: var(--right);
+	--dir: 60px;
+}
+
+@keyframes tb-rail {
+	to {
+		transform: translateX(var(--dir));
+	}
+}
+
+/* ---------- lead swap: a band of the new leader's colour sweeps the HUD,
+   starting from their side ---------- */
+
+.tb-sweep i {
+	position: absolute;
+	left: 0;
+	width: 1920px;
+	overflow: hidden;
+	visibility: hidden;
+}
+
+.tb-sweep-top {
+	top: 0;
+	height: 100px;
+}
+
+.tb-sweep-deck {
+	top: 820px;
+	height: 260px;
+}
+
+.tb-sweep i::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: -760px;
+	width: 760px;
+	background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--sw) 60%, transparent) 42%, #fff 50%, color-mix(in srgb, var(--sw) 60%, transparent) 58%, transparent);
+	mix-blend-mode: screen;
+}
+
+.tb-sweep[data-side="l"] {
+	--sw: var(--left);
+}
+
+.tb-sweep[data-side="r"] {
+	--sw: var(--right);
+}
+
+.tb-sweep.run i {
+	visibility: visible;
+}
+
+.tb-sweep.run[data-side="l"] i::before {
+	animation: tb-sweep-l 0.85s cubic-bezier(0.5, 0, 0.3, 1) both;
+}
+
+.tb-sweep.run[data-side="r"] i::before {
+	animation: tb-sweep-r 0.85s cubic-bezier(0.5, 0, 0.3, 1) both;
+}
+
+.tb-sweep-deck::before {
+	animation-delay: 0.08s !important;
+}
+
+@keyframes tb-sweep-l {
+	from {
+		transform: translateX(0);
+	}
+
+	to {
+		transform: translateX(2680px);
+	}
+}
+
+@keyframes tb-sweep-r {
+	from {
+		transform: translateX(2680px) scaleX(-1);
+	}
+
+	to {
+		transform: translateX(0) scaleX(-1);
+	}
+}
+
+.tbi-fx {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+/* ---------- top bar ---------- */
+
+.stage[data-tb] .masthead .pill--gold {
+	background: linear-gradient(90deg, #ff3b4f, #ffd27a 50%, #ff3b4f);
+	background-size: 200% 100%;
+	color: #1a0505;
+	animation: tb-pill 1.4s linear infinite;
+	box-shadow: 0 0 calc(24px * var(--ti)) rgba(255, 90, 80, 0.7);
+}
+
+@keyframes tb-pill {
+	to {
+		background-position: -200% 0;
+	}
+}
+
+/* The leader's crest lights up from inside on the beat. */
+.crest::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: radial-gradient(70% 55% at 50% 42%, var(--cg, transparent), transparent 75%);
+	opacity: 0;
+	will-change: opacity;
+}
+
+.crest svg {
+	position: relative;
+}
+
+.corner--l .crest {
+	--cg: rgba(255, 77, 94, 0.85);
+}
+
+.corner--r .crest {
+	--cg: rgba(76, 125, 255, 0.9);
+}
+
+.stage[data-tb-mode="lead-l"] .corner--l .crest::before,
+.stage[data-tb-mode="clash"] .corner--l .crest::before,
+.stage[data-tb-mode="lead-r"] .corner--r .crest::before,
+.stage[data-tb-mode="clash"] .corner--r .crest::before {
+	opacity: calc(var(--ti) * (0.45 + 0.55 * var(--beat)));
+}
+
+.masthead {
+	position: relative;
+}
+
+.masthead > * {
+	transition: opacity 0.4s;
+}
+
+/* Last stretch: the masthead becomes the countdown. */
+.tb-clock {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+	opacity: 0;
+	transform: scale(0.85);
+	transition: opacity 0.5s, transform 0.6s var(--out);
+	pointer-events: none;
+}
+
+.stage[data-tb-final] .tb-clock {
+	opacity: 1;
+	transform: none;
+}
+
+.stage[data-tb-final] .masthead > :not(.tb-clock) {
+	opacity: 0;
+}
+
+.tb-clock-label {
+	font: 700 11px/1 var(--label);
+	letter-spacing: 0.42em;
+	padding-left: 0.42em;
+	text-transform: uppercase;
+	color: #ff8c97;
+}
+
+.tb-clock-n {
+	font: 900 58px/0.9 var(--display);
+	color: #fff;
+	text-shadow: 0 0 calc(30px * var(--ti)) rgba(255, 90, 90, 0.7);
+	--dw: 0.6em;
+}
+
+.stage[data-tb-ten] .tb-clock-n {
+	color: #ff4d5e;
+}
+
+.tb-clock.is-tick .tb-clock-n {
+	animation: tb-tick 0.6s var(--out);
+}
+
+@keyframes tb-tick {
+	0% {
+		color: #fff;
+		transform: scale(1.3);
+		text-shadow: 0 0 40px #ff3b4f;
+	}
+}
+
+/* ---------- deck ---------- */
+
+.duel-mid {
+	position: relative;
+}
+
+.tb-state {
+	position: absolute;
+	left: 50%;
+	bottom: 100%;
+	margin-bottom: 6px;
+	transform: translateX(-50%);
+	display: none;
+	padding: 4px 10px 3px;
+	font: 700 10px/1 var(--label);
+	letter-spacing: 0.3em;
+	text-transform: uppercase;
+	white-space: nowrap;
+	color: var(--gold-hi);
+	border: 1px solid currentColor;
+	isolation: isolate;
+}
+
+.stage[data-tb] .tb-state {
+	display: block;
+}
+
+.stage[data-tb-mode="lead-l"] .tb-state {
+	color: var(--left);
+}
+
+.stage[data-tb-mode="lead-r"] .tb-state {
+	color: var(--right);
+}
+
+.stage[data-tb-mode="clash"] .tb-state {
+	color: #fff;
+	border-color: #ff4d5e;
+	box-shadow: 0 0 calc(20px * var(--ti)) rgba(255, 60, 80, 0.7);
+}
+
+.tb-state::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background: rgba(239, 51, 71, 0.75);
+	opacity: 0;
+}
+
+.stage[data-tb-mode="clash"] .tb-state::before {
+	opacity: calc(0.3 + 0.7 * var(--beat));
+}
+
+.tb-state.is-new {
+	animation: tb-state-in 0.7s var(--snap);
+}
+
+@keyframes tb-state-in {
+	from {
+		opacity: 0;
+		transform: translateX(-50%) scale(1.6);
+		filter: blur(4px);
+	}
+}
+
+/* The leader's number swells on the beat; in a clash, both do. */
+.stage[data-tb] .duel-score {
+	transform-origin: 0 100%;
+}
+
+.stage[data-tb] .duel-side--r .duel-score {
+	transform-origin: 100% 100%;
+}
+
+.stage[data-tb-mode="lead-l"] [data-score="l"],
+.stage[data-tb-mode="clash"] [data-score="l"] {
+	scale: calc(1 + 0.06 * var(--beat) * var(--ti));
+	text-shadow: 0 0 calc(34px * var(--ti)) rgba(255, 77, 94, 0.65);
+}
+
+.stage[data-tb-mode="lead-r"] [data-score="r"],
+.stage[data-tb-mode="clash"] [data-score="r"] {
+	scale: calc(1 + 0.06 * var(--beat) * var(--ti));
+	text-shadow: 0 0 calc(34px * var(--ti)) rgba(76, 125, 255, 0.75);
+}
+
+/* Track glow: a fixed shadow on a layer whose opacity follows the beat. */
+.track::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	box-shadow: 0 0 24px 2px rgba(255, 214, 140, 0.8);
+	opacity: 0;
+	will-change: opacity;
+}
+
+.stage[data-tb] .track::before {
+	opacity: calc(var(--ti) * (0.4 + 0.6 * var(--beat)));
+}
+
+.stage[data-tb-mode="clash"] .track::before {
+	box-shadow: 0 0 28px 3px rgba(255, 70, 90, 0.85);
+}
+
+/* The rule under the top bar takes the moment's colour. */
+.stage[data-tb] .rule i {
+	width: calc(96px + 500px * var(--ti));
+	margin-left: calc(-48px - 250px * var(--ti));
+	transition: width 0.6s, margin 0.6s;
+}
+
+.stage[data-tb-mode="lead-l"] .rule i {
+	background: var(--left);
+	box-shadow: 0 0 18px var(--left);
+}
+
+.stage[data-tb-mode="lead-r"] .rule i {
+	background: var(--right);
+	box-shadow: 0 0 18px var(--right);
+}
+
+.stage[data-tb-mode="clash"] .rule i {
+	background: linear-gradient(90deg, var(--left), #fff 50%, var(--right));
+	box-shadow: 0 0 22px rgba(255, 80, 90, 0.8);
+}
+
+/* ---------- backdrop grade, seen through the glass ---------- */
+
+.backdrop-grade::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+	transition: opacity 1.2s;
+}
+
+body[data-scene="gameplay"] .stage[data-tb] .backdrop-grade::after {
+	opacity: calc(0.2 + 0.8 * var(--ti));
+	background: radial-gradient(80% 80% at 50% 100%, rgba(239, 51, 71, 0.4), transparent 70%);
+}
+
+body[data-scene="gameplay"] .stage[data-tb-mode="lead-l"] .backdrop-grade::after {
+	background: radial-gradient(70% 100% at 0% 60%, rgba(255, 77, 94, 0.45), transparent 70%);
+}
+
+body[data-scene="gameplay"] .stage[data-tb-mode="lead-r"] .backdrop-grade::after {
+	background: radial-gradient(70% 100% at 100% 60%, rgba(76, 125, 255, 0.5), transparent 70%);
+}
+
+body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after {
+	background:
+		radial-gradient(60% 100% at 0% 60%, rgba(255, 77, 94, 0.4), transparent 70%),
+		radial-gradient(60% 100% at 100% 60%, rgba(76, 125, 255, 0.45), transparent 70%),
+		radial-gradient(40% 60% at 50% 100%, rgba(239, 51, 71, 0.45), transparent 70%);
+}
+
+/* ---------- intro (5s) ----------
+   Halves slam together at 900ms, the series pops at 1s, the word's letters
+   land from 1.5s and lock at 2.1s, the map at 2.5s; they part from 3.9s. */
+
+.tbi {
+	position: absolute;
+	inset: 0;
+	z-index: 5;
+	overflow: hidden;
+	pointer-events: none;
+	visibility: hidden;
+	--TI: 5s;
+}
+
+.tbi.run {
+	visibility: visible;
+}
+
+.tbi-half {
+	position: absolute;
+	inset: 0;
+}
+
+.tbi-half--l {
+	background:
+		repeating-linear-gradient(115deg, rgba(255, 240, 200, 0.035) 0 2px, transparent 2px 16px),
+		radial-gradient(70% 90% at 15% 50%, rgba(255, 77, 94, 0.32), transparent 70%),
+		linear-gradient(100deg, #1c1402, #070501 60%);
+	clip-path: polygon(0 0, 54% 0, 46% 100%, 0 100%);
+}
+
+.tbi-half--r {
+	background:
+		repeating-linear-gradient(115deg, rgba(210, 225, 255, 0.035) 0 2px, transparent 2px 16px),
+		radial-gradient(70% 90% at 85% 50%, rgba(76, 125, 255, 0.36), transparent 70%),
+		linear-gradient(260deg, #050c22, #020309 60%);
+	clip-path: polygon(54% 0, 100% 0, 100% 100%, 46% 100%);
+}
+
+.tbi.run .tbi-half--l {
+	animation: tbi-l var(--TI) both;
+}
+
+.tbi.run .tbi-half--r {
+	animation: tbi-r var(--TI) both;
+}
+
+@keyframes tbi-l {
+	0%,
+	6% {
+		transform: translateX(-100%);
+		animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+	}
+
+	18%,
+	78% {
+		transform: none;
+		animation-timing-function: cubic-bezier(0.6, 0, 0.85, 0.4);
+	}
+
+	92%,
+	100% {
+		transform: translateX(-100%);
+	}
+}
+
+@keyframes tbi-r {
+	0%,
+	6% {
+		transform: translateX(100%);
+		animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5);
+	}
+
+	18%,
+	78% {
+		transform: none;
+		animation-timing-function: cubic-bezier(0.6, 0, 0.85, 0.4);
+	}
+
+	92%,
+	100% {
+		transform: translateX(100%);
+	}
+}
+
+/* The diagonal where the halves meet, white-hot on impact. */
+.tbi-seam {
+	position: absolute;
+	left: 50%;
+	top: -10%;
+	width: 6px;
+	height: 120%;
+	margin-left: -3px;
+	background: linear-gradient(180deg, transparent, #fff 15%, #fff 85%, transparent);
+	box-shadow: 0 0 30px 8px rgba(255, 220, 160, 0.8);
+	transform: rotate(8.1deg) scaleY(0);
+	opacity: 0;
+}
+
+.tbi.run .tbi-seam {
+	animation: tbi-seam var(--TI) both;
+}
+
+@keyframes tbi-seam {
+	0%,
+	17.9% {
+		opacity: 0;
+		transform: rotate(8.1deg) scaleY(0);
+	}
+
+	18% {
+		opacity: 1;
+		transform: rotate(8.1deg) scaleY(0.2);
+		animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+
+	24% {
+		opacity: 1;
+		transform: rotate(8.1deg) scaleY(1);
+	}
+
+	76% {
+		opacity: 0.7;
+		transform: rotate(8.1deg) scaleY(1);
+	}
+
+	80%,
+	100% {
+		opacity: 0;
+		transform: rotate(8.1deg) scaleY(1) scaleX(6);
+	}
+}
+
+.tbi-core {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+
+.tbi.run .tbi-core {
+	animation: tbi-core var(--TI) both;
+}
+
+@keyframes tbi-core {
+	/* blur(0) here too, or the exit blur interpolates from the very start
+	   and the whole announcement goes soft while it holds */
+	0%,
+	78% {
+		opacity: 1;
+		transform: none;
+		filter: blur(0);
+		animation-timing-function: cubic-bezier(0.5, 0, 0.8, 0.3);
+	}
+
+	88%,
+	100% {
+		opacity: 0;
+		transform: scale(1.25);
+		filter: blur(8px);
+	}
+}
+
+.tbi-duel {
+	display: flex;
+	align-items: center;
+	gap: 44px;
+}
+
+.tbi-name {
+	width: 640px;
+	font: 900 92px/1.1 var(--display);
+	white-space: nowrap;
+}
+
+.tbi-name--l {
+	text-align: right;
+	color: var(--left);
+	text-shadow: 0 0 40px rgba(255, 77, 94, 0.45);
+}
+
+.tbi-name--r {
+	color: var(--right);
+	text-shadow: 0 0 40px rgba(76, 125, 255, 0.55);
+}
+
+.tbi.run .tbi-name--l {
+	animation: tbi-name-l var(--TI) both;
+}
+
+.tbi.run .tbi-name--r {
+	animation: tbi-name-r var(--TI) both;
+}
+
+@keyframes tbi-name-l {
+	0%,
+	8% {
+		opacity: 0;
+		transform: translateX(-280px);
+		animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+
+	22%,
+	100% {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@keyframes tbi-name-r {
+	0%,
+	8% {
+		opacity: 0;
+		transform: translateX(280px);
+		animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+
+	22%,
+	100% {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+.tbi-series {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+	font: 900 84px/1 var(--display);
+	color: #fff;
+}
+
+.tbi-series i {
+	width: 4px;
+	height: 64px;
+	background: linear-gradient(180deg, var(--left), var(--right));
+	transform: skewX(-12deg);
+}
+
+.tbi.run .tbi-series {
+	animation: tbi-series var(--TI) both;
+}
+
+@keyframes tbi-series {
+	0%,
+	19.9% {
+		opacity: 0;
+		transform: scale(1.35);
+	}
+
+	20% {
+		opacity: 1;
+		transform: scale(1.35);
+		animation-timing-function: cubic-bezier(0.3, 1.5, 0.5, 1);
+	}
+
+	27%,
+	100% {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+.tbi-word {
+	display: flex;
+	margin: 26px 0 30px;
+	font: 900 196px/1 var(--display);
+	text-transform: uppercase;
+	letter-spacing: 0.02em;
+	white-space: nowrap;
+	filter: drop-shadow(0 10px 0 #4a0910) drop-shadow(0 26px 50px rgba(0, 0, 0, 0.7));
+}
+
+/* Each letter carries its own gradient (background-clip:text on a parent
+   can crop its children's text on the GPU). */
+.tbi-word span {
+	display: inline-block;
+	padding: 0.06em 0.01em 0.14em;
+	color: transparent;
+	background: linear-gradient(180deg, #fffaf0 0%, #ffd98a 30%, #ff7a3d 58%, #c8142b 80%, #ff5a4a 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+	opacity: 0;
+}
+
+.tbi.run .tbi-word span {
+	animation: tbi-letter 0.32s calc(1.5s + var(--k) * 0.045s) cubic-bezier(0.6, 0, 0.9, 0.4) both;
+}
+
+@keyframes tbi-letter {
+	from {
+		opacity: 0;
+		transform: translateY(-40px) scale(2.6);
+		filter: blur(12px);
+	}
+
+	to {
+		opacity: 1;
+		transform: none;
+		filter: blur(0);
+	}
+}
+
+/* Lock: the whole word kicks when the last letter lands. */
+.tbi.run .tbi-word {
+	animation: tbi-lock 0.5s 2.1s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes tbi-lock {
+	0% {
+		transform: scale(1.06);
+	}
+
+	40% {
+		transform: scale(0.985);
+	}
+}
+
+.tbi-map {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	font: 700 22px/1 var(--body);
+	color: rgba(244, 241, 234, 0.9);
+}
+
+.tbi-slot {
+	padding: 6px 12px 5px;
+	font: 900 20px/1 var(--display);
+	color: #1a0505;
+	background: linear-gradient(90deg, #ff3b4f, #ffd27a);
+}
+
+.tbi.run .tbi-map {
+	animation: tbi-map var(--TI) both;
+}
+
+@keyframes tbi-map {
+	0%,
+	50% {
+		opacity: 0;
+		transform: translateY(18px);
+		animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+	}
+
+	58%,
+	100% {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+.tbi-flash {
+	position: absolute;
+	inset: 0;
+	background: radial-gradient(50% 50% at 50% 50%, rgba(255, 250, 235, 0.95), rgba(255, 200, 140, 0.4) 50%, transparent 80%);
+	mix-blend-mode: screen;
+	opacity: 0;
+}
+
+.tbi.run .tbi-flash {
+	animation: tbi-flash var(--TI) both;
+}
+
+@keyframes tbi-flash {
+	0%,
+	17.9% {
+		opacity: 0;
+	}
+
+	18.4% {
+		opacity: 0.8;
+	}
+
+	26% {
+		opacity: 0;
+	}
+
+	41.9% {
+		opacity: 0;
+	}
+
+	42.4% {
+		opacity: 1;
+	}
+
+	54%,
+	100% {
+		opacity: 0;
+	}
+}
+
+/* ---------- end (3.2s): the winner's colour floods in ---------- */
+
+.tbe {
+	position: absolute;
+	inset: 0;
+	z-index: 5;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	pointer-events: none;
+	visibility: hidden;
+	--w: var(--left);
+	background:
+		radial-gradient(60% 70% at 50% 50%, color-mix(in srgb, var(--w) 45%, transparent), transparent 75%),
+		rgba(0, 0, 0, 0.7);
+}
+
+.tbe[data-side="r"] {
+	--w: var(--right);
+}
+
+.tbe.run {
+	visibility: visible;
+	animation: tbe 3.2s both;
+}
+
+@keyframes tbe {
+	0% {
+		opacity: 0;
+	}
+
+	8%,
+	82% {
+		opacity: 1;
+	}
+
+	100% {
+		opacity: 0;
+	}
+}
+
+.tbe-kicker {
+	font: 700 20px/1 var(--label);
+	letter-spacing: 0.5em;
+	padding-left: 0.5em;
+	text-transform: uppercase;
+	color: #fff;
+}
+
+.tbe-name {
+	padding: 0 40px;
+	font: 900 200px/1.1 var(--display);
+	white-space: nowrap;
+	color: var(--w);
+	text-shadow: 0 0 60px var(--w), 0 0 140px var(--w);
+}
+
+.tbe.run .tbe-name {
+	animation: tbe-name 0.7s var(--snap) both;
+}
+
+@keyframes tbe-name {
+	from {
+		opacity: 0;
+		transform: scale(1.5);
+		filter: blur(14px);
+	}
+}
+
+/* =====================================================================
+   RESULT
+   ===================================================================== */
+
+.result {
+	overflow: hidden;
+}
+
+.result-bg {
+	position: absolute;
+	inset: -40px;
+	background-size: cover;
+	background-position: center;
+	filter: blur(24px) brightness(0.4) saturate(1.2);
+	opacity: 0.75;
+}
+
+.result::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: radial-gradient(70% 70% at 50% 45%, transparent, rgba(0, 0, 0, 0.78));
+}
+
+.result-flash {
+	position: absolute;
+	inset: 0;
+	background: radial-gradient(60% 50% at 50% 34%, rgba(255, 238, 196, 0.6), transparent 70%);
+	opacity: 0;
+}
+
+.result-body {
+	position: relative;
+	z-index: 1;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+
+.result-winner {
+	margin-top: 24px;
+	font: 900 196px/0.9 var(--display);
+	color: var(--left);
+	text-shadow: 0 0 80px rgba(255, 77, 94, 0.35);
+}
+
+.result-sub {
+	margin-top: 44px;
+	color: var(--dim);
+}
+
+.compare {
+	margin: 54px 0 44px;
+	border-collapse: collapse;
+}
+
+.compare tr {
+	border-top: 1px solid rgba(255, 255, 255, 0.11);
+}
+
+.compare tr:last-child {
+	border-bottom: 1px solid rgba(255, 255, 255, 0.11);
+}
+
+.compare td {
+	width: 340px;
+	padding: 13px 30px;
+	font: 900 40px/1 var(--display);
+	color: #6f6a5f;
+	--dw: 0.6em;
+}
+
+.compare td:first-child {
+	text-align: right;
+}
+
+.compare td.is-win {
+	color: #fff;
+}
+
+.compare th {
+	width: 220px;
+	font: 700 11px/1 var(--label);
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--gold);
+}
+
+.series--big .series-pips i {
+	width: 48px;
+	height: 6px;
+	border-radius: 3px;
+}
+
+.series--big .series-n {
+	font-size: 34px;
+	margin: 0 10px;
+}
+
+.series--big .series-name {
+	font-size: 12px;
+}
+
+.series-pips i.is-new::after {
+	content: "";
+	position: absolute;
+	inset: -6px -4px;
+	border: 1px solid var(--left);
+	border-radius: 6px;
+	opacity: 0;
+}
+
+.matchpoint {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+	margin-top: 40px;
+	padding: 14px 60px;
+	border-top: 1px solid var(--gold-line);
+	border-bottom: 1px solid var(--gold-line);
+	background:
+		linear-gradient(105deg, transparent 40%, rgba(255, 236, 190, 0.22) 50%, transparent 60%) no-repeat,
+		linear-gradient(90deg, transparent, rgba(226, 184, 102, 0.16), transparent);
+	background-size: 260% 100%, 100% 100%;
+	background-position: 150% 0, 0 0;
+	font: 700 14px/1 var(--label);
+	letter-spacing: 0.3em;
+	text-transform: uppercase;
+	color: var(--gold-hi);
+}
+
+.matchpoint svg {
+	width: 16px;
+	height: 16px;
+	fill: var(--gold);
+	animation: turn 4s linear infinite;
+}
+
+/* result choreography */
+
+.result[data-active] .result-bg {
+	animation: kenburns 9s var(--out) both;
+}
+
+@keyframes kenburns {
+	from {
+		transform: scale(1.3);
+	}
+
+	to {
+		transform: scale(1.05);
+	}
+}
+
+.result[data-active] .result-flash {
+	animation: flash 1.1s 0.2s ease-out both;
+}
+
+@keyframes flash {
+	0% {
+		opacity: 0;
+	}
+
+	14% {
+		opacity: 1;
+	}
+
+	100% {
+		opacity: 0;
+	}
+}
+
+.result[data-active] .result-body > .label:first-child {
+	animation: track-in 1s 0.1s var(--out) both;
+}
+
+.result[data-active] .result-winner {
+	animation: winner-in 1.1s 0.25s var(--out) both;
+}
+
+.result[data-active] .result-sub {
+	animation: track-in 0.9s 0.6s var(--out) both;
+}
+
+.result[data-active] .compare tr {
+	animation: rise 0.6s 0.75s ease-out both;
+}
+
+.result[data-active] .compare tr:nth-child(2) {
+	animation-delay: 0.89s;
+}
+
+.result[data-active] .compare tr:nth-child(3) {
+	animation-delay: 1.03s;
+}
+
+.result[data-active] .compare tr:nth-child(4) {
+	animation-delay: 1.17s;
+}
+
+.result[data-active] .series--big {
+	animation: rise 0.7s 1.35s ease-out both;
+}
+
+.result[data-active] .series--big .series-pips i.is-new {
+	animation: pip-in 0.8s 1.9s ease-out both;
+}
+
+@keyframes pip-in {
+	from {
+		background: rgba(255, 255, 255, 0.13);
+		box-shadow: none;
+	}
+
+	60% {
+		box-shadow: 0 0 18px 3px var(--left);
+	}
+}
+
+.result[data-active] .series-pips i.is-new::after {
+	animation: ring 1.4s 1.95s ease-out both;
+}
+
+@keyframes ring {
+	0% {
+		opacity: 1;
+		transform: scale(1);
+	}
+
+	100% {
+		opacity: 0;
+		transform: scale(2.2, 3.4);
+	}
+}
+
+.result[data-active] .matchpoint {
+	animation: mp-in 0.9s 2.4s var(--out) both, mp-sheen 4s 3.2s ease-in-out infinite;
+}
+
+@keyframes mp-in {
+	from {
+		opacity: 0;
+		clip-path: inset(0 50% 0 50%);
+		letter-spacing: 0.6em;
+	}
+
+	to {
+		clip-path: inset(0 0 0 0);
+	}
+}
+
+@keyframes mp-sheen {
+	0% {
+		background-position: 150% 0, 0 0;
+	}
+
+	35%,
+	100% {
+		background-position: -50% 0, 0 0;
+	}
+}
+
+/* =====================================================================
+   CHAMPION — the coronation. Times count from the moment the scene is
+   uncovered: light and crest from 0.2s, kicker 0.85s, the name lands at
+   --slam (oro.js fires the burst, confetti cannons and fanfare on the
+   same beat), plaque 1.9s, road 2.25s, then fireworks and glints loop.
+   ===================================================================== */
+
+.champ {
+	--slam: 1.3s;
+	overflow: hidden;
+}
+
+.champ-fx {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.champ-body {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+
+/* White-gold flash on the slam. */
+.champ-flash {
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	pointer-events: none;
+	background:
+		radial-gradient(40% 30% at 50% 55%, rgba(255, 252, 240, 0.9), transparent 70%),
+		radial-gradient(90% 80% at 50% 55%, rgba(255, 214, 140, 0.45), transparent 75%);
+	mix-blend-mode: screen;
+	opacity: 0;
+}
+
+/* ---------- crest: light fans, ornament rings, the sun ---------- */
+
+.champ-crest {
+	position: relative;
+	width: 200px;
+	height: 200px;
+	margin-bottom: 34px;
+}
+
+/* Two fans of light, pre-rendered with their falloff baked in
+   (media/rays-*.webp), so turning them is a plain transform: no mask, no
+   gradient repainted per frame. */
+.champ-rays {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 2100px;
+	height: 2100px;
+	margin: -1050px 0 0 -1050px;
+}
+
+.champ-rays i {
+	position: absolute;
+	inset: 0;
+	background: url("media/rays-a.webp") center / 100% 100% no-repeat;
+	will-change: transform;
+}
+
+.champ-rays i + i {
+	background-image: url("media/rays-b.webp");
+}
+
+/* Engraved rings: tick marks cut into a thin band, turning slowly. */
+.champ-ring {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 320px;
+	height: 320px;
+	margin: -160px 0 0 -160px;
+	border-radius: 50%;
+	background: repeating-conic-gradient(rgba(255, 227, 163, 0.75) 0 0.7deg, transparent 0.7deg 7.5deg);
+	-webkit-mask-image: radial-gradient(circle, transparent 0 calc(50% - 9px), #000 calc(50% - 8px) calc(50% - 1px), transparent 50%);
+	mask-image: radial-gradient(circle, transparent 0 calc(50% - 9px), #000 calc(50% - 8px) calc(50% - 1px), transparent 50%);
+}
+
+.champ-ring--outer {
+	width: 440px;
+	height: 440px;
+	margin: -220px 0 0 -220px;
+	background: repeating-conic-gradient(rgba(255, 227, 163, 0.4) 0 14deg, transparent 14deg 22.5deg);
+	-webkit-mask-image: radial-gradient(circle, transparent 0 calc(50% - 3px), #000 calc(50% - 2px) calc(50% - 1px), transparent 50%);
+	mask-image: radial-gradient(circle, transparent 0 calc(50% - 3px), #000 calc(50% - 2px) calc(50% - 1px), transparent 50%);
+}
+
+.champ-sol {
+	position: relative;
+	width: 200px;
+	height: 200px;
+	color: var(--gold-hi);
+	filter: drop-shadow(0 0 30px rgba(226, 184, 102, 0.55));
+}
+
+.champ-kicker {
+	position: relative;
+}
+
+/* ---------- the name: extruded, polished, glinting ---------- */
+
+.champ-title {
+	position: relative;
+	display: flex;
+	justify-content: center;
+}
+
+/* Warm light pooled behind the name. */
+.champ-glow {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 1500px;
+	height: 520px;
+	margin: -260px 0 0 -750px;
+	background: radial-gradient(closest-side, rgba(255, 196, 92, 0.34), rgba(255, 170, 60, 0.1) 55%, transparent);
+	opacity: 0;
+}
+
+.champ-shock {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 600px;
+	height: 600px;
+	margin: -300px 0 0 -300px;
+	border-radius: 50%;
+	border: 3px solid var(--gold-hi);
+	box-shadow: 0 0 50px rgba(255, 220, 150, 0.6), inset 0 0 50px rgba(255, 220, 150, 0.45);
+	opacity: 0;
+}
+
+.champ-name {
+	position: relative;
+	isolation: isolate;
+	/* background-clip:text only paints inside the span's box, so it gets room
+	   for ascenders and descenders; the top margin compensates the padding. */
+	margin: calc(18px - 0.1em) 0 10px;
+	font: 900 240px/0.92 var(--display);
+	white-space: nowrap;
+}
+
+.champ-name span {
+	display: inline-block;
+	padding: 0.1em 30px 0.25em;
+	color: transparent;
+	-webkit-text-stroke: 1.5px rgba(255, 249, 228, 0.55);
+	background:
+		linear-gradient(100deg, transparent 42%, rgba(255, 255, 255, 0.95) 50%, transparent 58%) no-repeat,
+		linear-gradient(180deg, #fffaf0 0%, #ffe6a8 22%, #f0c46a 40%, #a8752c 53%, #d9a650 62%, #ffe2a0 82%, #fff6d8 100%);
+	background-size: 260% 100%, 100% 100%;
+	background-position: 140% 0, 0 0;
+	-webkit-background-clip: text;
+	background-clip: text;
+}
+
+/* Bronze extrusion behind the polished face, then a long contact shadow. */
+.champ-name::before {
+	content: attr(data-text);
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	padding: 0.1em 30px 0.25em;
+	color: #6b4612;
+	text-shadow:
+		0 1px 0 #835718,
+		0 2px 0 #7a5015,
+		0 3px 0 #704812,
+		0 4px 0 #66400f,
+		0 5px 0 #5c380c,
+		0 6px 0 #52310a,
+		0 7px 0 #482a08,
+		0 8px 0 #3e2306,
+		0 9px 0 #341d04,
+		0 10px 0 #2a1703,
+		0 14px 18px rgba(0, 0, 0, 0.55),
+		0 30px 60px rgba(0, 0, 0, 0.6);
+}
+
+/* Anamorphic streak across the name on impact. */
+.champ-flare {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 1900px;
+	height: 4px;
+	margin: -2px 0 0 -950px;
+	background: linear-gradient(90deg, transparent, var(--gold) 22%, #fff 50%, var(--gold) 78%, transparent);
+	box-shadow: 0 0 30px 6px rgba(255, 220, 150, 0.55);
+	opacity: 0;
+}
+
+.champ-glints {
+	position: absolute;
+	inset: 0;
+}
+
+.champ-glints svg {
+	position: absolute;
+	width: 46px;
+	height: 46px;
+	margin: -23px 0 0 -23px;
+	fill: #fffaf0;
+	filter: drop-shadow(0 0 10px rgba(255, 230, 170, 0.95));
+	opacity: 0;
+}
+
+.champ-glints svg:nth-child(1) { left: 9%; top: 30%; }
+.champ-glints svg:nth-child(2) { left: 34%; top: 15%; width: 30px; height: 30px; margin: -15px 0 0 -15px; }
+.champ-glints svg:nth-child(3) { left: 57%; top: 47%; }
+.champ-glints svg:nth-child(4) { left: 79%; top: 22%; width: 34px; height: 34px; margin: -17px 0 0 -17px; }
+.champ-glints svg:nth-child(5) { left: 93%; top: 66%; width: 28px; height: 28px; margin: -14px 0 0 -14px; }
+
+/* ---------- plaque: the final score ---------- */
+
+.champ-plaque {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 26px;
+	padding: 0 150px;
+}
+
+.champ-plaque::before,
+.champ-plaque::after {
+	content: "";
+	position: absolute;
+	top: 50%;
+	width: 120px;
+	height: 1px;
+	background: linear-gradient(90deg, transparent, var(--gold));
+}
+
+.champ-plaque::before {
+	left: 0;
+}
+
+.champ-plaque::after {
+	right: 0;
+	transform: scaleX(-1);
+}
+
+.champ-plaque .label {
+	color: var(--text);
+}
+
+.champ-score {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	font: 900 52px/1 var(--display);
+	color: var(--dim);
+}
+
+.champ-score span:first-child {
+	color: var(--gold-hi);
+	text-shadow: 0 0 24px rgba(255, 210, 120, 0.55);
+}
+
+.champ-score i {
+	width: 2px;
+	height: 34px;
+	background: var(--gold-line);
+	transform: skewX(-16deg);
+}
+
+/* ---------- road: the series map by map, the title map crowned ---------- */
+
+.road {
+	--cut: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+	position: relative;
+	display: flex;
+	gap: 12px;
+	margin-top: 40px;
+	list-style: none;
+	perspective: 900px;
+}
+
+/* The rail under the tiles, filled with gold as the road lands. */
+.road::before,
+.road::after {
+	content: "";
+	position: absolute;
+	left: calc(var(--tile, 178px) / 2);
+	right: calc(var(--tile, 178px) / 2);
+	bottom: 6px;
+	height: 1px;
+	background: var(--hair);
+}
+
+.road::after {
+	height: 2px;
+	bottom: 5.5px;
+	background: linear-gradient(90deg, rgba(226, 184, 102, 0.2), var(--gold) 70%, var(--gold-hi));
+	box-shadow: 0 0 12px rgba(255, 210, 120, 0.5);
+	transform-origin: 0 50%;
+}
+
+.road li {
+	position: relative;
+	width: var(--tile, 178px);
+	padding-bottom: 28px;
+	transform-origin: 50% 100%;
+}
+
+/* Bevelled frame: the card's own background shows as a 1.5px edge. */
+.road-card {
+	position: relative;
+	height: 124px;
+	display: flex;
+	flex-direction: column;
+	padding: 11px 14px 12px;
+	clip-path: var(--cut);
+	background: linear-gradient(160deg, rgba(255, 240, 210, 0.22), rgba(255, 240, 210, 0.06));
+}
+
+.road-art {
+	position: absolute;
+	inset: 1.5px;
+	clip-path: var(--cut);
+	background-color: #0b0904;
+	background-size: cover;
+	background-position: center;
+}
+
+.road-art::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background:
+		linear-gradient(180deg, rgba(6, 5, 2, 0.85) 0%, rgba(6, 5, 2, 0.35) 32%, rgba(6, 5, 2, 0.9) 68%, rgba(6, 5, 2, 0.97)),
+		linear-gradient(90deg, rgba(6, 5, 2, 0.5), transparent 70%);
+}
+
+/* Winner bar along the bottom edge. */
+.road-card::after {
+	content: "";
+	position: absolute;
+	left: 1.5px;
+	right: 12px;
+	bottom: 1.5px;
+	height: 3px;
+}
+
+/* Specular pass across each tile as it lands. */
+.road-card::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: 2;
+	background: linear-gradient(105deg, transparent 35%, rgba(255, 246, 220, 0.5) 50%, transparent 65%) no-repeat;
+	background-size: 260% 100%;
+	background-position: 140% 0;
+	pointer-events: none;
+}
+
+.road-top,
+.road-id,
+.road-title,
+.road-who {
+	position: relative;
+	z-index: 1;
+}
+
+.road-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: auto;
+}
+
+.road-n {
+	font: 700 9px/1 var(--label);
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	color: rgba(244, 241, 234, 0.75);
+}
+
+.road-tally {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	font: 900 14px/1 var(--display);
+	color: var(--dim);
+}
+
+.road-tally i {
+	width: 1px;
+	height: 10px;
+	background: var(--hair);
+	transform: skewX(-16deg);
+}
+
+.won-l .road-tally .is-up {
+	color: var(--left);
+}
+
+.won-r .road-tally .is-up {
+	color: var(--right);
+}
+
+.road-id {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font: 900 22px/1 var(--display);
+}
+
+.road-id svg {
+	width: 14px;
+	height: 14px;
+	fill: var(--gold-hi);
+	filter: drop-shadow(0 0 6px rgba(255, 220, 150, 0.9));
+}
+
+/* Up to two lines; oro.js shrinks long titles until they fit. */
+.road-title {
+	max-height: 28px;
+	margin-top: 5px;
+	font: 700 12px/1.15 var(--body);
+	color: var(--text);
+}
+
+.road-who {
+	margin-top: 5px;
+	font: 800 11px/1 var(--body);
+}
+
+.won-l .road-who {
+	color: var(--left);
+}
+
+.won-r .road-who {
+	color: var(--right);
+}
+
+/* Champion's maps: gold frame, warm art. */
+.road li.won-l .road-card {
+	background: linear-gradient(160deg, var(--gold-hi), rgba(226, 184, 102, 0.55) 45%, rgba(138, 100, 32, 0.6));
+}
+
+.road li.won-l .road-art {
+	opacity: 0.9;
+}
+
+.road li.won-l .road-card::after {
+	background: linear-gradient(90deg, var(--left), rgba(255, 77, 94, 0.2));
+}
+
+/* Maps the runner-up took: cold, quiet. */
+.road li.won-r .road-art {
+	filter: grayscale(0.85);
+	opacity: 0.55;
+}
+
+.road li.won-r .road-card {
+	background: linear-gradient(160deg, rgba(76, 125, 255, 0.55), rgba(76, 125, 255, 0.12));
+}
+
+.road li.won-r .road-card::after {
+	background: linear-gradient(90deg, var(--right), rgba(76, 125, 255, 0.15));
+}
+
+.road li.won-r .road-id {
+	opacity: 0.75;
+}
+
+/* The map that won the title. */
+.road li.is-final {
+	filter: drop-shadow(0 0 16px rgba(255, 200, 100, 0.5));
+}
+
+.road li.is-final .road-card {
+	background: linear-gradient(160deg, #fffaf0, var(--gold-hi) 30%, var(--gold) 60%, #fff3c8);
+}
+
+.road li.is-final .road-art {
+	inset: 2px;
+	opacity: 1;
+}
+
+.road li.is-final .road-n {
+	color: var(--gold-hi);
+}
+
+/* BO11 and BO13 roads: narrower tiles, no map number (the tally and the
+   rail already count the maps). */
+.road.is-dense .road-card {
+	padding: 10px 11px 11px;
+}
+
+.road.is-dense .road-n {
+	display: none;
+}
+
+.road.is-dense .road-top {
+	justify-content: flex-end;
+}
+
+/* A round win, not the title: no outer ring, softer light. */
+.champ.is-advance .champ-ring--outer {
+	display: none;
+}
+
+.champ.is-advance .champ-rays {
+	opacity: 0.7;
+}
+
+/* Nodes on the rail: a diamond per map in the winner's colour. */
+.road-node {
+	position: absolute;
+	left: 50%;
+	bottom: 2px;
+	width: 10px;
+	height: 10px;
+	margin-left: -5px;
+	transform: rotate(45deg);
+	background: #0b0904;
+	border: 1.5px solid var(--faint);
+}
+
+.won-l .road-node {
+	background: var(--left);
+	border-color: var(--gold-hi);
+	box-shadow: 0 0 10px rgba(255, 77, 94, 0.6);
+}
+
+.won-r .road-node {
+	border-color: var(--right);
+}
+
+.is-final .road-node {
+	width: 16px;
+	height: 16px;
+	margin-left: -8px;
+	bottom: -1px;
+	background: var(--gold-hi);
+	border-color: #fff;
+	box-shadow: 0 0 18px rgba(255, 227, 163, 0.9);
+}
+
+/* ---------- choreography ---------- */
+
+.champ[data-active] .champ-rays {
+	animation: fade 2.4s 0.2s ease-out both;
+}
+
+.champ[data-active] .champ-rays i {
+	animation: turn 140s linear infinite;
+}
+
+.champ[data-active] .champ-rays i + i {
+	animation-direction: reverse;
+	animation-duration: 90s;
+}
+
+.champ[data-active] .champ-ring {
+	animation: ring-in 1.2s 0.3s var(--out) both, turn 60s linear infinite;
+}
+
+.champ[data-active] .champ-ring--outer {
+	animation: ring-in 1.4s 0.4s var(--out) both, turn 90s linear reverse infinite;
+}
+
+@keyframes ring-in {
+	from {
+		opacity: 0;
+		scale: 0.4;
+	}
+}
+
+.champ[data-active] .champ-sol {
+	animation: sol-in 1.2s 0.35s var(--out) both;
+}
+
+@keyframes sol-in {
+	from {
+		opacity: 0;
+		transform: rotate(-120deg) scale(0.5);
+	}
+}
+
+/* The sun's breathing halo: a soft disc behind it, pulsing in opacity. */
+.champ-crest::before {
+	content: "";
+	position: absolute;
+	inset: -70px;
+	border-radius: 50%;
+	background: radial-gradient(closest-side, rgba(255, 227, 163, 0.55), rgba(255, 210, 120, 0.15) 60%, transparent);
+	opacity: 0;
+	will-change: opacity;
+}
+
+.champ[data-active] .champ-crest::before {
+	animation: fade 1s 0.8s ease-out both, sol-glow 3.2s 2s ease-in-out infinite;
+}
+
+@keyframes sol-glow {
+	from,
+	to {
+		opacity: 0.35;
+	}
+
+	50% {
+		opacity: 1;
+	}
+}
+
+.champ[data-active] .champ-kicker {
+	animation: track-in 1.1s 0.85s var(--out) both;
+}
+
+/* The drop accelerates into the slam; the settle overshoots and lands. */
+.champ[data-active] .champ-name {
+	animation:
+		champ-drop 0.3s calc(var(--slam) - 0.3s) cubic-bezier(0.55, 0, 0.85, 0.35) both,
+		champ-settle 0.55s var(--slam) cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+@keyframes champ-drop {
+	from {
+		opacity: 0;
+		transform: scale(2.6);
+		filter: blur(20px);
+		letter-spacing: 0.14em;
+	}
+
+	to {
+		opacity: 1;
+		transform: scale(1);
+		filter: blur(0);
+		letter-spacing: 0;
+	}
+}
+
+@keyframes champ-settle {
+	0% {
+		transform: scale(0.95);
+	}
+
+	45% {
+		transform: scale(1.025);
+	}
+
+	100% {
+		transform: scale(1);
+	}
+}
+
+.champ[data-active] .champ-name span {
+	animation: shine 4.5s calc(var(--slam) + 0.15s) ease-in-out infinite;
+}
+
+@keyframes shine {
+	from {
+		background-position: 140% 0, 0 0;
+	}
+
+	50%,
+	to {
+		background-position: -40% 0, 0 0;
+	}
+}
+
+.champ[data-active] .champ-body {
+	animation: shake 0.45s var(--slam) linear;
+}
+
+.champ[data-active] .champ-flash {
+	animation: champ-flash 0.9s var(--slam) ease-out both;
+}
+
+@keyframes champ-flash {
+	0% {
+		opacity: 0;
+	}
+
+	6% {
+		opacity: 1;
+	}
+
+	100% {
+		opacity: 0;
+	}
+}
+
+.champ[data-active] .champ-shock {
+	animation: champ-shock 0.9s var(--slam) cubic-bezier(0.1, 0.7, 0.3, 1) both;
+}
+
+@keyframes champ-shock {
+	0% {
+		opacity: 0;
+		transform: scale(0.2);
+	}
+
+	2% {
+		opacity: 1;
+	}
+
+	100% {
+		opacity: 0;
+		transform: scale(4);
+	}
+}
+
+.champ[data-active] .champ-flare {
+	animation: champ-flare 1s var(--slam) ease-out both;
+}
+
+@keyframes champ-flare {
+	0% {
+		opacity: 0;
+		transform: scaleX(0.1);
+	}
+
+	12% {
+		opacity: 1;
+		transform: scaleX(1);
+	}
+
+	100% {
+		opacity: 0;
+		transform: scaleX(1.25) scaleY(0.3);
+	}
+}
+
+.champ[data-active] .champ-glow {
+	animation: fade 0.6s var(--slam) ease-out both, glow-breathe 4s calc(var(--slam) + 0.6s) ease-in-out infinite;
+}
+
+@keyframes glow-breathe {
+	from {
+		opacity: 1;
+	}
+
+	50% {
+		opacity: 0.55;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+.champ[data-active] .champ-glints svg {
+	animation: glint-star 3.4s calc(var(--slam) + 0.9s + var(--d, 0s)) ease-in-out infinite;
+}
+
+.champ-glints svg:nth-child(2) { --d: 1.3s; }
+.champ-glints svg:nth-child(3) { --d: 0.5s; }
+.champ-glints svg:nth-child(4) { --d: 2.1s; }
+.champ-glints svg:nth-child(5) { --d: 0.9s; }
+
+@keyframes glint-star {
+	0%,
+	100% {
+		opacity: 0;
+		transform: scale(0.2) rotate(0deg);
+	}
+
+	12% {
+		opacity: 1;
+		transform: scale(1) rotate(45deg);
+	}
+
+	26% {
+		opacity: 0;
+		transform: scale(0.3) rotate(90deg);
+	}
+}
+
+.champ[data-active] .champ-plaque {
+	animation: fade 0.8s 1.9s ease-out both;
+}
+
+.champ[data-active] .champ-plaque .label {
+	animation: track-in 1s 1.9s var(--out) both;
+}
+
+.champ[data-active] .champ-plaque::before,
+.champ[data-active] .champ-plaque::after {
+	animation: grow 0.9s 2s var(--out) both;
+}
+
+.champ[data-active] .champ-score {
+	animation: score-land 0.6s 2s var(--snap) both;
+}
+
+@keyframes score-land {
+	from {
+		opacity: 0;
+		transform: translateY(16px) scale(0.7);
+	}
+}
+
+.champ[data-active] .road li {
+	animation: road-in 0.7s calc(2.25s + var(--i, 0) * 0.08s) var(--out) both;
+}
+
+.champ[data-active] .road-card::before {
+	animation: tile-glint 0.9s calc(2.5s + var(--i, 0) * 0.08s) ease-out both;
+}
+
+.champ[data-active] .road::after {
+	animation: grow 1.3s 2.35s cubic-bezier(0.45, 0, 0.2, 1) both;
+}
+
+@keyframes road-in {
+	from {
+		opacity: 0;
+		transform: rotateX(-80deg) translateY(30px);
+	}
+}
+
+@keyframes tile-glint {
+	to {
+		background-position: -40% 0;
+	}
+}
+
+/* The title map's halo: a fixed shadow on a layer pulsing in opacity. */
+.road li.is-final::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	height: 124px;
+	box-shadow: 0 0 34px 4px rgba(255, 214, 130, 0.75);
+	opacity: 0;
+	will-change: opacity;
+	pointer-events: none;
+}
+
+.champ[data-active] .road li.is-final::after {
+	animation: final-pulse 2.4s 3.4s ease-in-out infinite;
+}
+
+@keyframes final-pulse {
+	50% {
+		opacity: 1;
+	}
+}
+
+.champ[data-active] .dust {
+	animation: fade 1.5s 1.4s ease-out both;
+}
+
+/* =====================================================================
+   STINGER — the bolt (3.2s). Impact lands at 440ms; the screen is
+   fully covered from 920ms to 2420ms. Keyframe comments give the ms. oro.js owns the bolt
+   geometry and the canvas; everything here is keyed to the same clock.
+   ===================================================================== */
+
+.stinger {
+	position: absolute;
+	inset: 0;
+	z-index: 50;
+	overflow: hidden;
+	pointer-events: none;
+	visibility: hidden;
+	--T: 3.2s;
+}
+
+.stinger.run {
+	visibility: visible;
+}
+
+/* Bolt layers: full-screen, clipped to the bolt polygon so the gold stays
+   sharp at any zoom. */
+.bolt {
+	position: absolute;
+	inset: 0;
+	clip-path: polygon(0 0, 0 0, 0 0);
+}
+
+/* Echoes: delayed copies that trail the strike and halo the shrink. */
+.bolt--ghost {
+	background: linear-gradient(135deg, #fff6d8, var(--gold) 60%, var(--gold-deep));
+}
+
+.bolt--ghost:nth-child(1) {
+	opacity: 0.07;
+}
+
+.bolt--ghost:nth-child(2) {
+	opacity: 0.13;
+}
+
+.bolt--ghost:nth-child(3) {
+	opacity: 0.22;
+}
+
+/* Offset copy behind the fill: a hot bevel on the leading edges. */
+.bolt--rim {
+	background: #fff8e2;
+}
+
+/* Bright polished gold, with the shard loop worked into it as texture. */
+.bolt--fill {
+	overflow: hidden;
+	background: linear-gradient(125deg, #fff1c4 0%, #f4cf7a 30%, #d9a646 55%, #b07a26 80%, #e9c46e 100%);
+}
+
+.bolt-video {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	mix-blend-mode: soft-light;
+	opacity: 0.9;
+}
+
+/* Lower facet: the reference's two-tone cut, here a deeper bronze. */
+.bolt--facet {
+	background: linear-gradient(200deg, rgba(120, 70, 10, 0.35), rgba(60, 32, 0, 0.62));
+	mix-blend-mode: multiply;
+}
+
+/* Specular sweep across the gold while it covers the screen. */
+.stinger-sheen {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(105deg, transparent 38%, rgba(255, 252, 235, 0.75) 50%, transparent 62%) no-repeat;
+	background-size: 260% 100%;
+	background-position: 140% 0;
+	mix-blend-mode: overlay;
+	opacity: 0;
+}
+
+.stinger.run .stinger-sheen {
+	animation: bolt-sheen var(--T) linear both;
+}
+
+@keyframes bolt-sheen {
+
+	/* 960ms in, 990ms on, sweep until 2300ms, gone by 2380ms */
+	0%,
+	30% {
+		opacity: 0;
+		background-position: 140% 0;
+	}
+
+	30.9% {
+		opacity: 1;
+		background-position: 140% 0;
+	}
+
+	71.9% {
+		opacity: 1;
+		background-position: -40% 0;
+	}
+
+	74.4%,
+	100% {
+		opacity: 0;
+		background-position: -40% 0;
+	}
+}
+
+.stinger-fx {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+/* Impact shockwave, centred on the strike point. */
+.stinger-ring {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 520px;
+	height: 520px;
+	margin: -260px 0 0 -260px;
+	border-radius: 50%;
+	border: 3px solid var(--gold-hi);
+	box-shadow: 0 0 40px rgba(255, 220, 150, 0.6), inset 0 0 40px rgba(255, 220, 150, 0.45);
+	opacity: 0;
+}
+
+.stinger-ring--2 {
+	border-width: 1.5px;
+}
+
+.stinger.run .stinger-ring {
+	animation: shock var(--T) both;
+}
+
+.stinger.run .stinger-ring--2 {
+	animation-name: shock-2;
+}
+
+@keyframes shock {
+
+	/* impact at 440ms, faded by 800ms */
+	0%,
+	13.7% {
+		opacity: 0;
+		transform: scale(0.15);
+	}
+
+	13.75% {
+		opacity: 1;
+		transform: scale(0.15);
+		animation-timing-function: cubic-bezier(0.1, 0.7, 0.3, 1);
+	}
+
+	25%,
+	100% {
+		opacity: 0;
+		transform: scale(3.6);
+	}
+}
+
+@keyframes shock-2 {
+
+	/* 500ms, faded by 920ms */
+	0%,
+	15.5% {
+		opacity: 0;
+		transform: scale(0.1);
+	}
+
+	15.6% {
+		opacity: 0.8;
+		transform: scale(0.1);
+		animation-timing-function: cubic-bezier(0.1, 0.7, 0.3, 1);
+	}
+
+	28.75%,
+	100% {
+		opacity: 0;
+		transform: scale(4.4);
+	}
+}
+
+/* White-hot impact flash. */
+.stinger-flash {
+	position: absolute;
+	inset: 0;
+	background:
+		radial-gradient(30% 40% at 50% 50%, rgba(255, 255, 250, 0.95), transparent 70%),
+		radial-gradient(80% 80% at 50% 50%, rgba(255, 226, 160, 0.5), transparent 70%);
+	mix-blend-mode: screen;
+	opacity: 0;
+}
+
+.stinger.run .stinger-flash {
+	animation: strike-flash var(--T) both;
+}
+
+@keyframes strike-flash {
+
+	/* 430ms, peak 450ms, gone by 680ms */
+	0%,
+	13.4% {
+		opacity: 0;
+	}
+
+	14.1% {
+		opacity: 1;
+	}
+
+	21.25%,
+	100% {
+		opacity: 0;
+	}
+}
+
+/* Horizontal anamorphic streak at impact. */
+.stinger-flare {
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 50%;
+	height: 3px;
+	margin-top: -1px;
+	background: linear-gradient(90deg, transparent, var(--gold) 20%, #fff 50%, var(--gold) 80%, transparent);
+	box-shadow: 0 0 24px 4px rgba(255, 220, 150, 0.6);
+	opacity: 0;
+}
+
+.stinger.run .stinger-flare {
+	animation: flare var(--T) both;
+}
+
+@keyframes flare {
+
+	/* 430ms, full at 480ms, gone by 720ms */
+	0%,
+	13.4% {
+		opacity: 0;
+		transform: scaleX(0);
+	}
+
+	15% {
+		opacity: 1;
+		transform: scaleX(1);
+	}
+
+	22.5%,
+	100% {
+		opacity: 0;
+		transform: scaleX(1.2) scaleY(0.4);
+	}
+}
+
+/* Title card engraved into the gold while it covers the screen. */
+.stinger-core {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 16px;
+	opacity: 0;
+}
+
+.stinger.run .stinger-core {
+	animation: core var(--T) both;
+}
+
+@keyframes core {
+
+	/* fades in 880-980ms, holds until 2300ms, out by 2440ms */
+	0%,
+	27.5% {
+		opacity: 0;
+		transform: scale(0.94);
+	}
+
+	30.6%,
+	71.9% {
+		opacity: 1;
+		transform: scale(1);
+	}
+
+	76.25%,
+	100% {
+		opacity: 0;
+		transform: scale(1.04);
+	}
+}
+
+.stinger-sol {
+	width: 150px;
+	height: 150px;
+	color: #241703;
+	filter: drop-shadow(0 1px 0 rgba(255, 245, 215, 0.6));
+}
+
+.stinger.run .stinger-sol {
+	animation: stinger-sol var(--T) var(--out) both;
+}
+
+@keyframes stinger-sol {
+
+	/* 880-1260ms */
+	0%,
+	27.5% {
+		transform: rotate(-150deg) scale(0.4);
+	}
+
+	39.4%,
+	100% {
+		transform: rotate(0) scale(1);
+	}
+}
+
+.stinger-title {
+	font: 700 44px/1 var(--label);
+	letter-spacing: 0.5em;
+	padding-left: 0.5em;
+	text-transform: uppercase;
+	color: #1c1203;
+	text-shadow: 0 1px 0 rgba(255, 245, 215, 0.6);
+}
+
+.stinger.run .stinger-title {
+	animation: stinger-track var(--T) var(--out) both;
+}
+
+@keyframes stinger-track {
+
+	/* 900-1260ms */
+	0%,
+	28.1% {
+		letter-spacing: 1.2em;
+		filter: blur(6px);
+	}
+
+	39.4%,
+	100% {
+		letter-spacing: 0.5em;
+		filter: none;
+	}
+}
+
+.stinger-tricolor {
+	width: 180px;
+	height: 4px;
+	background: linear-gradient(90deg, #1c1203 0 50%, var(--right) 50% 75%, var(--red) 75%);
+	transform: scaleX(0);
+}
+
+.stinger.run .stinger-tricolor {
+	animation: tricolor var(--T) var(--out) both;
+}
+
+@keyframes tricolor {
+
+	/* 1000-1300ms */
+	0%,
+	31.25% {
+		transform: scaleX(0);
+	}
+
+	40.6%,
+	100% {
+		transform: scaleX(1);
+	}
+}
+
+.stinger-sub {
+	font: 800 24px/1 var(--body);
+	letter-spacing: 0.36em;
+	padding-left: 0.36em;
+	text-transform: uppercase;
+	color: #2a1b04;
+}
+
+/* Impact shake of whatever is on screen when the bolt lands. */
+.stage.shake > [data-scene][data-active],
+.stage.shake > .backdrop {
+	animation: shake 0.42s linear;
+}
+
+@keyframes shake {
+	0% {
+		transform: none;
+	}
+
+	10% {
+		transform: translate(-14px, 9px);
+	}
+
+	22% {
+		transform: translate(12px, -10px);
+	}
+
+	36% {
+		transform: translate(-8px, 6px);
+	}
+
+	52% {
+		transform: translate(6px, -4px);
+	}
+
+	72% {
+		transform: translate(-3px, 2px);
+	}
+
+	100% {
+		transform: none;
+	}
+}
+
+/* ---------- performance meter (P, or ?perf) ---------- */
+
+.perf {
+	position: fixed;
+	left: 8px;
+	top: 8px;
+	z-index: 9999;
+	display: none;
+	padding: 6px 10px;
+	font: 600 13px/1.2 system-ui, sans-serif;
+	font-variant-numeric: tabular-nums;
+	color: #d6ffd8;
+	background: rgba(0, 0, 0, 0.8);
+	border-left: 3px solid #3ddc84;
+	white-space: pre;
+}
+
+.perf.on {
+	display: block;
+}
+
+.perf[data-bad] {
+	color: #ffd6da;
+	border-color: var(--red);
+}
+
+/* =====================================================================
+   PROFILE PICTURES — every [data-pfp] slot (oro.js fills them). A
+   monogram in the player's colour until the osu! avatar loads over it.
+   ===================================================================== */
+
+[data-side="l"] {
+	--side-c: var(--left);
+}
+
+[data-side="r"] {
+	--side-c: var(--right);
+}
+
+.pfp {
+	--pfp: 28px;
+	--ring: var(--side-c, var(--gold));
+	position: relative;
+	flex: none;
+	display: inline-grid;
+	place-items: center;
+	width: var(--pfp);
+	height: var(--pfp);
+	border-radius: 50%;
+	overflow: hidden;
+	background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--ring) 55%, #000), #070604 85%);
+	box-shadow: 0 0 0 max(1.5px, calc(var(--pfp) * 0.045)) var(--ring);
+	font: 900 calc(var(--pfp) * 0.46) / 1 var(--display);
+	color: color-mix(in srgb, var(--ring) 60%, #fff);
+}
+
+.pfp[data-side="c"] {
+	--ring: var(--gold-line);
+}
+
+.pfp img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.tally .pfp {
+	--pfp: 52px;
+}
+
+.series .pfp {
+	--pfp: 18px;
+}
+
+.series--big .pfp {
+	--pfp: 30px;
+}
+
+.caster .pfp {
+	--pfp: 22px;
+	transition: box-shadow 0.15s;
+}
+
+.caster.is-talking .pfp {
+	--ring: #3ddc84;
+	box-shadow: 0 0 0 2px #3ddc84, 0 0 10px rgba(61, 220, 132, 0.6);
+}
+
+.tag-id {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.tag-id .pfp {
+	--pfp: 46px;
+}
+
+.result-pfp {
+	--pfp: 120px;
+	margin-top: 22px;
+	box-shadow: 0 0 0 4px var(--left), 0 0 60px rgba(255, 77, 94, 0.45);
+}
+
+.result[data-active] .result-pfp {
+	animation: rise 0.6s 0.2s var(--out) both;
+}
+
+/* Champion: the avatar sits in the sun's inner ring. */
+.champ-pfp {
+	--pfp: 92px;
+	--ring: var(--gold-hi);
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	margin: -46px 0 0 -46px;
+	box-shadow: 0 0 0 3px var(--gold-hi), 0 0 30px rgba(255, 227, 163, 0.6);
+}
+
+.champ[data-active] .champ-pfp {
+	animation: rise 0.8s 0.9s var(--out) both;
+}
+
+/* =====================================================================
+   PICK TIMER — big, in the picker's colour; amber under ten seconds.
+   ===================================================================== */
+
+.pick-timer {
+	--tc: var(--side-c);
+	display: grid;
+	grid-template-columns: auto 380px;
+	grid-template-rows: auto auto;
+	align-items: center;
+	column-gap: 18px;
+	row-gap: 6px;
+}
+
+.pick-timer-n {
+	grid-row: span 2;
+	font: 900 46px/1 var(--display);
+	color: var(--tc);
+	text-shadow: 0 0 22px color-mix(in srgb, var(--tc) 45%, transparent);
+	--dw: 0.6em;
+}
+
+.pick-timer-bar {
+	position: relative;
+	height: 6px;
+	background: rgba(255, 255, 255, 0.1);
+	overflow: hidden;
+}
+
+.pick-timer-bar i {
+	position: absolute;
+	inset: 0;
+	background: var(--tc);
+	box-shadow: 0 0 12px var(--tc);
+	transform-origin: left;
+}
+
+.pick-timer-src {
+	font: 700 11px/1 var(--label);
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+	color: var(--dim);
+}
+
+.pick-timer[data-state="idle"] .pick-timer-n {
+	color: var(--faint);
+	text-shadow: none;
+}
+
+.pick-timer[data-state="urgent"] {
+	--tc: #ffb020;
+}
+
+.pick-timer[data-state="urgent"] .pick-timer-n {
+	animation: timer-tick 1s steps(1) infinite;
+}
+
+.pick-timer[data-state="done"] {
+	--tc: var(--red);
+}
+
+.pick-timer[data-state="done"] .pick-timer-src {
+	color: var(--red);
+}
+
+@keyframes timer-tick {
+	50% {
+		opacity: 0.55;
+	}
+}
+
+/* Pick timer setup in the switcher (preview chrome, not on stream). */
+.switcher-timer {
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.switcher-timer + .switcher-round {
+	margin-left: 8px;
+}
+
+.switcher-timer label {
+	white-space: nowrap;
+}
+
+.switcher-timer input {
+	width: 62px;
+	padding: 5px 6px;
+	border: 1px solid #444;
+	border-radius: 4px;
+	background: #111;
+	color: inherit;
+	font: inherit;
+}
+
+.switcher-timer button {
+	border: 1px solid #444;
+}
+
+/* =====================================================================
+   CHATS — lobby (left) and Twitch (right). In
+   "playing" the lobby column folds to nothing and Twitch takes the box.
+   ===================================================================== */
+
+.chats {
+	position: relative;
+	flex: 1;
+	min-height: 0;
+	margin-top: 10px;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	border-top: 1px solid var(--hair);
+	overflow: hidden;
+	transition: grid-template-columns 0.6s var(--out);
+}
+
+.chats[data-mode="playing"] {
+	grid-template-columns: 0fr 1fr;
+}
+
+.chat {
+	position: relative;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	padding: 7px 14px 4px;
+	overflow: hidden;
+	transition: opacity 0.35s;
+}
+
+.chat--game {
+	border-right: 1px solid var(--hair);
+}
+
+.chats[data-mode="playing"] .chat--game {
+	opacity: 0;
+	padding-inline: 0;
+	border-right: 0;
+}
+
+.chat-head {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	margin-bottom: 3px;
+	font: 700 9px/1 var(--label);
+	letter-spacing: 0.24em;
+	text-transform: uppercase;
+	color: var(--faint);
+	white-space: nowrap;
+}
+
+.chat-head b {
+	color: var(--gold);
+}
+
+.chat--twitch .chat-head b {
+	color: #b58cff;
+}
+
+.chat .feed {
+	font-size: 14px;
+	line-height: 1.45;
+}
+
+.msg--ref b {
+	color: #85d8bf;
+}
+
+.msg--tw b {
+	margin-right: 8px;
+}
+
+/* =====================================================================
+   BANCHO GHOST MISS — a small amber cue on the player's client: the break
+   the casters just saw was Bancho's, the combo came back.
+   ===================================================================== */
+
+.tag-ghost {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+	padding: 5px 11px;
+	background: rgba(20, 14, 2, 0.85);
+	border: 1px solid #ffb020;
+	color: #ffd27a;
+	opacity: 0;
+	transform: translateY(6px);
+}
+
+.tag-ghost i {
+	font: 900 15px/1 var(--display);
+	font-style: normal;
+	color: #ffb020;
+}
+
+.tag-ghost b {
+	font: 700 10px/1 var(--label);
+	letter-spacing: 0.2em;
+	text-transform: uppercase;
+}
+
+.tag-ghost span {
+	font: 700 13px/1 var(--body);
+	color: var(--text);
+}
+
+.tag.is-ghost .tag-ghost {
+	animation: ghost-in 6s var(--out);
+}
+
+@keyframes ghost-in {
+
+	6%,
+	88% {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+.hit--miss.is-ghost::before {
+	content: "⟲";
+	position: absolute;
+	top: -9px;
+	right: -9px;
+	width: 15px;
+	height: 15px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	background: #ffb020;
+	color: #1a1205;
+	font: 900 10px/1 var(--display);
+	animation: ghost-dot 6s ease-out both;
+}
+
+@keyframes ghost-dot {
+
+	0%,
+	85% {
+		opacity: 1;
+	}
+
+	100% {
+		opacity: 0;
+	}
+}
+
+/* =====================================================================
+   STARTING — "Ya empezamos": casters, the match, Twitch chat.
+   ===================================================================== */
+
+.start {
+	display: grid;
+	grid-template-columns: 1fr 560px;
+	gap: 56px;
+	padding: 80px 90px 90px 110px;
+}
+
+.start-main {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+}
+
+.start-head {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 18px;
+}
+
+.start-sol {
+	width: 74px;
+	height: 74px;
+	color: var(--gold);
+	filter: drop-shadow(0 0 18px rgba(226, 184, 102, 0.45));
+}
+
+.start-head .label--lg {
+	padding-left: 0;
+}
+
+.start-title {
+	font: 900 128px/0.95 var(--display);
+	color: transparent;
+	background: linear-gradient(180deg, #fff6d8 0%, #f3d38a 36%, #b8873a 52%, #ebc77c 70%, #fff3c8 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+}
+
+.start-match {
+	display: flex;
+	align-items: center;
+	gap: 34px;
+}
+
+.start-player {
+	display: grid;
+	grid-template-columns: auto auto;
+	grid-template-rows: auto auto;
+	align-items: center;
+	column-gap: 18px;
+	row-gap: 8px;
+}
+
+.start-player .pfp {
+	--pfp: 84px;
+	grid-row: span 2;
+}
+
+.start-player b {
+	font: 900 42px/1 var(--display);
+	color: var(--side-c);
+	white-space: nowrap;
+}
+
+.start-player--l {
+	--side-c: var(--left);
+}
+
+.start-player--r {
+	--side-c: var(--right);
+}
+
+.start-vs {
+	font: 900 30px/1 var(--display);
+	color: var(--gold);
+}
+
+.start-casters {
+	display: flex;
+	gap: 26px;
+}
+
+.booth {
+	display: flex;
+	align-items: center;
+	gap: 20px;
+	padding: 18px 30px 18px 18px;
+	background: rgba(6, 5, 3, 0.75);
+	border: 1px solid var(--hair);
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.booth .pfp {
+	--pfp: 96px;
+	--ring: var(--gold-line);
+	transition: box-shadow 0.15s;
+}
+
+.booth-text {
+	display: flex;
+	flex-direction: column;
+	gap: 9px;
+}
+
+.booth-text b {
+	font: 900 34px/1 var(--display);
+}
+
+/* Talking: the green outline. */
+.booth.is-talking {
+	border-color: #3ddc84;
+	box-shadow: 0 0 0 1px #3ddc84, 0 0 34px rgba(61, 220, 132, 0.28);
+}
+
+.booth.is-talking .pfp {
+	box-shadow: 0 0 0 4px #3ddc84, 0 0 26px rgba(61, 220, 132, 0.7);
+}
+
+.booth.is-talking .wave i {
+	background: #3ddc84;
+}
+
+.start-chat {
+	display: flex;
+	flex-direction: column;
+	padding: 22px 26px;
+	border: 1px solid var(--hair);
+}
+
+.start-chat .chat-head {
+	font-size: 12px;
+	margin-bottom: 12px;
+}
+
+.start-chat .chat-head b {
+	color: #b58cff;
+}
+
+.start-chat .feed {
+	font-size: 19px;
+	line-height: 1.6;
+}
+
+.start-chat .msg {
+	white-space: normal;
+}
+
+.start[data-active] .start-head > * {
+	animation: rise 0.7s calc(0.15s + var(--d, 0s)) var(--out) both;
+}
+
+.start[data-active] .start-title {
+	--d: 0.15s;
+}
+
+.start[data-active] .start-match,
+.start[data-active] .booth {
+	animation: rise 0.7s 0.45s var(--out) both;
+}
+
+.start[data-active] .booth + .booth {
+	animation-delay: 0.55s;
+}
+
+.start[data-active] .start-chat {
+	animation: card-wipe 0.8s 0.3s var(--out) both;
+}
+
+/* =====================================================================
+   SHOWCASE — the pool, one map at a time.
+   ===================================================================== */
+
+.show {
+	display: flex;
+	flex-direction: column;
+	gap: 28px;
+	padding: 56px 80px 70px;
+}
+
+.show-head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+}
+
+.show-head .label {
+	font-size: 17px;
+}
+
+.show-count {
+	font: 900 26px/1 var(--display);
+	color: var(--gold-hi);
+}
+
+.show-body {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: 1fr 470px;
+	gap: 36px;
+}
+
+.feature {
+	--mc: var(--gold);
+	position: relative;
+	display: flex;
+	align-items: flex-end;
+	overflow: hidden;
+	border: 1px solid var(--hair);
+	background: #050403;
+}
+
+.feature[data-mod="nm"] { --mc: #e1dcd0; }
+.feature[data-mod="hd"] { --mc: var(--gold-hi); }
+.feature[data-mod="hr"] { --mc: #ff7584; }
+.feature[data-mod="dt"] { --mc: #b1a3ff; }
+.feature[data-mod="fm"] { --mc: #85d8bf; }
+.feature[data-mod="tb"] { --mc: var(--gold); }
+
+.feature-art {
+	position: absolute;
+	inset: 0;
+	background-size: cover;
+	background-position: center;
+}
+
+.feature-art::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background:
+		linear-gradient(0deg, rgba(4, 3, 1, 0.96) 18%, rgba(4, 3, 1, 0.45) 60%, rgba(4, 3, 1, 0.15)),
+		linear-gradient(90deg, rgba(4, 3, 1, 0.6), transparent 60%);
+}
+
+.feature-body {
+	position: relative;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	padding: 0 56px 52px;
+}
+
+.feature-top {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-bottom: 18px;
+}
+
+.feature-slot {
+	padding: 8px 14px 7px;
+	background: var(--mc);
+	color: #0b0904;
+	font: 900 24px/1 var(--display);
+	letter-spacing: 0.04em;
+}
+
+.feature-mod {
+	font: 700 15px/1 var(--label);
+	letter-spacing: 0.3em;
+	text-transform: uppercase;
+	color: var(--mc);
+}
+
+.feature-title {
+	font: 900 72px/1.04 var(--display);
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.feature-artist {
+	margin-top: 10px;
+	font: 700 28px/1.2 var(--body);
+	color: #d9d2c3;
+}
+
+.feature-diff {
+	margin-top: 8px;
+	font: 800 20px/1.3 var(--body);
+	color: var(--gold);
+}
+
+.feature-diff span {
+	margin-left: 12px;
+	font-weight: 600;
+	color: var(--dim);
+}
+
+.feature-diff span b {
+	color: var(--text);
+}
+
+.feature-stats {
+	display: flex;
+	gap: 44px;
+	margin-top: 30px;
+	padding-top: 24px;
+	border-top: 1px solid var(--gold-line);
+}
+
+.feature-stats .stat {
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 8px;
+}
+
+.feature-stats .stat dt {
+	font-size: 12px;
+}
+
+.feature-stats .stat dd {
+	font-size: 40px;
+}
+
+.stat--len dt {
+	color: #d1cabc;
+}
+
+.feature-progress {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 4px;
+	background: rgba(255, 255, 255, 0.08);
+}
+
+.feature-progress i {
+	position: absolute;
+	inset: 0;
+	background: var(--mc);
+	transform-origin: left;
+	transform: scaleX(0);
+}
+
+.feature.is-in .feature-progress i {
+	animation: feature-run 6.5s linear both;
+}
+
+@keyframes feature-run {
+	from {
+		transform: scaleX(0);
+	}
+
+	to {
+		transform: scaleX(1);
+	}
+}
+
+.feature.is-in .feature-art {
+	animation: feature-art 6.5s ease-out both;
+}
+
+@keyframes feature-art {
+	from {
+		opacity: 0.2;
+		transform: scale(1.08);
+	}
+
+	12% {
+		opacity: 1;
+	}
+
+	to {
+		transform: scale(1);
+	}
+}
+
+.feature.is-in .feature-body > * {
+	animation: rise 0.6s calc(0.1s + var(--d, 0s)) var(--out) both;
+}
+
+.feature.is-in .feature-title {
+	--d: 0.06s;
+}
+
+.feature.is-in .feature-artist,
+.feature.is-in .feature-diff {
+	--d: 0.12s;
+}
+
+.feature.is-in .feature-stats {
+	--d: 0.2s;
+}
+
+.show-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	list-style: none;
+}
+
+.show-list li {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: 54px 1fr auto;
+	align-items: center;
+	gap: 12px;
+	padding: 0 16px;
+	background: rgba(6, 5, 3, 0.7);
+	border: 1px solid var(--hair);
+	color: var(--dim);
+	transition: background 0.3s, color 0.3s, border-color 0.3s;
+}
+
+.show-list b {
+	font: 700 13px/1 var(--label);
+	letter-spacing: 0.1em;
+}
+
+.show-list span {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font: 700 16px/1 var(--display);
+}
+
+.show-list i {
+	font: 600 13px/1 var(--display);
+	font-style: normal;
+	color: var(--faint);
+}
+
+.show-list li.is-on {
+	background: rgba(226, 184, 102, 0.14);
+	border-color: var(--gold);
+	color: var(--text);
+}
+
+.show-list li.is-on i {
+	color: var(--gold-hi);
+}
+
+.show[data-active] .show-list li {
+	animation: rise 0.45s calc(0.2s + var(--i, 0) * 0.03s) ease-out both;
+}
+
+/* =====================================================================
+   STAFF SHOWMATCH — the exhibition gets louder: a tricolour title that
+   runs, a hotter grade and an "Exhibición" stamp.
+   ===================================================================== */
+
+.stage[data-round="show"] .intro-title,
+.stage[data-round="show"] .start-title {
+	background: linear-gradient(90deg, #ffcd00, #fff3c8 20%, #6f9bff 40%, #ff5a6a 60%, #fff3c8 80%, #ffcd00);
+	background-size: 200% 100%;
+	-webkit-background-clip: text;
+	background-clip: text;
+	animation: show-run 3.5s linear infinite;
+	filter: drop-shadow(0 0 24px rgba(255, 205, 0, 0.35));
+}
+
+@keyframes show-run {
+	to {
+		background-position: -200% 0;
+	}
+}
+
+.stage[data-round="show"] .intro-head::after,
+.stage[data-round="show"] .start-head::after {
+	content: "Exhibición";
+	padding: 7px 16px 6px;
+	background: linear-gradient(90deg, #ffcd00 0 50%, #003893 50% 75%, #ce1126 75%);
+	color: #fff;
+	font: 900 15px/1 var(--display);
+	letter-spacing: 0.3em;
+	text-transform: uppercase;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+	transform: rotate(-3deg);
+	animation: show-stamp 0.5s 0.8s var(--snap) both;
+}
+
+@keyframes show-stamp {
+	from {
+		opacity: 0;
+		transform: rotate(-3deg) scale(2.2);
+	}
+}
+
+.stage[data-round="show"] .backdrop-video {
+	filter: saturate(1.35) contrast(1.12);
+}

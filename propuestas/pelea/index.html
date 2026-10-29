@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Rempalago 3 — Pelea</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link
+		href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800;900&family=Big+Shoulders+Text:wght@500;600;700;800&display=swap"
+		rel="stylesheet">
+	<link rel="stylesheet" href="../shared/stage.css" />
+	<link rel="stylesheet" href="pelea.css" />
+</head>
+
+<body>
+	<div class="stage">
+
+		<!-- INTRO: versus screen -->
+		<section data-scene="intro" class="vs">
+			<div class="vs-half vs-half--l">
+				<span class="vs-initial">C</span>
+				<div class="vs-id">
+					<span class="vs-seed">Seed 1</span>
+					<h1 class="vs-name">Clippy</h1>
+					<span class="vs-rank">#39 en Colombia</span>
+				</div>
+			</div>
+			<div class="vs-half vs-half--r">
+				<span class="vs-initial">S</span>
+				<div class="vs-id">
+					<span class="vs-seed">Seed 4</span>
+					<h1 class="vs-name">Sombrax79</h1>
+					<span class="vs-rank">#112 en Colombia</span>
+				</div>
+			</div>
+			<div class="vs-seam" aria-hidden="true"></div>
+			<b class="vs-mark">VS</b>
+			<div class="vs-foot">
+				<span>Rempalago 3</span>
+				<strong>Gran final</strong>
+				<span>Primero a 5</span>
+			</div>
+		</section>
+
+		<!-- MAPPOOL: character select -->
+		<section data-scene="mappool" class="select">
+			<aside class="select-player select-player--l">
+				<span class="select-initial">C</span>
+				<h2>Clippy</h2>
+				<div class="pips" data-pips="l"></div>
+			</aside>
+			<div class="select-main">
+				<header class="select-turn">
+					<span class="select-turn-who">Sombrax79</span>
+					<span class="select-turn-what">elige mapa 6</span>
+				</header>
+				<div class="select-grid" id="poolGrid"></div>
+				<ol class="select-order" id="pickOrder"></ol>
+			</div>
+			<aside class="select-player select-player--r">
+				<span class="select-initial">S</span>
+				<h2>Sombrax79</h2>
+				<div class="pips" data-pips="r"></div>
+			</aside>
+		</section>
+
+		<!-- GAMEPLAY -->
+		<section data-scene="gameplay" class="gp">
+			<header class="hud">
+				<div class="side side--l">
+					<div class="bar"><i class="bar-trail"></i><i class="bar-fill"></i></div>
+					<div class="side-row">
+						<span class="side-name">Clippy</span>
+						<div class="pips" data-pips="l"></div>
+						<span class="side-lead" data-lead="l"></span>
+						<span class="side-score" data-score="l">0</span>
+					</div>
+				</div>
+				<div class="clock">
+					<span class="clock-map">DT2</span>
+					<span class="clock-time" id="clock">0</span>
+				</div>
+				<div class="side side--r">
+					<div class="bar"><i class="bar-trail"></i><i class="bar-fill"></i></div>
+					<div class="side-row">
+						<span class="side-score" data-score="r">0</span>
+						<span class="side-lead" data-lead="r"></span>
+						<div class="pips" data-pips="r"></div>
+						<span class="side-name">Sombrax79</span>
+					</div>
+				</div>
+			</header>
+
+			<div class="clients">
+				<div class="client" data-label="cliente osu! — Clippy"></div>
+				<div class="client" data-label="cliente osu! — Sombrax79"></div>
+			</div>
+			<div class="breaks" aria-live="polite">
+				<div class="break break--l"><b>Combo roto</b><span data-break="l"></span></div>
+				<div class="break break--r"><b>Combo roto</b><span data-break="r"></span></div>
+			</div>
+
+			<footer class="dock">
+				<div class="chat" id="chat"></div>
+				<article class="stagecard">
+					<div class="stagecard-mod"><span>DT</span><b>2</b></div>
+					<div class="stagecard-body">
+						<span class="stagecard-artist">nekodex</span>
+						<h2 class="stagecard-title">Grand Dad</h2>
+						<dl class="stagecard-stats">
+							<div><dt>SR</dt><dd>7.02</dd></div>
+							<div><dt>BPM</dt><dd>292</dd></div>
+							<div><dt>Largo</dt><dd>1:43</dd></div>
+							<div><dt>AR</dt><dd>10.3</dd></div>
+							<div><dt>OD</dt><dd>10.1</dd></div>
+							<div><dt>CS</dt><dd>4</dd></div>
+						</dl>
+						<span class="stagecard-mapper">Mapa de Okoratu</span>
+					</div>
+					<span class="stagecard-pick">Pick de Sombrax79</span>
+				</article>
+				<div class="casters">
+					<div class="caster is-talking"><span class="caster-face">H</span><span>hxovc</span><i class="caster-mic"></i></div>
+					<div class="caster"><span class="caster-face">K</span><span>Kuervo</span><i class="caster-mic"></i></div>
+				</div>
+			</footer>
+		</section>
+
+		<!-- RESULT: map winner -->
+		<section data-scene="result" class="ko">
+			<div class="ko-wash" aria-hidden="true"></div>
+			<div class="ko-head">
+				<span class="ko-map">DT2 · Grand Dad</span>
+				<h2 class="ko-winner">Clippy</h2>
+				<span class="ko-verb">se lleva el mapa</span>
+			</div>
+			<table class="ko-table">
+				<thead>
+					<tr><th>Clippy</th><th></th><th>Sombrax79</th></tr>
+				</thead>
+				<tbody>
+					<tr class="is-win"><td>1,284,903</td><th>Score</th><td>1,207,118</td></tr>
+					<tr class="is-win"><td>98.41%</td><th>Acc</th><td>97.86%</td></tr>
+					<tr><td>612x</td><th>Combo</th><td class="is-win">688x</td></tr>
+					<tr class="is-win"><td>2</td><th>Miss</th><td>5</td></tr>
+				</tbody>
+			</table>
+			<div class="ko-score">
+				<div class="pips pips--big" data-pips="l" data-plus="1"></div>
+				<span class="ko-score-n">4 — 2</span>
+				<div class="pips pips--big" data-pips="r"></div>
+			</div>
+		</section>
+
+		<!-- CHAMPION -->
+		<section data-scene="champion" class="champ">
+			<div class="champ-rays" aria-hidden="true"></div>
+			<span class="champ-initial" aria-hidden="true">C</span>
+			<div class="champ-copy">
+				<span class="champ-kicker">Campeón de Rempalago 3</span>
+				<h1 class="champ-name">Clippy</h1>
+				<span class="champ-final">5 — 3 contra Sombrax79</span>
+			</div>
+		</section>
+	</div>
+
+	<script type="module" src="pelea.js"></script>
+</body>
+
+</html>

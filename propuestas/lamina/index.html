@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Rempalago 3 — Lámina</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Anybody:ital,wdth,wght@0,50..150,400..900;1,50..150,400..900&display=swap"
+		rel="stylesheet">
+	<link rel="stylesheet" href="../shared/stage.css" />
+	<link rel="stylesheet" href="lamina.css" />
+</head>
+
+<body>
+	<div class="stage">
+
+		<!-- INTRO: two player stickers -->
+		<section data-scene="intro" class="page intro">
+			<article class="card card--l">
+				<header class="card-band"><span>Colombia</span><b>Seed 1</b></header>
+				<div class="card-photo"><span>C</span></div>
+				<footer class="card-name">
+					<h1>Clippy</h1>
+					<span>#39 del país</span>
+				</footer>
+			</article>
+			<div class="intro-mid">
+				<span class="vs-sticker">VS</span>
+				<p class="intro-what">Gran final</p>
+				<p class="intro-rule">Gana quien pegue 5 mapas</p>
+			</div>
+			<article class="card card--r">
+				<header class="card-band"><span>Colombia</span><b>Seed 4</b></header>
+				<div class="card-photo"><span>S</span></div>
+				<footer class="card-name">
+					<h1>Sombrax79</h1>
+					<span>#112 del país</span>
+				</footer>
+			</article>
+		</section>
+
+		<!-- MAPPOOL: the album page -->
+		<section data-scene="mappool" class="page album">
+			<header class="album-head">
+				<div class="tally" data-tally="l"><b>Clippy</b><div class="slots" data-slots="l"></div></div>
+				<div class="album-turn"><span>Le toca pegar a</span><strong>Sombrax79</strong></div>
+				<div class="tally tally--r" data-tally="r"><div class="slots" data-slots="r"></div><b>Sombrax79</b></div>
+			</header>
+			<div class="album-grid" id="poolGrid"></div>
+		</section>
+
+		<!-- GAMEPLAY -->
+		<section data-scene="gameplay" class="gp">
+			<header class="strip page">
+				<div class="who who--l">
+					<span class="mini mini--l">C</span>
+					<div class="who-text">
+						<span class="who-name">Clippy</span>
+						<div class="slots" data-slots="l"></div>
+					</div>
+					<span class="who-lead" data-lead="l"></span>
+					<span class="who-score" data-score="l">0</span>
+				</div>
+				<div class="now">
+					<span class="now-id">DT2</span>
+					<span class="now-time" id="clock">0:00</span>
+				</div>
+				<div class="who who--r">
+					<span class="who-score" data-score="r">0</span>
+					<span class="who-lead" data-lead="r"></span>
+					<div class="who-text">
+						<span class="who-name">Sombrax79</span>
+						<div class="slots" data-slots="r"></div>
+					</div>
+					<span class="mini mini--r">S</span>
+				</div>
+			</header>
+
+			<div class="clients">
+				<div class="client" data-label="cliente osu! — Clippy"></div>
+				<div class="client" data-label="cliente osu! — Sombrax79"></div>
+			</div>
+			<div class="stamps" aria-live="polite">
+				<div class="stamp stamp--l"><b>Combo roto</b><span data-break="l"></span></div>
+				<div class="stamp stamp--r"><b>Combo roto</b><span data-break="r"></span></div>
+			</div>
+
+			<footer class="shelf page">
+				<div class="note" id="chat"></div>
+				<article class="mapcard">
+					<div class="mapcard-art">
+						<span class="mapcard-id">DT2</span>
+						<span class="mapcard-sr">7.02★</span>
+					</div>
+					<div class="mapcard-plate">
+						<h2>Grand Dad</h2>
+						<span>nekodex · mapa de Okoratu</span>
+						<dl>
+							<div><dt>BPM</dt><dd>292</dd></div>
+							<div><dt>Largo</dt><dd>1:43</dd></div>
+							<div><dt>AR</dt><dd>10.3</dd></div>
+							<div><dt>OD</dt><dd>10.1</dd></div>
+							<div><dt>CS</dt><dd>4</dd></div>
+						</dl>
+					</div>
+					<span class="tape">Pick de Sombrax79</span>
+				</article>
+				<div class="voices">
+					<div class="voice is-talking"><span class="voice-face">H</span><b>hxovc</b></div>
+					<div class="voice"><span class="voice-face">K</span><b>Kuervo</b></div>
+				</div>
+			</footer>
+		</section>
+
+		<!-- RESULT -->
+		<section data-scene="result" class="page result">
+			<div class="result-slot">
+				<article class="bigmap">
+					<div class="bigmap-art"><span>DT2</span></div>
+					<div class="bigmap-plate">
+						<h2>Grand Dad</h2>
+						<span>nekodex</span>
+					</div>
+				</article>
+				<span class="result-stamp">Clippy</span>
+			</div>
+			<div class="result-side">
+				<p class="result-line">Lámina pegada en el álbum de <strong>Clippy</strong></p>
+				<table class="sheet">
+					<thead>
+						<tr><th></th><th>Clippy</th><th>Sombrax79</th></tr>
+					</thead>
+					<tbody>
+						<tr><th>Score</th><td class="is-win">1,284,903</td><td>1,207,118</td></tr>
+						<tr><th>Acc</th><td class="is-win">98.41%</td><td>97.86%</td></tr>
+						<tr><th>Combo</th><td>612x</td><td class="is-win">688x</td></tr>
+						<tr><th>Miss</th><td class="is-win">2</td><td>5</td></tr>
+					</tbody>
+				</table>
+				<div class="result-count">
+					<div class="slots slots--big" data-slots="l" data-plus="1"></div>
+					<span>4 — 2</span>
+					<div class="slots slots--big" data-slots="r"></div>
+				</div>
+			</div>
+		</section>
+
+		<!-- CHAMPION: the foil sticker -->
+		<section data-scene="champion" class="page champ">
+			<article class="card card--foil">
+				<header class="card-band"><span>Rempalago 3</span><b>Campeón</b></header>
+				<div class="card-photo"><span>C</span></div>
+				<footer class="card-name">
+					<h1>Clippy</h1>
+					<span>5 — 3 en la gran final</span>
+				</footer>
+			</article>
+			<p class="champ-line">La mona brillante de esta edición es de <strong>Clippy</strong>.</p>
+		</section>
+	</div>
+
+	<script type="module" src="lamina.js"></script>
+</body>
+
+</html>

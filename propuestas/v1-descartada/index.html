@@ -1,0 +1,1491 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta name="description"
+		content="Propuesta creativa y de experiencia para el overlay de Rempalago 3 — Operación Tricolor." />
+	<title>REMPALAGO 3 — Propuesta creativa · Operación Tricolor</title>
+	<link rel="icon"
+		href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2306070a'/%3E%3Crect width='64' height='14' fill='%23ffd23f'/%3E%3Crect y='14' width='64' height='14' fill='%233f7bff'/%3E%3Crect y='28' width='64' height='14' fill='%23ff4d5e'/%3E%3Ctext x='32' y='57' font-family='Arial Black' font-size='24' fill='white' text-anchor='middle'%3ER3%3C/text%3E%3C/svg%3E" />
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link
+		href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo:ital,wght@0,300..900;1,300..900&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap"
+		rel="stylesheet">
+	<link rel="stylesheet" href="styles.css" />
+	<link rel="stylesheet" href="arena.css" />
+</head>
+
+<body>
+	<svg class="svg-sprite" aria-hidden="true" width="0" height="0">
+		<symbol id="emblem-sun" viewBox="0 0 100 100">
+			<path d="M50 4 58 30 84 12 70 40 96 50 70 60 84 88 58 70 50 96 42 70 16 88 30 60 4 50 30 40 16 12 42 30Z"
+				fill="none" stroke="currentColor" stroke-width="2" />
+			<circle cx="50" cy="50" r="13" fill="currentColor" opacity=".75" />
+		</symbol>
+		<symbol id="emblem-condor" viewBox="0 0 100 100">
+			<path d="M6 60 30 24 44 42 50 10 56 42 70 24 94 60 64 50 50 88 36 50Z" fill="none"
+				stroke="currentColor" stroke-width="2" />
+			<path d="M50 34 57 52 50 72 43 52Z" fill="currentColor" opacity=".55" />
+		</symbol>
+		<symbol id="emblem-trophy" viewBox="0 0 100 100">
+			<path d="M30 12h40v14c0 18-9 28-20 28S30 44 30 26Z" fill="none" stroke="currentColor"
+				stroke-width="2" />
+			<path d="M30 20H12v6c0 11 8 18 19 18M70 20h18v6c0 11-8 18-19 18M44 54h12v16H44zM30 82h40v8H30z"
+				fill="none" stroke="currentColor" stroke-width="2" />
+		</symbol>
+		<symbol id="emblem-star" viewBox="0 0 100 100">
+			<path d="M50 6 61 38 95 38 67 58 78 92 50 71 22 92 33 58 5 38 39 38Z" fill="currentColor" />
+		</symbol>
+	</svg>
+
+	<div class="grain" aria-hidden="true"></div>
+	<div class="scroll-progress" aria-hidden="true"><span id="progressBar"></span></div>
+
+	<nav class="nav">
+		<a class="brand" href="#top" aria-label="Rempalago 3, volver arriba">
+			<span class="brand-mark"><span>R3</span></span>
+			<span class="brand-text">REMPALAGO <b>3</b><small>OPERACIÓN TRICOLOR</small></span>
+		</a>
+		<div class="nav-status">
+			<span class="nav-live"><i></i> LIVE</span>
+			<span class="nav-sector" id="sectorLabel">SECTOR 00 // NORTE</span>
+			<span class="nav-time" id="navTime">00:00:00</span>
+		</div>
+		<div class="nav-actions">
+			<button class="nav-audio" id="navAudio" type="button" aria-pressed="false"><span>◉</span> AUDIO
+				OFF</button>
+			<a class="nav-cta" href="#estudio">JUGAR DEMO <span>▶</span></a>
+		</div>
+	</nav>
+
+	<nav class="chapter-rail" aria-label="Capítulos de la propuesta">
+		<a href="#norte" data-chapter="norte"><b>00</b><span>NORTE</span></a>
+		<a href="#estudio" data-chapter="estudio"><b>01</b><span>ARENA</span></a>
+		<a href="#direcciones" data-chapter="direcciones"><b>02</b><span>PIELES</span></a>
+		<a href="#escenas" data-chapter="escenas"><b>03</b><span>RONDAS</span></a>
+		<a href="#comportamientos" data-chapter="comportamientos"><b>04</b><span>DIRECTOR</span></a>
+		<a href="#features" data-chapter="features"><b>05</b><span>MOVES</span></a>
+		<a href="#calidad" data-chapter="calidad"><b>06</b><span>CALIDAD</span></a>
+		<a href="#plan" data-chapter="plan"><b>07</b><span>PLAN</span></a>
+		<a href="#decisiones" data-chapter="decisiones"><b>08</b><span>SELECT</span></a>
+	</nav>
+
+	<div class="screen-frame" aria-hidden="true">
+		<i class="frame-corner frame-corner--tl"></i>
+		<i class="frame-corner frame-corner--tr"></i>
+		<i class="frame-corner frame-corner--bl"></i>
+		<i class="frame-corner frame-corner--br"></i>
+		<div class="frame-bottom"><span>TRICOLOR ARENA</span><span>REMPALAGO 3 · OPERACIÓN TRICOLOR</span><span>1920×1080 · 60 FPS</span></div>
+	</div>
+
+	<main>
+		<!-- ══════════════════════ HERO ══════════════════════ -->
+		<section id="top" class="hero">
+			<div class="hero-eclipse" aria-hidden="true"><span></span></div>
+			<div class="hero-floor" aria-hidden="true"></div>
+			<canvas class="hero-particles" id="heroParticles" aria-hidden="true"></canvas>
+			<span class="hero-shard hero-shard--1" aria-hidden="true"></span>
+			<span class="hero-shard hero-shard--2" aria-hidden="true"></span>
+			<span class="hero-shard hero-shard--3" aria-hidden="true"></span>
+
+			<div class="hero-grid">
+				<div class="hero-copy">
+					<p class="eyebrow"><span class="rec-dot"></span> TRICOLOR ARENA // TRANSMISIÓN 03</p>
+					<h1>REMPALAGO <span class="h1-three">3</span></h1>
+					<p class="hero-sub">Un overlay no se mira: <em>se siente</em>. Tres direcciones visuales, un
+						sistema de momentos y un HUD que convierte cada mapa en una final.</p>
+					<div class="hero-actions">
+						<a class="btn btn--solid btn--play" href="#estudio"><span class="btn-icon">▶</span> JUGAR
+							LA DEMO <kbd>↵</kbd></a>
+						<a class="btn btn--ghost" href="#decisiones">ARMAR EL SHOW</a>
+					</div>
+					<div class="hero-scenes">
+						<span class="hero-scenes-label">SALTAR A</span>
+						<button data-open-scene="intro"><b>01</b> INTRO</button>
+						<button data-open-scene="draft"><b>02</b> DRAFT</button>
+						<button data-open-scene="gameplay"><b>03</b> GAME</button>
+						<button data-open-scene="result"><b>04</b> RESULT</button>
+						<button data-open-scene="champion"><b>05</b> CHAMP</button>
+					</div>
+					<p class="hero-specs">1920×1080 · 60 FPS · TOSU / Z-ENGINE · ES / EN</p>
+				</div>
+
+				<aside class="versus" aria-label="Final: Clippy vs Sombrax79">
+					<div class="versus-frame">
+						<span class="versus-scan" aria-hidden="true"></span>
+						<span class="versus-screws" aria-hidden="true"></span>
+						<div class="versus-top"><span class="live-pill"><i></i> LIVE</span><span>GRAND
+								FINAL</span><span>BO9 // 01</span></div>
+						<div class="versus-stage">
+							<article class="fighter fighter--l">
+								<svg class="fighter-emblem" aria-hidden="true">
+									<use href="#emblem-sun" />
+								</svg>
+								<span class="fighter-seed">SEED #1</span>
+								<div class="fighter-avatar"><span>C</span></div>
+								<h3>CLIPPY</h3>
+								<p><span class="flag flag--sm"></span> COL · #39</p>
+								<div class="fighter-meta"><span>TOP 812pp</span><span>WR 78%</span></div>
+								<span class="fighter-tag">P1</span>
+							</article>
+							<div class="versus-core">
+								<span class="versus-core-label">FIRST TO 5</span>
+								<div class="versus-disc"><span>R3</span></div>
+								<b class="versus-vs">VS</b>
+								<span class="versus-core-sub">ARENA 01</span>
+							</div>
+							<article class="fighter fighter--r">
+								<svg class="fighter-emblem" aria-hidden="true">
+									<use href="#emblem-condor" />
+								</svg>
+								<span class="fighter-seed">SEED #4</span>
+								<div class="fighter-avatar"><span>S</span></div>
+								<h3>SOMBRAX79</h3>
+								<p><span class="flag flag--sm"></span> COL · #297</p>
+								<div class="fighter-meta"><span>TOP 654pp</span><span>WR 71%</span></div>
+								<span class="fighter-tag">P2</span>
+							</article>
+						</div>
+						<div class="versus-bottom">
+							<div class="versus-score"><b>3</b><i>—</i><b>2</b><span>SERIE</span></div>
+							<span class="versus-mp">★ MATCH POINT</span>
+							<span class="versus-coin">INSERT COIN</span>
+						</div>
+					</div>
+				</aside>
+			</div>
+
+			<div class="hero-scroll"><span></span> baja, hay demo</div>
+		</section>
+
+		<!-- ══════════════════════ MARQUEE ══════════════════════ -->
+		<div class="marquee" aria-hidden="true">
+			<div class="marquee-track">
+				<span>MOMENTOS, NO AVISOS</span><i></i>
+				<span>TRICOLOR CON ACTITUD</span><i></i>
+				<span>LEGIBLE SOBRE TODO</span><i></i>
+				<span>60 FPS O NADA</span><i></i>
+				<span>EL DIRECTOR RESPIRA</span><i></i>
+				<span>REMPALAGO 3</span><i></i>
+				<span>MOMENTOS, NO AVISOS</span><i></i>
+				<span>TRICOLOR CON ACTITUD</span><i></i>
+				<span>LEGIBLE SOBRE TODO</span><i></i>
+				<span>60 FPS O NADA</span><i></i>
+				<span>EL DIRECTOR RESPIRA</span><i></i>
+				<span>REMPALAGO 3</span><i></i>
+			</div>
+		</div>
+
+		<!-- ══════════════════════ NORTE ══════════════════════ -->
+		<section id="norte" class="section">
+			<div class="wrap">
+				<header class="sec-head reveal">
+					<p class="eyebrow"><span>00</span> EL NORTE</p>
+					<h2>Que no parezca<br>un overlay.</h2>
+					<p class="lead">Rempalago 2 ya tiene lo difícil: tosu, Z-Engine, mappool, casters en vivo, choke FX.
+						Lo que falta no es otro panel. Es <b>dirección de arte</b> y un <b>sistema de momentos</b>.</p>
+				</header>
+
+				<p class="statement reveal">La gente no tiene que decir <q>qué buen overlay</q>. Tiene que gritar en
+					el chat, quedarse hasta las 2 a.m. y clipear el segundo exacto en el que <mark>se rompió la
+						racha</mark>. El overlay es el escenario; el show lo hacen los momentos.</p>
+
+				<div class="pillars reveal">
+					<article class="pillar">
+						<span class="pillar-num">01</span>
+						<h3>Legible primero</h3>
+						<p>El gameplay manda. Todo lo que pongamos encima tiene que leerse en 0,3 segundos y no tapar ni
+							un círculo.</p>
+					</article>
+					<article class="pillar">
+						<span class="pillar-num">02</span>
+						<h3>Tricolor con actitud</h3>
+						<p>El amarillo, el azul y el rojo no son decoración: son lenguaje. Lado, ventaja, peligro,
+							celebración.</p>
+					</article>
+					<article class="pillar">
+						<span class="pillar-num">03</span>
+						<h3>Momentos, no avisos</h3>
+						<p>Menos “COMBO BREAK” en una esquina. Más un takeover de dos segundos que se sienta en el
+							pecho.</p>
+					</article>
+					<article class="pillar">
+						<span class="pillar-num">04</span>
+						<h3>Cero fricción</h3>
+						<p>El director no debería tocar catorce botones. Auto por tosu, override con hotkeys y si algo
+							falla, el show sigue.</p>
+					</article>
+				</div>
+			</div>
+		</section>
+
+		<!-- ══════════════════════ ESTUDIO ══════════════════════ -->
+		<section id="estudio" class="section section--studio">
+			<div class="wrap">
+				<header class="sec-head sec-head--row reveal">
+					<div>
+						<p class="eyebrow"><span>01</span> ESTUDIO EN VIVO</p>
+						<h2>Pruébalo tú.</h2>
+						<p class="lead">No es una captura: es HTML y CSS de verdad. Cambia de escena, cambia la piel y
+							dispara los momentos. Todo lo que ves aquí se puede construir sobre lo que ya hay.</p>
+					</div>
+					<div class="studio-badge">
+						<span class="live-dot"></span>
+						<div><b>DEMO INTERACTIVA</b><small>datos simulados · sin tosu</small></div>
+					</div>
+				</header>
+
+				<div class="studio reveal">
+					<div class="cabinet-marquee">
+						<span class="cm-brand">TRICOLOR <b>ARENA</b></span>
+						<span class="cm-sub">DEMO CABINET · BUILD 0.1</span>
+						<span class="cm-lights"><i></i><i></i><i></i></span>
+					</div>
+					<div class="studio-bar">
+						<div class="scene-tabs" role="tablist" aria-label="Escenas del overlay">
+							<button class="chip chip--tab" data-scene-btn="intro" role="tab"><i>01</i> Intro</button>
+							<button class="chip chip--tab" data-scene-btn="draft" role="tab"><i>02</i> Draft</button>
+							<button class="chip chip--tab is-active" data-scene-btn="gameplay" role="tab"><i>03</i>
+								Gameplay</button>
+							<button class="chip chip--tab" data-scene-btn="result" role="tab"><i>04</i> Resultado</button>
+							<button class="chip chip--tab" data-scene-btn="champion" role="tab"><i>05</i> Campeón</button>
+						</div>
+
+						<div class="view-controls">
+							<div class="theme-switch" role="group" aria-label="Dirección visual">
+								<button class="chip chip--theme is-active" data-theme-btn="broadcast"><span
+										class="sw sw--broadcast"></span>Broadcast</button>
+								<button class="chip chip--theme" data-theme-btn="neon"><span
+										class="sw sw--neon"></span>Neón</button>
+								<button class="chip chip--theme" data-theme-btn="gala"><span
+										class="sw sw--gala"></span>Gala</button>
+							</div>
+							<button class="chip chip--icon" id="fsBtn" type="button" title="Pantalla completa">⛶</button>
+						</div>
+					</div>
+
+					<div class="chaos-bar" id="chaosBar">
+						<span class="chaos-label">MOMENTOS</span>
+						<button class="chip chip--danger" id="chokeL" type="button">💥 Choke L</button>
+						<button class="chip chip--danger" id="chokeR" type="button">💥 Choke R</button>
+						<button class="chip chip--gold" id="matchPointBtn" type="button">★ Match point</button>
+						<button class="chip" id="sfxBtn" type="button" aria-pressed="false">🔇 SFX</button>
+						<span class="chaos-hint">La simulación corre sola. Estos botones le agregan drama.</span>
+					</div>
+
+					<div class="stage-shell" id="stageShell">
+						<div class="stage-wrap" id="stageWrap">
+							<div class="stage" id="stage" data-theme="broadcast">
+								<!-- ══════ ESCENA: INTRO ══════ -->
+								<section class="scene scene--intro" data-scene="intro" aria-label="Intro de la final">
+									<div class="intro-bg">
+										<span class="intro-ghost" aria-hidden="true">03</span>
+										<span class="intro-slash" aria-hidden="true"></span>
+									</div>
+
+									<header class="intro-top">
+										<span class="intro-brand">REMPALAGO <b>3</b></span>
+										<span class="intro-top-mid">GRAND FINAL · OPERACIÓN TRICOLOR</span>
+										<span class="onair"><i></i> EN VIVO</span>
+									</header>
+
+									<div class="intro-grid">
+										<article class="intro-card intro-card--l">
+											<svg class="intro-emblem" aria-hidden="true">
+												<use href="#emblem-sun" />
+											</svg>
+											<div class="intro-avatar"><span>C</span><em>P1</em></div>
+											<p class="intro-flag"><span class="flag"></span> COLOMBIA · SEED #1</p>
+											<h2>CLIPPY</h2>
+											<p class="intro-role">DT AIM · 2× FINALISTA</p>
+											<dl class="intro-stats">
+												<div><dt>RANK</dt><dd>#39</dd></div>
+												<div><dt>TOP PLAY</dt><dd>812<small>pp</small></dd></div>
+												<div><dt>WINRATE</dt><dd>78<small>%</small></dd></div>
+											</dl>
+											<p class="intro-sig">MAPA FIRMA · <b>BLUE ZENITH [FOUR DIMENSIONS]</b></p>
+										</article>
+
+										<div class="intro-vs">
+											<span class="intro-vs-kicker">BO9 · FIRST TO 5</span>
+											<div class="vs-disc">
+												<span class="crest"><b>R3</b></span>
+												<em>VS</em>
+											</div>
+											<span class="intro-vs-sub">GANADOR SE LLEVA<br>LA TRICOLOR</span>
+										</div>
+
+										<article class="intro-card intro-card--r">
+											<svg class="intro-emblem" aria-hidden="true">
+												<use href="#emblem-condor" />
+											</svg>
+											<div class="intro-avatar"><span>S</span><em>P2</em></div>
+											<p class="intro-flag"><span class="flag"></span> COLOMBIA · SEED #4</p>
+											<h2>SOMBRAX79</h2>
+											<p class="intro-role">HR / TECH · CLUTCH GOD</p>
+											<dl class="intro-stats">
+												<div><dt>RANK</dt><dd>#297</dd></div>
+												<div><dt>TOP PLAY</dt><dd>654<small>pp</small></dd></div>
+												<div><dt>WINRATE</dt><dd>71<small>%</small></dd></div>
+											</dl>
+											<p class="intro-sig">MAPA FIRMA · <b>SOUND CHIMERA [EXTREME]</b></p>
+										</article>
+									</div>
+
+									<footer class="intro-foot">
+										<span><b>POOL</b> 3NM · 2HD · 2HR · 2DT · 2FM · TB</span>
+										<span><b>PICK &amp; BAN</b> 18:00</span>
+										<span><b>CASTERS</b> PIXIÑA + THIS1NEGUY</span>
+									</footer>
+								</section>
+
+								<!-- ══════ ESCENA: GAMEPLAY ══════ -->
+								<section class="scene scene--gp is-active" data-scene="gameplay"
+									aria-label="HUD de gameplay">
+									<div class="gp-bg" aria-hidden="true"></div>
+									<div class="gp-canvas" aria-hidden="true">
+										<div class="ghost ghost--l">
+											<div class="ghost-art" aria-hidden="true">
+												<span class="hit">1</span>
+												<span class="hit">2</span>
+												<span class="hit">3</span>
+												<span class="hit">4</span>
+												<span class="slider"></span>
+												<span class="cursor"></span>
+												<svg class="ghost-emblem" aria-hidden="true">
+													<use href="#emblem-sun" />
+												</svg>
+											</div>
+											<span class="ghost-label">CLIENTE 01 · CLIPPY</span>
+											<span class="ghost-combo">1247x</span>
+										</div>
+										<div class="ghost ghost--r">
+											<div class="ghost-art" aria-hidden="true">
+												<span class="hit">1</span>
+												<span class="hit">2</span>
+												<span class="hit">3</span>
+												<span class="hit">4</span>
+												<span class="slider"></span>
+												<span class="cursor"></span>
+												<svg class="ghost-emblem" aria-hidden="true">
+													<use href="#emblem-condor" />
+												</svg>
+											</div>
+											<span class="ghost-label">CLIENTE 02 · SOMBRAX79</span>
+											<span class="ghost-combo">1104x</span>
+										</div>
+									</div>
+
+									<div class="casters">
+										<span class="casters-label">ON AIR</span>
+										<div class="caster is-speaking"><span class="av av--xs">P</span><span>PIXIÑA</span>
+										</div>
+										<div class="caster"><span class="av av--xs">T</span><span>THIS1NEGUY</span></div>
+									</div>
+
+									<div class="hype" aria-hidden="true">
+										<span class="hype-label">HYPE</span>
+										<span class="hype-bar"><i></i></span>
+										<b>87</b>
+									</div>
+
+									<header class="gp-top">
+										<div class="gp-side gp-side--l">
+											<svg class="gp-emblem" aria-hidden="true">
+												<use href="#emblem-sun" />
+											</svg>
+											<span class="av av--l">C</span>
+											<div class="gp-id">
+												<h3>CLIPPY</h3>
+												<p><span class="flag flag--sm"></span> COL · SEED #1 · <b>#39</b></p>
+												<div class="pips" aria-label="3 mapas ganados">
+													<i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i></i><i></i>
+												</div>
+											</div>
+										</div>
+
+										<div class="gp-center">
+											<span class="crest crest--sm"><b>R3</b></span>
+											<p class="gp-event">REMPALAGO <b>3</b></p>
+											<p class="gp-round">GRAND FINAL · BO9</p>
+											<div class="gp-series"><b>3</b><i>—</i><b>2</b></div>
+											<span class="matchpoint-badge" id="mpBadge">★ MATCH POINT</span>
+										</div>
+
+										<div class="gp-side gp-side--r">
+											<svg class="gp-emblem" aria-hidden="true">
+												<use href="#emblem-condor" />
+											</svg>
+											<span class="av av--r">S</span>
+											<div class="gp-id">
+												<h3>SOMBRAX79</h3>
+												<p><span class="flag flag--sm"></span> COL · SEED #4 · <b>#297</b></p>
+												<div class="pips" aria-label="2 mapas ganados">
+													<i class="is-on"></i><i class="is-on"></i><i></i><i></i><i></i>
+												</div>
+											</div>
+										</div>
+									</header>
+
+									<div class="gp-deck">
+										<article class="pstat pstat--l">
+											<div class="pstat-head">
+												<span class="av av--sm av--l">C</span>
+												<div class="pstat-id"><b>CLIPPY</b><small><span class="flag flag--xs"></span>
+														COL · #39</small></div>
+												<span class="tag tag--l">P1</span>
+											</div>
+											<div class="pstat-combo"><b id="comboL">842</b><span>x combo</span><em class="fc"
+													id="fcL">FC</em></div>
+											<div class="pstat-stats">
+												<div><span>ACC</span><b id="accL">99.32%</b></div>
+												<div><span>UR</span><b id="urL">71.4</b></div>
+												<div><span>MISS</span><b id="missL">0</b></div>
+											</div>
+											<div class="hitbar" aria-hidden="true">
+												<i class="h300" style="width:96%"></i><i class="h100" style="width:3%"></i><i
+													class="h50" style="width:1%"></i><i class="h0" style="width:0"></i>
+											</div>
+										</article>
+
+										<div class="gp-core">
+											<div class="scoreline">
+												<div class="score score--l"><small>CLIPPY</small><b id="scoreL">812 345</b>
+												</div>
+												<div class="diff" id="scoreDiff">+14 225</div>
+												<div class="score score--r"><small>SOMBRAX79</small><b id="scoreR">798
+														120</b></div>
+											</div>
+
+											<div class="scorebar">
+												<div class="bar-track">
+													<i class="bar-fill bar-fill--l" id="barL"></i>
+													<i class="bar-fill bar-fill--r" id="barR"></i>
+													<span class="bar-center"></span>
+												</div>
+											</div>
+
+											<div class="maprow">
+												<span class="mapmod">NM</span>
+												<div class="mapinfo">
+													<b>YOMI YORI</b>
+													<span>IMPERIAL CIRCUS DEAD DECADENCE · KYRIE</span>
+												</div>
+												<div class="mapstats">
+													<div><span>SR</span><b>7.42★</b></div>
+													<div><span>BPM</span><b>220</b></div>
+													<div><span>CS</span><b>4</b></div>
+													<div><span>AR</span><b>9.6</b></div>
+													<div><span>OD</span><b>9.2</b></div>
+													<div><span>LEN</span><b>5:12</b></div>
+												</div>
+												<div class="picked">PICKED BY <b>CLIPPY</b></div>
+											</div>
+										</div>
+
+										<article class="pstat pstat--r">
+											<div class="pstat-head">
+												<span class="tag tag--r">P2</span>
+												<div class="pstat-id"><b>SOMBRAX79</b><small><span
+															class="flag flag--xs"></span> COL · #297</small></div>
+												<span class="av av--sm av--r">S</span>
+											</div>
+											<div class="pstat-combo"><em class="sb" id="sbR">0 SB</em><span>x combo</span><b
+													id="comboR">731</b></div>
+											<div class="pstat-stats">
+												<div><span>MISS</span><b id="missR">1</b></div>
+												<div><span>UR</span><b id="urR">76.8</b></div>
+												<div><span>ACC</span><b id="accR">98.91%</b></div>
+											</div>
+											<div class="hitbar hitbar--r" aria-hidden="true">
+												<i class="h300" style="width:92%"></i><i class="h100" style="width:6%"></i><i
+													class="h50" style="width:1.5%"></i><i class="h0" style="width:.5%"></i>
+											</div>
+										</article>
+									</div>
+
+									<div class="ticker">
+										<span class="ticker-label">CROWD</span>
+										<span class="ticker-item"><b class="cl">CLIPPY</b> ¿ese aim es legal?</span><i></i>
+										<span class="ticker-item"><b class="cr">SOMBRAX79</b> me tiembla la mano</span><i></i>
+										<span class="ticker-item"><b class="cb">BANCHOBOT</b> match history ·
+											osu.ppy.sh/mp/…</span><i></i>
+										<span class="ticker-item"><b class="cl">PIXIÑA</b> NO PUEDE SER</span>
+										<span class="ticker-live"><i></i> 1.2K</span>
+									</div>
+
+									<div class="choke-layer" id="chokeLayer" aria-hidden="true">
+										<span class="choke-vignette"></span>
+										<span class="choke-cut"></span>
+										<div class="choke-body">
+											<p class="choke-kicker">HEARTBREAK <span>//</span> MOMENTO CRÍTICO</p>												<h2 class="choke-title" id="chokeTitle" data-text="COMBO BREAK">COMBO BREAK</h2>
+											<p class="choke-sub"><b id="chokePlayer">CLIPPY</b> perdió una racha de <em
+													id="chokeCombo">842x</em></p>
+											<span class="choke-tag" id="chokeTag">SESSION BEST SHATTERED</span>
+										</div>
+										<div class="choke-meta"><span>COMBO 0x</span><span>MISS +1</span><span>ACC −0.4%</span>
+										</div>
+									</div>
+								</section>
+
+								<!-- ══════ ESCENA: DRAFT ══════ -->
+								<section class="scene scene--draft" data-scene="draft" aria-label="Pick and ban">
+									<header class="draft-head">
+										<div class="draft-title">
+											<p class="draft-kicker">FASE DE PICKS <span>·</span> RONDA 4 / 12</p>
+											<h2>BAN <span>&amp;</span> PICK</h2>
+										</div>
+										<div class="draft-clock"><span>TIEMPO</span><b>00:18</b></div>
+										<div class="draft-turn"><i class="dot dot--r"></i><span>SOMBRAX79 BANEA</span></div>
+									</header>
+
+									<div class="draft-body">
+										<aside class="draft-team draft-team--l">
+											<div class="dt-head">
+												<span class="av av--sm av--l">C</span>
+												<div><b>CLIPPY</b><small>AMARILLO</small></div>
+											</div>
+											<div class="dt-score"><b>3</b><span>MAPAS</span></div>														<div class="dt-block"><span>PICKS</span>
+															<div class="dt-chips"><i class="is-l">NM1</i><i class="is-l">DT1</i><i
+																	class="is-l">HD1</i></div>
+														</div>
+														<div class="dt-block"><span>BANS</span>
+															<div class="dt-chips"><i class="is-ban">NM2</i></div>
+														</div>
+											<div class="dt-block"><span>PROTECT</span>
+												<div class="dt-chips"><i class="is-prot">FM1</i></div>
+											</div>
+										</aside>
+
+										<div class="draft-grid">
+											<article class="mapcard is-pick-l">
+												<div class="mc-top"><span class="mc-mod">NM1</span><span class="mc-state">PICK ·
+														AMARILLO</span></div>
+												<h4>BLUE ZENITH</h4>
+												<p>xi · FOUR DIMENSIONS</p>
+												<div class="mc-foot"><span>7.12★</span><span>4:12</span><span>200 BPM</span></div>
+											</article>
+											<article class="mapcard is-ban-l">
+												<div class="mc-top"><span class="mc-mod">NM2</span><span class="mc-state">BAN ·
+														AMARILLO</span></div>
+												<h4>YOMI YORI</h4>
+												<p>Imperial Circus · Kyrie</p>
+												<div class="mc-foot"><span>7.42★</span><span>5:12</span><span>220 BPM</span></div>
+											</article>
+											<article class="mapcard">
+												<div class="mc-top"><span class="mc-mod">NM3</span><span
+														class="mc-state">ABIERTO</span></div>
+												<h4>UNITED</h4>
+												<p>BEMANI Sound Team · WE ARE</p>
+												<div class="mc-foot"><span>6.88★</span><span>3:48</span><span>182 BPM</span></div>
+											</article>
+											<article class="mapcard is-pick-l">
+												<div class="mc-top"><span class="mc-mod">HD1</span><span class="mc-state">PICK ·
+														AMARILLO</span></div>
+												<h4>SUNGLOW</h4>
+												<p>Kujira · Dawn</p>
+												<div class="mc-foot"><span>6.74★</span><span>2:58</span><span>174 BPM</span></div>
+											</article>
+											<article class="mapcard is-pick-r">
+												<div class="mc-top"><span class="mc-mod">HD2</span><span class="mc-state">PICK ·
+														AZUL</span></div>
+												<h4>ALEPH</h4>
+												<p>LeaF · 0</p>
+												<div class="mc-foot"><span>7.21★</span><span>3:22</span><span>200 BPM</span></div>
+											</article>
+											<article class="mapcard">
+												<div class="mc-top"><span class="mc-mod">HR1</span><span
+														class="mc-state">ABIERTO</span></div>
+												<h4>SOUND CHIMERA</h4>
+												<p>Laur · Extreme</p>
+												<div class="mc-foot"><span>7.04★</span><span>4:02</span><span>210 BPM</span></div>
+											</article>
+											<article class="mapcard is-ban-r">
+												<div class="mc-top"><span class="mc-mod">HR2</span><span class="mc-state">BAN ·
+														AZUL</span></div>
+												<h4>KIRA KIRA DAYS</h4>
+												<p>Hoshizora · Extra</p>
+												<div class="mc-foot"><span>6.61★</span><span>2:41</span><span>190 BPM</span></div>
+											</article>
+											<article class="mapcard is-pick-l">
+												<div class="mc-top"><span class="mc-mod">DT1</span><span class="mc-state">PICK ·
+														AMARILLO</span></div>
+												<h4>FREEDOM DIVE</h4>
+												<p>xi · FOUR DIMENSIONS</p>
+												<div class="mc-foot"><span>7.54★</span><span>4:17</span><span>222 BPM</span></div>
+											</article>
+											<article class="mapcard is-pick-r">
+												<div class="mc-top"><span class="mc-mod">DT2</span><span class="mc-state">PICK ·
+														AZUL</span></div>
+												<h4>GALAXY COLLAPSE</h4>
+												<p>Camellia · Galactic</p>
+												<div class="mc-foot"><span>7.89★</span><span>5:02</span><span>300 BPM</span></div>
+											</article>
+											<article class="mapcard is-prot">
+												<div class="mc-top"><span class="mc-mod">FM1</span><span
+														class="mc-state">PROTECT</span></div>
+												<h4>THE BIG BLACK</h4>
+												<p>The Quick Brown Fox · Who's afraid</p>
+												<div class="mc-foot"><span>6.95★</span><span>2:25</span><span>360 BPM</span></div>
+											</article>
+											<article class="mapcard is-pick-r">
+												<div class="mc-top"><span class="mc-mod">FM2</span><span class="mc-state">PICK ·
+														AZUL</span></div>
+												<h4>MOU II KAI?</h4>
+												<p>KANA-BOON · Extra</p>
+												<div class="mc-foot"><span>6.43★</span><span>1:58</span><span>198 BPM</span></div>
+											</article>
+											<article class="mapcard is-tb">
+												<div class="mc-top"><span class="mc-mod">TB</span><span class="mc-state">TIEBREAKER ·
+														OCULTO</span></div>
+												<h4>DUALITY</h4>
+												<p>Dimrain47 · Onslaught</p>
+												<div class="mc-foot"><span>7.80★</span><span>3:36</span><span>185 BPM</span></div>
+											</article>
+										</div>
+
+										<aside class="draft-team draft-team--r">
+											<div class="dt-head">
+												<span class="av av--sm av--r">S</span>
+												<div><b>SOMBRAX79</b><small>AZUL</small></div>
+											</div>
+											<div class="dt-score"><b>2</b><span>MAPAS</span></div>
+											<div class="dt-block"><span>PICKS</span>
+												<div class="dt-chips"><i class="is-r">HD2</i><i class="is-r">DT2</i><i
+														class="is-r">FM2</i></div>
+											</div>
+											<div class="dt-block"><span>BANS</span>
+												<div class="dt-chips"><i class="is-ban">HR2</i></div>
+											</div>
+											<div class="dt-block"><span>PROTECT</span>
+												<div class="dt-chips"><i class="is-prot">HR1</i></div>
+											</div>
+										</aside>
+									</div>
+
+									<footer class="draft-foot">
+										<span class="last">ÚLTIMA ACCIÓN</span>
+										<b>SOMBRAX79 BANEÓ HR2 · KIRA KIRA DAYS</b>
+										<span class="draft-remaining">QUEDAN 1 MAPA ABIERTO</span>
+									</footer>
+								</section>
+
+								<!-- ══════ ESCENA: RESULTADO ══════ -->
+								<section class="scene scene--result" data-scene="result" aria-label="Resultado del mapa">
+									<header class="res-head">
+										<div>
+											<p class="res-kicker">MAPA 07 · RESULTADO</p>
+											<h2>YOMI YORI</h2>
+										</div>
+										<div class="res-series"><span>SERIE</span><b>4 <i>—</i> 2</b></div>
+									</header>
+
+									<div class="res-grid">
+										<article class="winner-card">
+											<svg class="winner-emblem" aria-hidden="true">
+												<use href="#emblem-sun" />
+											</svg>
+											<span class="winner-ribbon">WINNER</span>
+											<span class="winner-tag">★ MAP MVP</span>
+											<span class="winner-rank">S</span>
+											<div class="winner-top">
+												<span class="av av--xl av--l">C</span>
+												<div><b>CLIPPY</b><small>AMARILLO · P1</small></div>
+											</div>
+											<div class="winner-score">1 024 880</div>
+											<dl class="winner-stats">
+												<div><dt>ACC</dt><dd>99.48%</dd></div>
+												<div><dt>COMBO</dt><dd>1 842x</dd></div>
+												<div><dt>MISS</dt><dd>0</dd></div>
+												<div><dt>UR</dt><dd>71.2</dd></div>
+											</dl>
+											<div class="winner-xp"><span>PERFORMANCE</span><i><b style="width:96%"></b></i><em>96</em></div>
+											<p class="winner-note">MEJOR MAPA DEL TORNEO · <b>+12.4K SOBRE SU PROMEDIO</b></p>
+										</article>
+
+										<article class="chart-card">
+											<div class="chart-head"><span>PROGRESIÓN DE SCORE</span>
+												<div class="legend"><i class="lg-l"></i>CLIPPY <i class="lg-r"></i>SOMBRAX79</div>
+											</div>
+											<svg class="chart" viewBox="0 0 900 420" role="img"
+												aria-label="Gráfico de progresión de score, Clippy termina arriba">
+												<defs>
+													<linearGradient id="areaL" x1="0" y1="0" x2="0" y2="1">																	<stop offset="0%" style="stop-color: var(--s-l); stop-opacity: .28" />
+																		<stop offset="100%" style="stop-color: var(--s-l); stop-opacity: 0" />
+													</linearGradient>
+													<linearGradient id="areaR" x1="0" y1="0" x2="0" y2="1">																	<stop offset="0%" style="stop-color: var(--s-r); stop-opacity: .24" />
+																		<stop offset="100%" style="stop-color: var(--s-r); stop-opacity: 0" />
+													</linearGradient>
+												</defs>
+												<g class="grid">
+													<line x1="0" y1="80" x2="900" y2="80" />
+													<line x1="0" y1="160" x2="900" y2="160" />
+													<line x1="0" y1="240" x2="900" y2="240" />
+													<line x1="0" y1="320" x2="900" y2="320" />
+												</g>
+												<path class="area area--l"
+													d="M0,350 C90,338 160,318 240,300 C320,282 380,250 460,214 C540,178 610,150 700,108 C770,76 840,58 900,42 L900,420 L0,420 Z"
+													fill="url(#areaL)" />
+												<path class="area area--r"
+													d="M0,350 C90,346 170,330 250,318 C330,306 400,286 480,250 C560,214 630,190 710,160 C790,130 850,120 900,112 L900,420 L0,420 Z"
+													fill="url(#areaR)" />
+												<path class="line line--l"
+													d="M0,350 C90,338 160,318 240,300 C320,282 380,250 460,214 C540,178 610,150 700,108 C770,76 840,58 900,42" />
+												<path class="line line--r"
+													d="M0,350 C90,346 170,330 250,318 C330,306 400,286 480,250 C560,214 630,190 710,160 C790,130 850,120 900,112" />
+												<line class="finish" x1="897" y1="0" x2="897" y2="420" />
+												<text class="finish-label" x="882" y="20" text-anchor="end">FINISH</text>
+												<circle class="dot-end dot-end--l" cx="900" cy="42" r="7" />
+												<circle class="dot-end dot-end--r" cx="900" cy="112" r="7" />
+											</svg>
+											<div class="chart-foot"><span>0:00</span><span>EL MAPA SE DECIDIÓ EN EL ÚLTIMO
+													BREAK</span><span>5:12</span></div>
+										</article>
+									</div>
+
+									<footer class="res-foot">
+										<div class="nextup"><span>PRÓXIMO</span><b>DT2 · GALAXY COLLAPSE</b><small>PICK DE
+												SOMBRAX79 · NEXT IN 00:12</small></div>
+										<div class="series-map"><span>SERIE</span><b>CLIPPY 4 — 2 SOMBRAX79</b></div>
+										<div class="mp"><span>MATCH POINT</span><b>CLIPPY</b></div>
+									</footer>
+								</section>
+
+								<!-- ══════ ESCENA: CAMPEÓN ══════ -->
+								<section class="scene scene--champ" data-scene="champion" aria-label="Ceremonia de campeón">
+									<canvas class="confetti" id="confetti" width="1920" height="1080"
+										aria-hidden="true"></canvas>
+									<div class="champ-rays" aria-hidden="true"></div>									<div class="champ-inner">
+										<svg class="champ-emblem" aria-hidden="true">
+											<use href="#emblem-sun" />
+										</svg>
+										<p class="champ-kicker">REMPALAGO 3 · OPERACIÓN TRICOLOR</p>
+										<span class="champ-trophy" aria-hidden="true">
+											<svg>
+												<use href="#emblem-trophy" />
+											</svg>
+										</span>
+										<div class="champ-crest"><b>R3</b></div>
+										<h2>CLIPPY</h2>
+										<p class="champ-role">CAMPEÓN · GRAND FINAL</p>
+										<span class="champ-stamp">NEW CHAMPION</span>
+										<div class="champ-score"><span>5</span><i>—</i><span>2</span></div>
+										<div class="champ-path"><span>CUARTOS 2–0</span><span>SEMIS 2–1</span><span>FINAL
+												5–2</span></div>
+										<p class="champ-foot">GG · GRACIAS POR TANTO</p>
+										<p class="champ-start">PRESS START TO REPLAY</p>
+									</div>
+							</section>
+
+							<div class="scene-wipe" id="sceneWipe" aria-hidden="true">
+								<i></i><i></i><i></i>
+								<b id="wipeLabel">03 // GAMEPLAY</b>
+							</div>
+							<div class="crt-overlay" aria-hidden="true"></div>
+							<div class="stage-toast" id="stageToast" role="status" aria-live="polite"></div>
+							</div>
+						</div>
+					</div>
+
+					<div class="stage-caption">
+						<p id="stageCaption">El HUD del duelo: series, momentum, statcast y mapa. Todo se lee de un
+							vistazo y el gameplay queda libre.</p>
+						<span class="stage-note">DATOS SIMULADOS · HTML/CSS REAL</span>
+					</div>
+					<p class="mobile-hint">En mobile el detalle se achica: toca ⛶ para verlo a pantalla completa o abre la propuesta en desktop.</p>
+
+					<div class="cabinet-deck">
+						<div class="keys">
+							<span><kbd>1</kbd>–<kbd>5</kbd> ESCENAS</span>
+							<span><kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd> PIEL</span>
+							<span><kbd>C</kbd><kbd>V</kbd> CHOKE</span>
+							<span><kbd>M</kbd> MATCH</span>
+							<span><kbd>F</kbd> FULL</span>
+						</div>
+						<div class="cabinet-actions">
+							<button class="chip" id="crtBtn" type="button">CRT OFF</button>
+							<button class="chip chip--gold" id="playBtn" type="button">⛶ PLAY</button>
+						</div>
+					</div>
+				</div>
+
+				<div class="studio-notes reveal">
+					<div><span>01</span><b>Prueba las pestañas</b><p>Cada escena es un estado real del overlay. La
+							dirección visual se mantiene.</p></div>
+					<div><span>02</span><b>Cambia la piel</b><p>Broadcast, Neón y Gala usan el mismo esqueleto y distintos
+							tokens.</p></div>
+					<div><span>03</span><b>Dramatiza</b><p>Choke, match point y SFX muestran el sistema de momentos en
+							acción.</p></div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ══════════════════════ DIRECCIONES ══════════════════════ -->
+		<section id="direcciones" class="section">
+			<div class="wrap">
+				<header class="sec-head reveal">
+					<p class="eyebrow"><span>02</span> DIRECCIONES VISUALES</p>
+					<h2>Tres pieles.<br>Un mismo esqueleto.</h2>
+					<p class="lead">La misma escena puede vestirse de broadcast, de calle o de gala. Todo está
+						tokenizado: color, tipografía, radio, sombra y movimiento. Cambiar de piel no es rehacer el
+						overlay.</p>
+				</header>
+
+				<div class="directions">
+					<article class="direction direction--a reveal">
+						<div class="direction-top">
+							<span class="direction-letter">A</span>
+							<span class="direction-tag">RECOMENDADA</span>
+						</div>
+						<h3>Broadcast</h3>
+						<p class="direction-sub">El estándar premium, con acento tricolor.</p>
+						<div class="swatches"><i style="--c:#060910"></i><i style="--c:#ffd23f"></i><i
+								style="--c:#3f7bff"></i><i style="--c:#ff4d5e"></i><i style="--c:#e8c37a"></i></div>
+						<div class="type-sample">
+							<span class="ts-display">ANTON</span>
+							<span class="ts-body">Archivo · 400–800</span>
+							<span class="ts-mono">JETBRAINS MONO</span>
+						</div>
+						<ul class="direction-list">
+							<li>Legibilidad quirúrgica sobre cualquier mapa.</li>
+							<li>Cortes en diagonal, hairlines de oro y paneles de vidrio.</li>
+							<li>Se banca ocho horas de stream sin cansar.</li>
+						</ul>
+						<button class="direction-cta" data-theme-jump="broadcast">Probar en el estudio <span>↗</span></button>
+					</article>
+
+					<article class="direction direction--b reveal">
+						<div class="direction-top">
+							<span class="direction-letter">B</span>
+							<span class="direction-tag">MOMENTOS</span>
+						</div>
+						<h3>Neón</h3>
+						<p class="direction-sub">Bogotá después de las doce.</p>
+						<div class="swatches"><i style="--c:#07020f"></i><i style="--c:#ff2d95"></i><i
+								style="--c:#00e5ff"></i><i style="--c:#c6ff00"></i><i style="--c:#ffd166"></i></div>
+						<div class="type-sample">
+							<span class="ts-display ts-display--b">ARCHIVO 900</span>
+							<span class="ts-body">Archivo italic · 500–700</span>
+							<span class="ts-mono">JETBRAINS MONO</span>
+						</div>
+						<ul class="direction-list">
+							<li>Glitch, scanlines y stickers para los momentos altos.</li>
+							<li>Perfecta para clips verticales y para el chat desatado.</li>
+							<li>Riesgo: fatiga visual si se usa toda la noche.</li>
+						</ul>
+						<button class="direction-cta" data-theme-jump="neon">Probar en el estudio <span>↗</span></button>
+					</article>
+
+					<article class="direction direction--c reveal">
+						<div class="direction-top">
+							<span class="direction-letter">C</span>
+							<span class="direction-tag">CEREMONIA</span>
+						</div>
+						<h3>Gala</h3>
+						<p class="direction-sub">La final como una premiación.</p>
+						<div class="swatches"><i style="--c:#efe8da"></i><i style="--c:#b8892f"></i><i
+								style="--c:#1d3a6e"></i><i style="--c:#9e2b34"></i><i style="--c:#17213a"></i></div>
+						<div class="type-sample">
+							<span class="ts-display ts-display--c">Instrument Serif</span>
+							<span class="ts-body">Archivo · 300–600</span>
+							<span class="ts-mono">JETBRAINS MONO</span>
+						</div>
+						<ul class="direction-list">
+							<li>Marfil, oro y azul profundo. Elegancia sin gritar.</li>
+							<li>Ideal para intro, draft final, premios y campeón.</li>
+							<li>No para gameplay: el contraste pelea con el juego.</li>
+						</ul>
+						<button class="direction-cta" data-theme-jump="gala">Probar en el estudio <span>↗</span></button>
+					</article>
+				</div>
+
+				<div class="recommend reveal">
+					<div class="recommend-mark">★</div>
+					<div>
+						<p class="eyebrow">MI RECOMENDACIÓN</p>
+						<h3>Híbrido, no menú.</h3>
+						<p>Broadcast como base para todo el torneo. Neón como <b>skin de momento</b> cuando el mapa está
+							en llamas (choke, clutch, match point). Gala para la intro, el draft final y la ceremonia.
+							El espectador reconoce el show; la piel marca la temperatura.</p>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ══════════════════════ ESCENAS ══════════════════════ -->
+		<section id="escenas" class="section section--alt">
+			<div class="wrap">
+				<header class="sec-head reveal">
+					<p class="eyebrow"><span>03</span> LAS ESCENAS</p>
+					<h2>Seis momentos,<br>una sola historia.</h2>
+					<p class="lead">El overlay no es una pantalla: es una secuencia. Cada escena tiene un trabajo, una
+						entrada y una salida. Si el director no sabe qué viene, el viewer tampoco.</p>
+				</header>
+
+				<div class="scenes-grid">
+					<article class="scene-card reveal" data-open-scene="intro">
+						<span class="scene-num">01</span>
+						<h3>El reto</h3>
+						<p class="scene-sub">Intro · Tale of the Tape</p>
+						<p>Dos cartas gigantes, VS, rank, top play y mapa firma. Entra con un slash tricolor y sale con
+							un wipe al mapa.</p>
+						<button>Ver en el estudio <span>↗</span></button>
+					</article>
+					<article class="scene-card reveal" data-open-scene="draft">
+						<span class="scene-num">02</span>
+						<h3>La mesa</h3>
+						<p class="scene-sub">Draft · Ban &amp; Pick</p>
+						<p>Pool completo, turnos, timer, bans y protects. La última acción siempre visible. El draft deja
+							de ser una planilla.</p>
+						<button>Ver en el estudio <span>↗</span></button>
+					</article>
+					<article class="scene-card reveal" data-open-scene="gameplay">
+						<span class="scene-num">03</span>
+						<h3>El duelo</h3>
+						<p class="scene-sub">Gameplay · HUD</p>
+						<p>Series, momentum, statcast y mapa en una sola franja. Todo se lee de un vistazo y el gameplay
+							queda libre.</p>
+						<button>Ver en el estudio <span>↗</span></button>
+					</article>
+					<article class="scene-card reveal">
+						<span class="scene-num">04</span>
+						<h3>El takeover</h3>
+						<p class="scene-sub">Momentos · Choke / clutch / match point</p>
+						<p>Un solo sistema de capas con prioridad, cooldown y duración máxima. Nunca tapa más de 2,5
+							segundos.</p>
+						<button data-choke="left">Disparar un choke <span>↗</span></button>
+					</article>
+					<article class="scene-card reveal" data-open-scene="result">
+						<span class="scene-num">05</span>
+						<h3>El veredicto</h3>
+						<p class="scene-sub">Resultado · MVP y progresión</p>
+						<p>MVP, gráfico de score, stat line, series y próximo mapa. El mapa se cierra con historia, no
+							con un número.</p>
+						<button>Ver en el estudio <span>↗</span></button>
+					</article>
+					<article class="scene-card reveal" data-open-scene="champion">
+						<span class="scene-num">06</span>
+						<h3>La ceremonia</h3>
+						<p class="scene-sub">Campeón · Cierre</p>
+						<p>Bracket, confeti, trofeo y créditos. El último recuerdo del torneo tiene que ser el mejor
+							plano.</p>
+						<button>Ver en el estudio <span>↗</span></button>
+					</article>
+				</div>
+			</div>
+		</section>
+
+		<!-- ══════════════════════ COMPORTAMIENTOS ══════════════════════ -->
+		<section id="comportamientos" class="section">
+			<div class="wrap">
+				<header class="sec-head reveal">
+					<p class="eyebrow"><span>04</span> COMPORTAMIENTOS</p>
+					<h2>El show se dirige solo<br>(casi).</h2>
+					<p class="lead">La diferencia entre un overlay lindo y uno profesional es qué pasa cuando cambia el
+						estado. Tosu ya sabe casi todo: solo hay que escucharlo con criterio.</p>
+				</header>
+
+				<div class="flow reveal" aria-label="Máquina de estados del overlay">
+					<div class="flow-node"><span>BOOT</span><small>tosu conecta</small></div>
+					<i class="flow-arrow">→</i>
+					<div class="flow-node"><span>LOBBY</span><small>espera</small></div>
+					<i class="flow-arrow">→</i>
+					<div class="flow-node"><span>DRAFT</span><small>pick &amp; ban</small></div>
+					<i class="flow-arrow">→</i>
+					<div class="flow-node"><span>INTRO</span><small>tale of the tape</small></div>
+					<i class="flow-arrow">→</i>
+					<div class="flow-node flow-node--hot"><span>PLAY</span><small>gameplay</small></div>
+					<i class="flow-arrow">→</i>
+					<div class="flow-node"><span>RESULT</span><small>fin de mapa</small></div>
+					<i class="flow-arrow">→</i>
+					<div class="flow-node"><span>BREAK</span><small>next up</small></div>
+					<i class="flow-arrow">→</i>
+					<div class="flow-node flow-node--gold"><span>SERIES END</span><small>campeón</small></div>
+				</div>					<p class="flow-note">Transiciones automáticas desde <code>tourney.manager.ipcState</code>,
+						<code>bools.scoreVisible</code>, <code>stars</code>, <code>bestOF</code> y
+						<code>menu.bm.time</code>. Cualquier estado se puede forzar con una hotkey. Bracket reset
+						soportado: se reinicia la serie sin perder el historial ni la narrativa.</p>
+
+				<div class="tiers-grid">
+					<div class="tier-card reveal">
+						<h3><span>A</span> Modo Auto</h3>
+						<p>Todo por tosu. Para cuando el director está solo y quiere dormir tranquilo. Los momentos
+							críticos se disparan con confianza y cooldown.</p>
+					</div>
+					<div class="tier-card reveal">
+						<h3><span>B</span> Modo Semi</h3>
+						<p>Escenas automáticas, momentos manuales. El director aprieta un botón cuando “lo ve venir”.
+							Ideal para producción con dos personas.</p>
+					</div>
+					<div class="tier-card reveal">
+						<h3><span>C</span> Modo Manual</h3>
+						<p>Todo por hotkeys y Stream Deck. Para finales, shows especiales o cuando hay que fingir que
+							todo estaba planeado.</p>
+					</div>
+				</div>
+
+				<div class="table-wrap reveal">
+					<table class="cue-table">
+						<thead>
+							<tr>
+								<th>Momento</th>
+								<th>Disparador</th>
+								<th>Duración</th>
+								<th>Prioridad</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td><b>Ceremonia de campeón</b></td>
+								<td>Serie terminada · stars = win target</td>
+								<td>12–20 s</td>
+								<td><span class="prio prio--p0">P0</span></td>
+							</tr>
+							<tr>
+								<td><b>Match point</b></td>
+								<td>Un jugador a un mapa del título</td>
+								<td>Persistente</td>
+								<td><span class="prio prio--p0">P0</span></td>
+							</tr>
+							<tr>
+								<td><b>Choke / heartbreak</b></td>
+								<td>Combo ≥ 120 cae &gt; 80 % con miss o SB</td>
+								<td>2,4 s</td>
+								<td><span class="prio prio--p1">P1</span></td>
+							</tr>
+							<tr>
+								<td><b>Clutch alert</b></td>
+								<td>Gap &lt; 2 % y ambos con combo alto</td>
+								<td>Persistente</td>
+								<td><span class="prio prio--p1">P1</span></td>
+							</tr>
+							<tr>
+								<td><b>Récord de sesión</b></td>
+								<td>Combo o score supera el mejor del torneo</td>
+								<td>2 s</td>
+								<td><span class="prio prio--p2">P2</span></td>
+							</tr>
+							<tr>
+								<td><b>SS / FC watch</b></td>
+								<td>0 miss y acc ≥ 99,5 % en el último 20 %</td>
+								<td>Persistente</td>
+								<td><span class="prio prio--p2">P2</span></td>
+							</tr>
+							<tr>
+								<td><b>Cambio de liderazgo</b></td>
+								<td>El signo de la diferencia cambia</td>
+								<td>1,2 s</td>
+								<td><span class="prio prio--p3">P3</span></td>
+							</tr>
+							<tr>
+								<td><b>Caster / chat</b></td>
+								<td>Voz activa · mensajes curados</td>
+								<td>Persistente</td>
+								<td><span class="prio prio--p4">P4</span></td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+
+				<div class="rules reveal">
+					<div><b>01</b><p>Un takeover a la vez. Si llega otro, se encola o se descarta; nunca se pisan.</p></div>
+					<div><b>02</b><p>Cooldown de 8 s por equipo para chokes. El drama repetido deja de ser drama.</p></div>
+					<div><b>03</b><p>Nunca tapar el gameplay más de 2,5 s. El mapa sigue siendo el protagonista.</p></div>
+					<div><b>04</b><p>Nada de flashes a más de 3 Hz. Si hay epilepsia, hay un problema real.</p></div>
+					<div><b>05</b><p>Si falta un dato, se oculta el módulo. No se inventa, no se congela la pantalla.</p></div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ══════════════════════ FEATURES ══════════════════════ -->
+		<section id="features" class="section section--alt">
+			<div class="wrap">
+				<header class="sec-head sec-head--row reveal">
+					<div>
+						<p class="eyebrow"><span>05</span> FEATURES</p>
+						<h2>Dieciocho ideas.<br>Un solo show.</h2>
+						<p class="lead">Ordenadas por impacto. Las S son el corazón de la experiencia; las A elevan la
+							transmisión; las B son el condimento para cuando hay confianza.</p>
+					</div>
+					<div class="filters" role="group" aria-label="Filtrar features">
+						<button class="filter is-active" data-filter="all">Todo <span>18</span></button>
+						<button class="filter" data-filter="S">S <span>6</span></button>
+						<button class="filter" data-filter="A">A <span>8</span></button>
+						<button class="filter" data-filter="B">B <span>4</span></button>
+					</div>
+				</header>
+
+				<div class="features-grid" id="featuresGrid">
+					<article class="feat" data-tier="S">
+						<div class="feat-top"><span class="tier tier--s">S</span><span class="feat-cat">INTRO</span></div>
+						<h3>Tale of the Tape</h3>
+						<p>Intro de seis segundos con los dos jugadores, su rank, su top play y su mapa firma. Se puede
+							saltar y se adapta a 1v1 o a equipos.</p>
+						<p class="feat-why">↳ Abre el show como una pelea.</p>
+					</article>
+					<article class="feat" data-tier="S">
+						<div class="feat-top"><span class="tier tier--s">S</span><span class="feat-cat">HUD</span></div>
+						<h3>Momentum Deck</h3>
+						<p>HUD de duelo con gráfico de ventaja en vivo, series y match point integrados en la misma
+							franja.</p>
+						<p class="feat-why">↳ La historia del mapa se ve, no se explica.</p>
+					</article>
+					<article class="feat" data-tier="S">
+						<div class="feat-top"><span class="tier tier--s">S</span><span class="feat-cat">DRAFT</span></div>
+						<h3>Draft Board</h3>
+						<p>Pick &amp; ban animado con pool, timer, última acción y estado de cada mapa. Bans, protects y
+							picks con lenguaje visual propio.</p>
+						<p class="feat-why">↳ El draft deja de ser una planilla.</p>
+					</article>
+					<article class="feat" data-tier="S">
+						<div class="feat-top"><span class="tier tier--s">S</span><span class="feat-cat">MOMENTO</span></div>
+						<h3>Heartbreak Takeover</h3>
+						<p>Cuando se rompe un combo importante, el stream se toma 2,4 s: vignette, corte, glitch, caster
+							cut y boom procedural.</p>
+						<p class="feat-why">↳ El momento que todos clipbean.</p>
+					</article>
+					<article class="feat" data-tier="S">
+						<div class="feat-top"><span class="tier tier--s">S</span><span class="feat-cat">RESULT</span></div>
+						<h3>Map Result: MVP</h3>
+						<p>Resultado cinematográfico con progresión de score, stat line, MVP del mapa y contexto de la
+							serie.</p>
+						<p class="feat-why">↳ Cierra el mapa con historia, no con un número.</p>
+					</article>
+					<article class="feat" data-tier="S">
+						<div class="feat-top"><span class="tier tier--s">S</span><span class="feat-cat">CIERRE</span></div>
+						<h3>Champion Ceremony</h3>
+						<p>Bracket, confeti, trofeo, créditos y un frame vertical listo para redes. La final termina como
+							final.</p>
+						<p class="feat-why">↳ El último recuerdo del torneo.</p>
+					</article>
+
+					<article class="feat" data-tier="A">
+						<div class="feat-top"><span class="tier tier--a">A</span><span class="feat-cat">DATOS</span></div>
+						<h3>Statcast por jugador</h3>
+						<p>Acc, UR, ritmo de combo, distribución de hits y faltantes. El dato justo en el momento justo.</p>
+						<p class="feat-why">↳ Combustible para casters y nerds.</p>
+					</article>
+					<article class="feat" data-tier="A">
+						<div class="feat-top"><span class="tier tier--a">A</span><span class="feat-cat">TENSIÓN</span></div>
+						<h3>SS / FC Watch</h3>
+						<p>Marco dorado y alerta cuando un jugador va perfecto en el tramo final. Se apaga apenas hay un
+							50.</p>
+						<p class="feat-why">↳ Tensión gratis.</p>
+					</article>
+					<article class="feat" data-tier="A">
+						<div class="feat-top"><span class="tier tier--a">A</span><span class="feat-cat">TENSIÓN</span></div>
+						<h3>Clutch Alert</h3>
+						<p>Si el gap es menor al 2 % y ambos tienen combo alto, se enciende el borde, baja la música y
+							sube el heartbeat.</p>
+						<p class="feat-why">↳ Convierte un mapa cerrado en un thriller.</p>
+					</article>
+					<article class="feat" data-tier="A">
+						<div class="feat-top"><span class="tier tier--a">A</span><span class="feat-cat">PROGRESO</span></div>
+						<h3>Récords de sesión</h3>
+						<p>Mejor combo, mejor score, mejor acc y mejor mapa del torneo. Se celebran una vez y quedan en el
+							archivo.</p>
+						<p class="feat-why">↳ El progreso se siente.</p>
+					</article>
+					<article class="feat" data-tier="A">
+						<div class="feat-top"><span class="tier tier--a">A</span><span class="feat-cat">HISTORIA</span></div>
+						<h3>Player Dossiers</h3>
+						<p>Perfiles en los breaks: top plays, mapas firma, historial head-to-head y una storyline por
+							jugador.</p>
+						<p class="feat-why">↳ Los viewers saben a quién están mirando.</p>
+					</article>
+					<article class="feat" data-tier="A">
+						<div class="feat-top"><span class="tier tier--a">A</span><span class="feat-cat">BREAK</span></div>
+						<h3>Next Up</h3>
+						<p>Pantalla de break con próximo mapa, pool restante, estado de la serie y “cómo va la historia”.</p>
+						<p class="feat-why">↳ Nadie se pierde entre mapas.</p>
+					</article>
+					<article class="feat" data-tier="A">
+						<div class="feat-top"><span class="tier tier--a">A</span><span class="feat-cat">CAST</span></div>
+						<h3>Caster Spotlight</h3>
+						<p>Avatares audio-reactivos, lower thirds y modo caster cam. El que habla se enciende; el que no,
+							descansa.</p>
+						<p class="feat-why">↳ Los casters también son el show.</p>
+					</article>
+					<article class="feat" data-tier="A">
+						<div class="feat-top"><span class="tier tier--a">A</span><span class="feat-cat">COMUNIDAD</span></div>
+						<h3>Crowd Feed</h3>
+						<p>Chat curado, hype meter y mensajes destacados. Sin ruido, sin spam, sin tapar el mapa.</p>
+						<p class="feat-why">↳ La comunidad entra a la cancha.</p>
+					</article>
+
+					<article class="feat" data-tier="B">
+						<div class="feat-top"><span class="tier tier--b">B</span><span class="feat-cat">COMUNIDAD</span></div>
+						<h3>Prediction Game</h3>
+						<p>Predicción del mapa antes de empezar y resultado al final. Integrable con Twitch o con el chat
+							del lobby.</p>
+						<p class="feat-why">↳ Cada viewer tiene algo en juego.</p>
+					</article>
+					<article class="feat" data-tier="B">
+						<div class="feat-top"><span class="tier tier--b">B</span><span class="feat-cat">PROGRESO</span></div>
+						<h3>Logros en vivo</h3>
+						<p>Badges para primer FC, reverse sweep, 1000x, 99,9 % o “el choke del torneo”.</p>
+						<p class="feat-why">↳ Logros que se cuentan solos.</p>
+					</article>
+					<article class="feat" data-tier="B">
+						<div class="feat-top"><span class="tier tier--b">B</span><span class="feat-cat">JODA</span></div>
+						<h3>Party Mode</h3>
+						<p>Ruleta de mods, nombres graciosos y reglas cursed para amistosos. Se activa solo si el torneo
+							lo permite.</p>
+						<p class="feat-why">↳ Para cuando el torneo es joda.</p>
+					</article>
+					<article class="feat" data-tier="B">
+						<div class="feat-top"><span class="tier tier--b">B</span><span class="feat-cat">PRODUCCIÓN</span></div>
+						<h3>Director Console</h3>
+						<p>Panel de control con hotkeys, cola de cues, preview y modo manual. Stream Deck opcional.</p>
+						<p class="feat-why">↳ Producción sin pánico.</p>
+					</article>
+				</div>
+			</div>
+		</section>
+
+		<!-- ══════════════════════ CALIDAD ══════════════════════ -->
+		<section id="calidad" class="section">
+			<div class="wrap">
+				<header class="sec-head reveal">
+					<p class="eyebrow"><span>06</span> CALIDAD</p>
+					<h2>Lo premium está<br>en los detalles.</h2>
+					<p class="lead">“Máxima calidad” no es más glow. Es que el número no baile, que el sonido no asuste,
+							que el video no se caiga y que el director pueda respirar.</p>
+				</header>
+
+				<div class="quality-grid">
+					<article class="quality reveal">
+						<span class="q-icon">Aa</span>
+						<h3>Tipografía con jerarquía</h3>
+						<ul>
+							<li>Anton para nombres, Archivo para lectura, mono para datos.</li>
+							<li>Números tabulares: los scores no se mueven.</li>
+							<li>Mínimo 26 px a 1080p, contraste ≥ 4.5:1.</li>
+						</ul>
+					</article>
+					<article class="quality reveal">
+						<span class="q-icon">→</span>
+						<h3>Movimiento con intención</h3>
+						<ul>
+							<li>180–320 ms, easing propio, nunca lineal por defecto.</li>
+							<li>Solo transform y opacity; cero layout thrash.</li>
+							<li><code>prefers-reduced-motion</code> respetado.</li>
+						</ul>
+					</article>
+					<article class="quality reveal">
+						<span class="q-icon">SFX</span>
+						<h3>Sonido sin sustos</h3>
+						<ul>
+							<li>SFX procedurales con WebAudio, sin assets externos.</li>
+							<li>Ducking de música en momentos, mute con hotkey.</li>
+							<li>Nada suena si el navegador no lo permite.</li>
+						</ul>
+					</article>
+					<article class="quality reveal">
+						<span class="q-icon">DB</span>
+						<h3>Datos a prueba de balas</h3>
+						<ul>
+							<li>Last-known-good si tosu se cae; badge de reconexión.</li>
+							<li>Umbrales de confianza para chokes y récords.</li>
+							<li>Nunca inventar un dato para “llenar” la pantalla.</li>
+						</ul>
+					</article>
+					<article class="quality reveal">
+						<span class="q-icon">60</span>
+						<h3>Performance de broadcast</h3>
+						<ul>
+							<li>60 FPS estables a 1080p, un solo rAF para la demo.</li>
+							<li>Assets precargados, fuentes con fallback offline.</li>
+							<li>Presupuesto: &lt; 10 % de CPU en una máquina de stream.</li>
+						</ul>
+					</article>
+					<article class="quality reveal">
+						<span class="q-icon">⌘</span>
+						<h3>Producción sin fricción</h3>
+						<ul>
+							<li>Config JSON para nombres, seeds, colores y sonidos.</li>
+							<li>Preview y hotkeys; el estado se puede forzar.</li>
+							<li>Fail-safe: si algo falla, el show sigue en limpio.</li>
+						</ul>
+					</article>
+					<article class="quality reveal">
+						<span class="q-icon">◐</span>
+						<h3>Accesibilidad real</h3>
+						<ul>
+							<li>Amarillo/azul funciona para daltonismo; el rojo no es el único aviso.</li>
+							<li>Safe areas para caster cams y HUD de OBS.</li>
+							<li>Textos clave también en forma, no solo en color.</li>
+						</ul>
+					</article>
+					<article class="quality reveal">
+						<span class="q-icon">✦</span>
+						<h3>Identidad que se comparte</h3>
+						<ul>
+							<li>Poster, thumbnails, lower thirds y motion logo.</li>
+							<li>Kit de stickers y frames verticales para clips.</li>
+							<li>La misma marca en stream, redes y premios.</li>
+						</ul>
+					</article>
+				</div>
+			</div>
+		</section>
+
+		<!-- ══════════════════════ PLAN ══════════════════════ -->
+		<section id="plan" class="section section--alt">
+			<div class="wrap">
+				<header class="sec-head reveal">
+					<p class="eyebrow"><span>07</span> PLAN</p>
+					<h2>Seis semanas<br>para el show.</h2>
+					<p class="lead">Sin reescribir todo. Se aprovecha la base actual (Z-Engine, mappool, casters, choke
+						FX, tiling) y se construye el paquete visual encima.</p>
+				</header>
+
+				<div class="timeline">
+					<article class="phase reveal">
+						<div class="phase-week">SEM 1</div>
+						<div class="phase-body">
+							<h3>Fundaciones</h3>
+							<p>Tokens de las tres pieles, tipografía, escenario, config JSON, máquina de estados y
+								contrato de datos.</p>
+							<span class="phase-out">Salida: demo navegable con estados reales.</span>
+						</div>
+					</article>
+					<article class="phase reveal">
+						<div class="phase-week">SEM 2–3</div>
+						<div class="phase-body">
+							<h3>El duelo</h3>
+							<p>HUD completo, momentum, statcast, draft board y responsive del overlay.</p>
+							<span class="phase-out">Salida: un mapa entero transmitible.</span>
+						</div>
+					</article>
+					<article class="phase reveal">
+						<div class="phase-week">SEM 4–5</div>
+						<div class="phase-body">
+							<h3>Los momentos</h3>
+							<p>Choke, clutch, SS watch, récords, resultado, audio y cola de cues con prioridades.</p>
+							<span class="phase-out">Salida: show con drama automático.</span>
+						</div>
+					</article>
+					<article class="phase reveal">
+						<div class="phase-week">SEM 6</div>
+						<div class="phase-body">
+							<h3>El paquete</h3>
+							<p>Intro, break, dossiers, ceremonia, lower thirds, thumbnails y ensayo general.</p>
+							<span class="phase-out">Salida: temporada lista + kit de redes.</span>
+						</div>
+					</article>
+				</div>
+
+				<div class="done reveal">
+					<p class="eyebrow">DEFINICIÓN DE TERMINADO</p>
+					<div class="done-list">
+						<span>✓ 60 FPS en 1080p durante 8 h</span>
+						<span>✓ Cero escenas rotas si tosu se cae</span>
+						<span>✓ Todos los estados con hotkey</span>
+						<span>✓ Ensayo completo con datos reales</span>
+						<span>✓ Modo limpio para clips verticales</span>
+						<span>✓ Manual de producción de una página</span>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- ══════════════════════ DECISIONES ══════════════════════ -->
+		<section id="decisiones" class="section section--decisions">
+			<div class="wrap">
+				<header class="sec-head reveal">
+					<p class="eyebrow"><span>08</span> DECISIONES</p>
+					<h2>Cuatro preguntas<br>y arrancamos.</h2>
+					<p class="lead">No hace falta decidir todo. Con estas cuatro alcanza para empezar a construir sin
+						tirar nada a la basura.</p>
+				</header>
+
+				<div class="decisions">
+					<article class="decision reveal" data-choice-group="skin">
+						<span class="d-num">01</span>
+						<h3>¿Qué piel es la base?</h3>
+						<div class="choices">
+							<button class="choice" type="button" data-choice-group="skin" data-choice-value="Broadcast"><i></i><b>Broadcast</b><span>segura, legible, premium.</span></button>
+							<button class="choice" type="button" data-choice-group="skin" data-choice-value="Neón"><i></i><b>Neón</b><span>más energía, más riesgo, más clip.</span></button>
+							<button class="choice" type="button" data-choice-group="skin" data-choice-value="Gala"><i></i><b>Gala</b><span>elegante, pero no para gameplay.</span></button>
+							<button class="choice is-selected" type="button" data-choice-group="skin" data-choice-value="Híbrido"><i></i><b>Híbrido</b><span>Broadcast + skins de momento + Gala.</span></button>
+						</div>
+						<p class="rec">Mi voto: Broadcast + Neón para momentos + Gala para ceremonia.</p>
+					</article>
+					<article class="decision reveal" data-choice-group="tone">
+						<span class="d-num">02</span>
+						<h3>¿Qué tan lejos van los momentos?</h3>
+						<div class="choices">
+							<button class="choice" type="button" data-choice-group="tone" data-choice-value="Cinemático"><i></i><b>Cinemático</b><span>serio, broadcast, sin memes.</span></button>
+							<button class="choice is-selected" type="button" data-choice-group="tone" data-choice-value="Cinemático + guiño"><i></i><b>Cinemático + guiño</b><span>drama con personalidad.</span></button>
+							<button class="choice" type="button" data-choice-group="tone" data-choice-value="Fiesta"><i></i><b>Fiesta</b><span>ruleta, stickers, caos controlado.</span></button>
+						</div>
+						<p class="rec">Mi voto: cinemático + guiño. El torneo se toma en serio; nosotros no tanto.</p>
+					</article>
+					<article class="decision reveal" data-choice-group="drop">
+						<span class="d-num">03</span>
+						<h3>¿Qué entregamos primero?</h3>
+						<div class="choices">
+							<button class="choice is-selected" type="button" data-choice-group="drop" data-choice-value="HUD jugable"><i></i><b>HUD jugable</b><span>el corazón, para probar en un mapa.</span></button>
+							<button class="choice" type="button" data-choice-group="drop" data-choice-value="Paquete de escenas"><i></i><b>Paquete de escenas</b><span>intro, draft, result, campeón.</span></button>
+							<button class="choice" type="button" data-choice-group="drop" data-choice-value="Demo para redes"><i></i><b>Demo para redes</b><span>un video de 30 s que venda el show.</span></button>
+						</div>
+						<p class="rec">Mi voto: HUD + un takeover. Se prueba en vivo y se ajusta con el chat.</p>
+					</article>
+					<article class="decision reveal" data-choice-group="name">
+						<span class="d-num">04</span>
+						<h3>¿Cómo se llama el show?</h3>
+						<div class="choices">
+							<button class="choice" type="button" data-choice-group="name" data-choice-value="Rempalago 3"><i></i><b>Rempalago 3</b><span>la marca conocida.</span></button>
+							<button class="choice" type="button" data-choice-group="name" data-choice-value="Operación Tricolor"><i></i><b>Operación Tricolor</b><span>el codename, más épico.</span></button>
+							<button class="choice is-selected" type="button" data-choice-group="name" data-choice-value="Rempalago 3: Operación Tricolor"><i></i><b>Rempalago 3: Operación Tricolor</b><span>ambos.</span></button>
+						</div>
+						<p class="rec">Mi voto: el tercero en producción, “Rempalago 3” en el día a día.</p>
+					</article>
+				</div>
+
+				<div class="loadout reveal" id="loadout">
+					<div class="loadout-head">
+						<p class="eyebrow"><span class="loadout-dot"></span> TU BUILD</p>
+						<b>READY TO FIGHT</b>
+					</div>
+					<div class="loadout-slots">
+						<div><span>PIEL</span><b data-slot="skin">Híbrido</b></div>
+						<div><span>TONO</span><b data-slot="tone">Cinemático + guiño</b></div>
+						<div><span>PRIMER DROP</span><b data-slot="drop">HUD jugable</b></div>
+						<div><span>NOMBRE</span><b data-slot="name">Rempalago 3: Operación Tricolor</b></div>
+					</div>
+					<button class="btn btn--solid" id="buildBtn" type="button">ARRANCAR CON ESTE SHOW <span>▶</span></button>
+				</div>
+
+				<div class="final-cta reveal">
+					<div>
+						<p class="eyebrow">SIGUIENTE PASO</p>
+						<h3>Dime “vamos con Broadcast” y arranco por el HUD.</h3>
+						<p>Sin vueltas: una dirección, un primer entregable y lo demás se construye encima.</p>
+					</div>
+					<a class="btn btn--ghost" href="#estudio">Volver al estudio <span>↑</span></a>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<footer class="footer">
+		<div class="wrap footer-inner">
+			<div class="brand brand--footer">
+				<span class="brand-mark"><span>R3</span></span>
+				<span class="brand-text">REMPALAGO <b>3</b><small>OPERACIÓN TRICOLOR</small></span>
+			</div>
+			<p>Propuesta creativa v0.1 · Octubre 2026 · Hecho con cariño y demasiado café.</p>
+			<p class="footer-note">Los datos del demo son simulados. El overlay real toma todo de tosu vía Z-Engine.</p>
+			<button class="footer-top" id="toTop" type="button">↑ VOLVER AL INICIO</button>
+		</div>
+	</footer>
+
+	<script src="app.js"></script>
+</body>
+
+</html>

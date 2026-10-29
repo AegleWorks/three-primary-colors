@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Rempalago 3 — Oro</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@500;700&family=Nunito:wght@500;600;700;800&display=swap"
+		rel="stylesheet">
+	<link rel="preload" href="fonts/Torus-Heavy.woff2" as="font" type="font/woff2" crossorigin>
+	<link rel="preload" href="fonts/Torus-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
+	<link rel="stylesheet" href="../shared/stage.css" />
+	<link rel="stylesheet" href="oro.css" />
+</head>
+
+<body>
+	<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+		<!-- Sun pectoral, after Quimbaya and Muisca goldwork. -->
+		<symbol id="sol" viewBox="0 0 100 100">
+			<path fill="currentColor"
+				d="M76.9 47.4 L97.0 50.0 L76.9 52.6ZM75.8 57.8 L87.0 65.3 L73.8 62.7ZM70.9 67.1 L83.2 83.2 L67.1 70.9ZM62.7 73.8 L65.3 87.0 L57.8 75.8ZM52.6 76.9 L50.0 97.0 L47.4 76.9ZM42.2 75.8 L34.7 87.0 L37.3 73.8ZM32.9 70.9 L16.8 83.2 L29.1 67.1ZM26.2 62.7 L13.0 65.3 L24.2 57.8ZM23.1 52.6 L3.0 50.0 L23.1 47.4ZM24.2 42.2 L13.0 34.7 L26.2 37.3ZM29.1 32.9 L16.8 16.8 L32.9 29.1ZM37.3 26.2 L34.7 13.0 L42.2 24.2ZM47.4 23.1 L50.0 3.0 L52.6 23.1ZM57.8 24.2 L65.3 13.0 L62.7 26.2ZM67.1 29.1 L83.2 16.8 L70.9 32.9ZM73.8 37.3 L87.0 34.7 L75.8 42.2Z" />
+			<circle cx="50" cy="50" r="25" fill="none" stroke="currentColor" stroke-width="1.6" />
+			<path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"
+				d="M67.0 50.0 L70.6 54.1 L65.7 56.5 L67.5 61.7 L62.0 62.0 L61.7 67.5 L56.5 65.7 L54.1 70.6 L50.0 67.0 L45.9 70.6 L43.5 65.7 L38.3 67.5 L38.0 62.0 L32.5 61.7 L34.3 56.5 L29.4 54.1 L33.0 50.0 L29.4 45.9 L34.3 43.5 L32.5 38.3 L38.0 38.0 L38.3 32.5 L43.5 34.3 L45.9 29.4 L50.0 33.0 L54.1 29.4 L56.5 34.3 L61.7 32.5 L62.0 38.0 L67.5 38.3 L65.7 43.5 L70.6 45.9 L67.0 50.0" />
+			<circle cx="50" cy="50" r="9" fill="currentColor" />
+		</symbol>
+		<symbol id="spark" viewBox="0 0 20 20">
+			<path d="M10 0 C11 7 13 9 20 10 C13 11 11 13 10 20 C9 13 7 11 0 10 C7 9 9 7 10 0Z" />
+		</symbol>
+	</svg>
+
+	<div class="stage">
+
+		<!-- Shared motion background: gold shard loop (Comp 1), graded per scene.
+		     H.264 first: hardware-decoded on nearly any GPU, OBS included. AV1 and
+		     VP9 only for browsers built without H.264. -->
+		<div class="backdrop" aria-hidden="true">
+			<video class="backdrop-video" autoplay muted loop playsinline preload="auto" poster="media/fondo-oro.webp">
+				<source src="media/fondo-oro.h264.mp4" type='video/mp4; codecs="avc1.64002A"'>
+				<source src="media/fondo-oro.av1.webm" type='video/webm; codecs="av01.0.09M.08"'>
+				<source src="media/fondo-oro.vp9.webm" type='video/webm; codecs="vp9"'>
+			</video>
+			<i class="backdrop-grade"></i>
+		</div>
+
+		<!-- STARTING: "Ya empezamos". The casters on cards that light up green
+		     while they talk, Twitch chat beside them and the match about to
+		     start. -->
+		<section data-scene="starting" class="start">
+			<canvas class="dust" data-dust="rise" width="1920" height="1080" aria-hidden="true"></canvas>
+			<div class="start-main">
+				<header class="start-head">
+					<svg class="start-sol" aria-hidden="true"><use href="#sol" /></svg>
+					<span class="label label--lg">Rempalago 3 · <span data-bind="round">Final</span></span>
+					<h2 class="start-title">Ya empezamos</h2>
+				</header>
+				<div class="start-match">
+					<div class="start-player start-player--l"><span class="pfp" data-pfp="l"></span><b>Clippy</b><span class="label">Seed 1</span></div>
+					<span class="start-vs">VS</span>
+					<div class="start-player start-player--r"><span class="pfp" data-pfp="r"></span><b>Sombrax79</b><span class="label">Seed 4</span></div>
+				</div>
+				<div class="start-casters">
+					<article class="booth" data-caster="0">
+						<span class="pfp" data-pfp="c0"></span>
+						<div class="booth-text"><span class="label">Caster</span><b>hxovc</b><i class="wave"><i></i><i></i><i></i></i></div>
+					</article>
+					<article class="booth" data-caster="1">
+						<span class="pfp" data-pfp="c1"></span>
+						<div class="booth-text"><span class="label">Caster</span><b>Kuervo</b><i class="wave"><i></i><i></i><i></i></i></div>
+					</article>
+				</div>
+			</div>
+			<aside class="start-chat glass">
+				<span class="chat-head"><b>Twitch</b>chat en vivo</span>
+				<div class="feed" data-twitch></div>
+			</aside>
+		</section>
+
+		<!-- INTRO -->
+		<section data-scene="intro" class="intro">
+			<canvas class="dust" data-dust="rise" width="1920" height="1080" aria-hidden="true"></canvas>
+			<i class="intro-line" aria-hidden="true"></i>
+			<header class="intro-head">
+				<svg class="intro-sol" aria-hidden="true"><use href="#sol" /></svg>
+				<span class="label label--lg">Rempalago 3</span>
+				<h2 class="intro-title" data-bind="round">Final</h2>
+			</header>
+			<div class="intro-duel">
+				<article class="duelist duelist--l">
+					<div class="medal"><span class="pfp" data-pfp="l"></span></div>
+					<div class="duelist-text">
+						<span class="label duelist-seed">Seed 1</span>
+						<h1>Clippy</h1>
+						<dl class="tape">
+							<div><dt>Global</dt><dd data-count="2841" data-pre="#">#2,841</dd></div>
+							<div><dt>Colombia</dt><dd data-count="39" data-pre="#">#39</dd></div>
+							<div><dt>PP</dt><dd data-count="9412">9,412</dd></div>
+						</dl>
+					</div>
+				</article>
+				<div class="intro-vs"><i></i><span>VS</span><i></i><b class="intro-flare" aria-hidden="true"></b></div>
+				<article class="duelist duelist--r">
+					<div class="medal"><span class="pfp" data-pfp="r"></span></div>
+					<div class="duelist-text">
+						<span class="label duelist-seed">Seed 4</span>
+						<h1>Sombrax79</h1>
+						<dl class="tape">
+							<div><dt>Global</dt><dd data-count="9135" data-pre="#">#9,135</dd></div>
+							<div><dt>Colombia</dt><dd data-count="112" data-pre="#">#112</dd></div>
+							<div><dt>PP</dt><dd data-count="7988">7,988</dd></div>
+						</dl>
+					</div>
+				</article>
+			</div>
+			<footer class="intro-foot label" data-bind="format">Best of 13 · primero a 7 mapas</footer>
+		</section>
+
+		<!-- SHOWCASE: the pool, map by map. One featured map with its art and
+		     numbers, the whole pool beside it with the featured one lit. -->
+		<section data-scene="showcase" class="show">
+			<header class="show-head">
+				<span class="label">Mappool · <span data-bind="round">Final</span></span>
+				<span class="show-count num" id="showCount"></span>
+			</header>
+			<div class="show-body">
+				<article class="feature" id="feature">
+					<div class="feature-art" id="featureArt"></div>
+					<div class="feature-body">
+						<div class="feature-top"><b class="feature-slot" id="featureSlot"></b><span class="feature-mod" id="featureMod"></span></div>
+						<h2 class="feature-title" id="featureTitle"></h2>
+						<span class="feature-artist" id="featureArtist"></span>
+						<span class="feature-diff" id="featureDiff"></span>
+						<dl class="feature-stats" id="featureStats"></dl>
+					</div>
+					<i class="feature-progress" aria-hidden="true"><i id="featureProgress"></i></i>
+				</article>
+				<ol class="show-list" id="showList"></ol>
+			</div>
+		</section>
+
+		<!-- MAPPOOL -->
+		<section data-scene="mappool" class="pool">
+			<header class="pool-head">
+				<div class="tally tally--l">
+					<span class="pfp" data-pfp="l"></span>
+					<span class="tally-name">Clippy</span>
+					<div class="stars" data-stars="l"></div>
+				</div>
+				<div class="pool-title">
+					<span class="label">Mappool · <span data-bind="round">Final</span></span>
+					<span class="pool-turn" data-side="r"><span class="pfp" data-pfp="r"></span><b>Sombrax79</b> está eligiendo</span>
+					<!-- Pick timer: started by hand or by the referee's !mp timer, then
+					     kept in step with BanchoBot's countdown lines. -->
+					<div class="pick-timer" id="pickTimer" data-side="r" data-state="idle">
+						<b class="pick-timer-n num" id="pickTimerN">2:00</b>
+						<i class="pick-timer-bar" aria-hidden="true"><i id="pickTimerFill"></i></i>
+						<span class="pick-timer-src" id="pickTimerSrc">Esperando timer</span>
+					</div>
+				</div>
+				<div class="tally tally--r">
+					<div class="stars" data-stars="r"></div>
+					<span class="tally-name">Sombrax79</span>
+					<span class="pfp" data-pfp="r"></span>
+				</div>
+			</header>
+			<div class="pool-grid" id="poolGrid"></div>
+			<ol class="pool-order" id="pickOrder"></ol>
+		</section>
+
+		<!-- GAMEPLAY -->
+		<section data-scene="gameplay" class="gp">
+			<header class="top glass">
+				<div class="corner corner--l">
+					<div class="crest"><span class="pfp" data-pfp="l"></span></div>
+					<div class="corner-text">
+						<span class="corner-name">Clippy</span>
+						<span class="corner-meta"><b>#39</b> Colombia · Seed 1</span>
+						<div class="stars" data-stars="l"></div>
+					</div>
+				</div>
+				<div class="masthead">
+					<div class="tb-clock" aria-hidden="true"><span class="tb-clock-label">Último tramo</span><b class="tb-clock-n num" id="tbClock">0:00</b></div>
+					<span class="masthead-title"><span>Rempalago</span><b>3</b></span>
+					<span class="pill pill--gold" data-bind="round">Final</span>
+					<div class="casters">
+						<span class="caster" data-caster="0"><i class="wave"><i></i><i></i><i></i></i><span class="pfp" data-pfp="c0"></span>hxovc</span>
+						<span class="pill pill--line">Casters</span>
+						<span class="caster" data-caster="1">Kuervo<span class="pfp" data-pfp="c1"></span><i class="wave"><i></i><i></i><i></i></i></span>
+					</div>
+				</div>
+				<div class="corner corner--r">
+					<div class="corner-text">
+						<span class="corner-name">Sombrax79</span>
+						<span class="corner-meta">Seed 4 · Colombia <b>#112</b></span>
+						<div class="stars" data-stars="r"></div>
+					</div>
+					<div class="crest"><span class="pfp" data-pfp="r"></span></div>
+				</div>
+				<div class="rule" aria-hidden="true"><i></i></div>
+			</header>
+
+			<div class="clients">
+				<div class="client"></div>
+				<div class="client"></div>
+			</div>
+			<div class="tags">
+				<div class="tag tag--l">
+					<div class="tag-break" data-break="l"><b>Combo break</b><span></span></div>
+					<div class="tag-ghost" data-ghost="l"><i>⟲</i><b>Miss de Bancho</b><span></span></div>
+					<span class="tag-id"><span class="pfp" data-pfp="l"></span><span class="tag-name">Clippy</span></span>
+				</div>
+				<div class="tag tag--r">
+					<div class="tag-break" data-break="r"><b>Combo break</b><span></span></div>
+					<div class="tag-ghost" data-ghost="r"><i>⟲</i><b>Miss de Bancho</b><span></span></div>
+					<span class="tag-id"><span class="pfp" data-pfp="r"></span><span class="tag-name">Sombrax79</span></span>
+				</div>
+			</div>
+
+			<!-- FC choke: a full combo run past 700k breaks. Plays over the
+			     choking player's half: letterbox, red vignette, the lost combo
+			     slashed in two, and a heart monitor that flatlines. -->
+			<div class="choke" data-side="l" aria-hidden="true">
+				<i class="choke-vignette"></i>
+				<i class="choke-band"></i>
+				<canvas class="choke-fx" width="956" height="720"></canvas>
+				<div class="choke-card">
+					<span class="choke-kicker">Se fue el FC</span>
+					<div class="choke-num">
+						<span class="choke-half choke-half--a" data-choke="combo">0x</span>
+						<span class="choke-half choke-half--b" data-choke="combo">0x</span>
+						<i class="choke-slash"></i>
+					</div>
+					<span class="choke-sub"><b data-choke="name"></b> iba sin un solo miss · <b data-choke="score"></b></span>
+				</div>
+				<i class="choke-bar choke-bar--top"></i>
+				<i class="choke-bar choke-bar--bot"></i>
+			</div>
+
+			<footer class="deck glass">
+				<div class="disc">
+					<svg class="disc-ring" viewBox="0 0 100 100" aria-hidden="true">
+						<circle cx="50" cy="50" r="48" />
+						<circle cx="50" cy="50" r="48" id="discProgress" pathLength="100" />
+					</svg>
+					<div class="disc-vinyl" id="discArt"></div>
+					<span class="disc-time num" id="clock">0:00</span>
+				</div>
+
+				<div class="duel">
+					<div class="duel-scores">
+						<div class="duel-side duel-side--l">
+							<span class="duel-score num" data-score="l">0</span>
+							<span class="duel-sub"><b class="num" data-acc="l">100.00%</b><b class="num" data-combo="l">0x</b><span class="hits"><span class="hit hit--100"><i>100</i><b class="num" data-hit="100" data-side="l">0</b></span><span class="hit hit--50"><i>50</i><b class="num" data-hit="50" data-side="l">0</b></span><span class="hit hit--miss is-fc" data-miss="l"><i>✕</i><b class="num" data-hit="miss" data-side="l">0</b><em>FC</em></span></span></span>
+						</div>
+						<div class="duel-mid">
+							<span class="tb-state" id="tbState" aria-live="polite"></span>
+							<span class="duel-flip" id="flip">Cambio de líder</span>
+							<span class="duel-diff num" id="diff"></span>
+						</div>
+						<div class="duel-side duel-side--r">
+							<span class="duel-score num" data-score="r">0</span>
+							<span class="duel-sub"><span class="hits"><span class="hit hit--miss is-fc" data-miss="r"><i>✕</i><b class="num" data-hit="miss" data-side="r">0</b><em>FC</em></span><span class="hit hit--50"><i>50</i><b class="num" data-hit="50" data-side="r">0</b></span><span class="hit hit--100"><i>100</i><b class="num" data-hit="100" data-side="r">0</b></span></span><b class="num" data-combo="r">0x</b><b class="num" data-acc="r">100.00%</b></span>
+						</div>
+					</div>
+					<div class="track">
+						<i class="track-fill" id="trackFill"></i>
+							<i class="track-pos" id="trackPos"><i class="track-dot"></i></i>
+					</div>
+					<div class="series">
+						<span class="pfp" data-pfp="l"></span>
+						<span class="series-name">Clippy</span>
+						<div class="series-pips" data-pips="l"></div>
+						<span class="series-n">3 <i>—</i> 2</span>
+						<div class="series-pips" data-pips="r"></div>
+						<span class="series-name">Sombrax79</span>
+						<span class="pfp" data-pfp="r"></span>
+					</div>
+					<!-- Two chats: the lobby chat on the left, Twitch on the right.
+					     Once the map starts the lobby chat folds away and Twitch takes
+					     the whole box. -->
+					<div class="chats" id="chats" data-mode="lobby">
+						<section class="chat chat--game">
+							<span class="chat-head"><b>Lobby</b>#mp_rempalago</span>
+							<div class="feed" id="chat"></div>
+						</section>
+						<section class="chat chat--twitch">
+							<span class="chat-head"><b>Twitch</b>chat en vivo</span>
+							<div class="feed" data-twitch></div>
+						</section>
+					</div>
+				</div>
+
+				<article class="map" id="mapInfo">
+					<div class="map-bg" id="mapBg"></div>
+					<div class="map-top">
+						<span class="map-slot" id="mapSlot">DT2</span>
+						<span class="map-pick">Pick de <b>Sombrax79</b></span>
+						<span class="map-len num" id="mapLen">1:43</span>
+					</div>
+					<h2 class="map-title" id="mapTitle"></h2>
+					<span class="map-artist" id="mapArtist"></span>
+					<span class="map-diff" id="mapDiff"></span>
+					<dl class="map-stats" id="mapStats"></dl>
+				</article>
+			</footer>
+
+			<!-- Tiebreaker: frames around both clients, the seam between them,
+			     light rails, the lead-swap sweep and an FX canvas (over the deck
+			     too, for the clash orb). oro.js drives intensity, mode and beat
+			     as CSS variables on the stage. -->
+			<div class="tb" aria-hidden="true">
+				<div class="tb-frame tb-frame--l"><i></i><i></i><i></i><i></i><b class="tb-arc"></b></div>
+				<div class="tb-frame tb-frame--r"><i></i><i></i><i></i><i></i><b class="tb-arc"></b></div>
+				<i class="tb-seam"></i>
+				<i class="tb-rail tb-rail--tl"></i><i class="tb-rail tb-rail--tr"></i>
+				<i class="tb-rail tb-rail--bl"></i><i class="tb-rail tb-rail--br"></i>
+				<div class="tb-sweep"><i class="tb-sweep-top"></i><i class="tb-sweep-deck"></i></div>
+				<canvas class="tb-fx" width="1920" height="1080"></canvas>
+			</div>
+
+			<!-- Tiebreaker intro (5s): the two halves slam together, 6-6, the
+			     word, the map; then they part to reveal the clients. -->
+			<div class="tbi" aria-hidden="true">
+				<div class="tbi-half tbi-half--l"></div>
+				<div class="tbi-half tbi-half--r"></div>
+				<i class="tbi-seam"></i>
+				<div class="tbi-core">
+					<div class="tbi-duel">
+						<span class="tbi-name tbi-name--l">Clippy</span>
+						<span class="tbi-series"><b data-tbi="l">6</b><i></i><b data-tbi="r">6</b></span>
+						<span class="tbi-name tbi-name--r">Sombrax79</span>
+					</div>
+					<h2 class="tbi-word" id="tbiWord">Tiebreaker</h2>
+					<div class="tbi-map"><b class="tbi-slot">TB</b><span id="tbiMap"></span></div>
+				</div>
+				<canvas class="tbi-fx" width="1920" height="1080"></canvas>
+				<i class="tbi-flash"></i>
+			</div>
+
+			<!-- Tiebreaker end: the winner's colour floods in. -->
+			<div class="tbe" aria-hidden="true">
+				<span class="tbe-kicker">Gana el tiebreaker</span>
+				<span class="tbe-name" id="tbeName"></span>
+			</div>
+		</section>
+
+		<!-- RESULT -->
+		<section data-scene="result" class="result">
+			<div class="result-bg" id="resultBg"></div>
+			<i class="result-flash" aria-hidden="true"></i>
+			<div class="result-body">
+				<span class="label" id="resultMap"></span>
+				<span class="pfp result-pfp" data-pfp="l"></span>
+				<h2 class="result-winner">Clippy</h2>
+				<span class="label result-sub">gana el mapa 6</span>
+				<table class="compare">
+					<tbody>
+						<tr><td class="is-win" data-count="1284903">1,284,903</td><th>Score</th><td data-count="1207118">1,207,118</td></tr>
+						<tr><td class="is-win" data-count="98.41" data-fmt="pct">98.41%</td><th>Accuracy</th><td data-count="97.86" data-fmt="pct">97.86%</td></tr>
+						<tr><td data-count="612" data-fmt="x">612x</td><th>Max combo</th><td class="is-win" data-count="688" data-fmt="x">688x</td></tr>
+						<tr><td class="is-win">2</td><th>Miss</th><td>5</td></tr>
+					</tbody>
+				</table>
+				<div class="series series--big">
+					<span class="pfp" data-pfp="l"></span>
+					<span class="series-name">Clippy</span>
+					<div class="series-pips" data-pips="l" data-plus="1"></div>
+					<span class="series-n">4 <i>—</i> 2</span>
+					<div class="series-pips" data-pips="r"></div>
+					<span class="series-name">Sombrax79</span>
+					<span class="pfp" data-pfp="r"></span>
+				</div>
+				<div class="matchpoint"><svg><use href="#spark" /></svg><span id="matchpoint"></span><svg><use href="#spark" /></svg></div>
+			</div>
+		</section>
+
+		<!-- CHAMPION -->
+		<!-- The coronation. oro.js fires the slam (burst, confetti cannons,
+		     fanfare) and the fireworks on the champion canvas; CSS carries the
+		     light, the crest and the type, keyed to the same 1.25s slam. -->
+		<section data-scene="champion" class="champ">
+			<canvas class="dust" data-dust="fall" width="1920" height="1080" aria-hidden="true"></canvas>
+			<canvas class="champ-fx" width="1920" height="1080" aria-hidden="true"></canvas>
+			<i class="champ-flash" aria-hidden="true"></i>
+			<div class="champ-body">
+				<div class="champ-crest" aria-hidden="true">
+					<div class="champ-rays"><i></i><i></i></div>
+					<i class="champ-ring"></i>
+					<i class="champ-ring champ-ring--outer"></i>
+					<svg class="champ-sol"><use href="#sol" /></svg>
+					<span class="pfp champ-pfp" data-pfp="l"></span>
+				</div>
+				<span class="label label--lg champ-kicker" data-bind="crown">Campeón de Rempalago 3</span>
+				<div class="champ-title">
+					<i class="champ-glow" aria-hidden="true"></i>
+					<i class="champ-shock" aria-hidden="true"></i>
+					<h1 class="champ-name" data-text="Clippy"><span>Clippy</span></h1>
+					<i class="champ-flare" aria-hidden="true"></i>
+					<span class="champ-glints" aria-hidden="true">
+						<svg><use href="#spark" /></svg><svg><use href="#spark" /></svg><svg><use href="#spark" /></svg>
+						<svg><use href="#spark" /></svg><svg><use href="#spark" /></svg>
+					</span>
+				</div>
+				<div class="champ-plaque">
+					<span class="label" data-bind="round">Final</span>
+					<b class="champ-score"><span data-bind="won">7</span><i></i><span data-bind="lost">5</span></b>
+					<span class="label">contra Sombrax79</span>
+				</div>
+				<ol class="road" id="road" aria-label="Camino al título"></ol>
+			</div>
+		</section>
+
+		<!-- Scene stinger: the bolt. Charge, strike, crackle, zoom to cover,
+		     shrink away and shoot off. Bolt layers are full-screen and clipped
+		     to the bolt polygon (oro.js animates the clip); the canvas carries
+		     speed lines, electric arcs and sparks. -->
+		<div class="stinger" id="stinger" aria-hidden="true">
+			<i class="bolt bolt--ghost"></i>
+			<i class="bolt bolt--ghost"></i>
+			<i class="bolt bolt--ghost"></i>
+			<i class="bolt bolt--rim"></i>
+			<div class="bolt bolt--fill">
+				<video class="bolt-video" muted loop playsinline preload="auto">
+					<source src="media/fondo-oro.h264.mp4" type='video/mp4; codecs="avc1.64002A"'>
+					<source src="media/fondo-oro.av1.webm" type='video/webm; codecs="av01.0.09M.08"'>
+					<source src="media/fondo-oro.vp9.webm" type='video/webm; codecs="vp9"'>
+				</video>
+			</div>
+			<i class="bolt bolt--facet"></i>
+			<i class="stinger-sheen"></i>
+			<canvas class="stinger-fx" width="1920" height="1080"></canvas>
+			<i class="stinger-ring"></i>
+			<i class="stinger-ring stinger-ring--2"></i>
+			<i class="stinger-flash"></i>
+			<i class="stinger-flare"></i>
+			<div class="stinger-core">
+				<svg class="stinger-sol"><use href="#sol" /></svg>
+				<span class="stinger-title">Rempalago 3</span>
+				<i class="stinger-tricolor"></i>
+				<span class="stinger-sub">Operación Tricolor</span>
+			</div>
+		</div>
+	</div>
+
+	<script type="module" src="oro.js"></script>
+</body>
+
+</html>

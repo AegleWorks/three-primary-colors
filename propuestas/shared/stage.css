@@ -1,0 +1,170 @@
+/* Shared stage chrome: letterboxed 1920x1080 canvas, scene switcher and
+   stand-in osu! clients. Directions style everything inside .stage. */
+
+* {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+html,
+body {
+	height: 100%;
+	background: #000;
+	overflow: hidden;
+}
+
+.stage {
+	--fit: 0.5;
+	position: absolute;
+	top: 0;
+	left: 50%;
+	width: 1920px;
+	height: 1080px;
+	transform-origin: top center;
+	transform: translateX(-50%) scale(var(--fit));
+	overflow: hidden;
+}
+
+/* Scenes off screen skip style, layout, paint and their animations. */
+.stage [data-scene] {
+	position: absolute;
+	inset: 0;
+	visibility: hidden;
+	content-visibility: hidden;
+}
+
+.stage [data-scene][data-active] {
+	visibility: visible;
+	content-visibility: visible;
+}
+
+/* Stand-in for the two tournament clients tiled into the 1920x720 area. */
+.clients {
+	position: absolute;
+	top: 100px;
+	left: 0;
+	width: 1920px;
+	height: 720px;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+	background: #000;
+}
+
+.client {
+	position: relative;
+	overflow: hidden;
+	background:
+		radial-gradient(circle at 30% 40%, #2a2f3a 0 46px, transparent 47px),
+		radial-gradient(circle at 30% 40%, transparent 0 58px, #3b4252 59px 62px, transparent 63px),
+		radial-gradient(circle at 55% 62%, #2a2f3a 0 46px, transparent 47px),
+		radial-gradient(circle at 72% 30%, #2a2f3a 0 46px, transparent 47px),
+		linear-gradient(160deg, #161a22, #0d1016);
+}
+
+.client::after {
+	content: attr(data-label);
+	position: absolute;
+	right: 16px;
+	bottom: 12px;
+	font: 500 14px/1 system-ui, sans-serif;
+	color: #4c566a;
+}
+
+.switcher {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 44px;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 0 12px;
+	background: #000;
+	border-top: 1px solid #222;
+	font: 500 13px/1 system-ui, sans-serif;
+	color: #999;
+	z-index: 10;
+}
+
+.switcher button {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 7px 10px;
+	border: 0;
+	border-radius: 4px;
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.switcher button[aria-current="true"] {
+	background: #fff;
+	color: #000;
+}
+
+.switcher button:focus-visible,
+.switcher a:focus-visible {
+	outline: 2px solid #ffcd00;
+	outline-offset: 2px;
+}
+
+.switcher kbd {
+	font: inherit;
+	opacity: 0.6;
+}
+
+.switcher-round {
+	margin-left: auto;
+	padding: 6px 8px;
+	border: 1px solid #444;
+	border-radius: 4px;
+	background: #111;
+	color: inherit;
+	font: inherit;
+}
+
+.switcher-hint {
+	margin-left: 12px;
+	display: flex;
+	gap: 6px;
+	align-items: center;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	font-size: 12px;
+}
+
+.switcher-hint kbd {
+	padding: 2px 5px;
+	border: 1px solid #444;
+	border-radius: 3px;
+}
+
+.switcher a {
+	color: #ddd;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.stage *,
+	.stage *::before,
+	.stage *::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
+
+/* ?shot freezes entrances at their end state for static screenshots. */
+html.shot .stage *,
+html.shot .stage *::before,
+html.shot .stage *::after {
+	animation-delay: 0s !important;
+	animation-duration: 0s !important;
+	transition: none !important;
+}

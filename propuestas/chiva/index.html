@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>Rempalago 3 — Chiva</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rubik:wght@500;700;800&display=swap"
+		rel="stylesheet">
+	<link rel="stylesheet" href="../shared/stage.css" />
+	<link rel="stylesheet" href="chiva.css" />
+</head>
+
+<body>
+	<div class="stage">
+
+		<!-- INTRO -->
+		<section data-scene="intro" class="intro">
+			<div class="stripes stripes--fat" aria-hidden="true"></div>
+			<div class="intro-boards">
+				<div class="board board--l">
+					<span class="board-seed">Seed 1 · #39</span>
+					<h1 class="paint">Clippy</h1>
+				</div>
+				<div class="medal" aria-label="contra"><span>vs</span></div>
+				<div class="board board--r">
+					<span class="board-seed">Seed 4 · #112</span>
+					<h1 class="paint">Sombrax79</h1>
+				</div>
+			</div>
+			<div class="intro-route">
+				<span class="intro-route-tag">Ruta</span>
+				<span class="intro-route-text">Rempalago 3 · Gran final · Primero a 5</span>
+			</div>
+			<div class="fringe fringe--bottom" aria-hidden="true"></div>
+		</section>
+
+		<!-- MAPPOOL -->
+		<section data-scene="mappool" class="routes">
+			<header class="routes-head">
+				<div class="bulbs" data-bulbs="l"></div>
+				<div class="routes-turn">
+					<span>Le toca a</span>
+					<strong class="paint paint--blue">Sombrax79</strong>
+				</div>
+				<div class="bulbs" data-bulbs="r"></div>
+			</header>
+			<div class="routes-grid" id="poolGrid"></div>
+			<div class="stripes" aria-hidden="true"></div>
+		</section>
+
+		<!-- GAMEPLAY -->
+		<section data-scene="gameplay" class="gp">
+			<header class="top">
+				<div class="plate plate--l">
+					<span class="plate-name">Clippy</span>
+					<span class="plate-score" data-score="l">0</span>
+				</div>
+				<div class="bulbs" data-bulbs="l"></div>
+				<div class="rope">
+					<div class="rope-head">
+						<span class="rope-map">DT2</span>
+						<span class="rope-diff" id="ropeDiff"></span>
+						<span class="rope-time" id="clock">0:00</span>
+					</div>
+					<div class="rope-track">
+						<i class="rope-fill" id="ropeFill"></i>
+						<i class="rope-knot" id="ropeKnot"></i>
+					</div>
+				</div>
+				<div class="bulbs" data-bulbs="r"></div>
+				<div class="plate plate--r">
+					<span class="plate-score" data-score="r">0</span>
+					<span class="plate-name">Sombrax79</span>
+				</div>
+				<div class="stripes stripes--thin" aria-hidden="true"></div>
+			</header>
+
+			<div class="clients">
+				<div class="client" data-label="cliente osu! — Clippy"></div>
+				<div class="client" data-label="cliente osu! — Sombrax79"></div>
+			</div>
+			<div class="bursts" aria-live="polite">
+				<div class="burst burst--l"><b>¡Uy!</b><span data-break="l"></span></div>
+				<div class="burst burst--r"><b>¡Uy!</b><span data-break="r"></span></div>
+			</div>
+
+			<footer class="side">
+				<div class="fringe" aria-hidden="true"></div>
+				<div class="stripes" aria-hidden="true"></div>
+				<div class="side-body">
+					<div class="window window--chat" id="chat"></div>
+					<article class="route">
+						<div class="route-mod"><span>DT</span><b>2</b></div>
+						<div class="route-body">
+							<h2 class="route-title">Grand Dad</h2>
+							<span class="route-artist">nekodex — mapa de Okoratu</span>
+							<ul class="route-tags">
+								<li><b>7.02</b>★</li>
+								<li><b>292</b>bpm</li>
+								<li><b>1:43</b></li>
+								<li>AR <b>10.3</b></li>
+								<li>OD <b>10.1</b></li>
+								<li>CS <b>4</b></li>
+							</ul>
+						</div>
+						<span class="route-pick">La pidió Sombrax79</span>
+					</article>
+					<div class="passengers">
+						<div class="window window--face is-talking"><span class="face">H</span><span class="who">hxovc</span></div>
+						<div class="window window--face"><span class="face">K</span><span class="who">Kuervo</span></div>
+					</div>
+				</div>
+			</footer>
+		</section>
+
+		<!-- RESULT -->
+		<section data-scene="result" class="win">
+			<div class="stripes stripes--fat" aria-hidden="true"></div>
+			<div class="win-burst">
+				<span class="win-kicker">Se la llevó</span>
+				<h2 class="paint paint--huge">Clippy</h2>
+				<span class="win-map">DT2 · Grand Dad</span>
+			</div>
+			<div class="win-boards">
+				<dl class="tally tally--l">
+					<dt>Clippy</dt>
+					<dd><span>Score</span><b class="is-win">1,284,903</b></dd>
+					<dd><span>Acc</span><b class="is-win">98.41%</b></dd>
+					<dd><span>Combo</span><b>612x</b></dd>
+					<dd><span>Miss</span><b class="is-win">2</b></dd>
+				</dl>
+				<div class="win-score">
+					<div class="bulbs bulbs--big" data-bulbs="l" data-plus="1"></div>
+					<span>4 – 2</span>
+					<div class="bulbs bulbs--big" data-bulbs="r"></div>
+				</div>
+				<dl class="tally tally--r">
+					<dt>Sombrax79</dt>
+					<dd><span>Score</span><b>1,207,118</b></dd>
+					<dd><span>Acc</span><b>97.86%</b></dd>
+					<dd><span>Combo</span><b class="is-win">688x</b></dd>
+					<dd><span>Miss</span><b>5</b></dd>
+				</dl>
+			</div>
+		</section>
+
+		<!-- CHAMPION -->
+		<section data-scene="champion" class="champ">
+			<div class="confetti" id="confetti" aria-hidden="true"></div>
+			<div class="champ-sign">
+				<div class="fringe" aria-hidden="true"></div>
+				<span class="champ-kicker paint paint--red">¡Campeón!</span>
+				<h1 class="paint paint--huge">Clippy</h1>
+				<span class="champ-final">Ganó la gran final 5 – 3 contra Sombrax79</span>
+				<div class="stripes" aria-hidden="true"></div>
+			</div>
+		</section>
+	</div>
+
+	<script type="module" src="chiva.js"></script>
+</body>
+
+</html>
