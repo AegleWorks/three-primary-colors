@@ -22,24 +22,29 @@ static/
 - Update data in `data.json` file (example is provided in the file)
 
 ## Usage
-- Add a new Browser Source in OBS:
-  - URL: `http://127.0.0.1:24050/vcl-overlay`
-  - Width: `1920`
-  - Height: `1368`
-- Click on `Interact` button below the preview to interact with the overlay
-- **Toggle Mappool** to show the mappool panel
-  - **Left Click** a beatmap to pick the beatmap for **Left** team
-  - **Shift + Left Click** a beatmap to ban the beatmap for **Left** team
-  - **Alt + Left Click** a beatmap to protect the beatmap for **Left** team
-  - **Right Click** a beatmap to pick the beatmap for **Right** team
-  - **Shift + Right Click** a beatmap to ban the beatmap for **Right** team
-  - **Alt + Right Click** a beatmap to ban the beatmap for **Right** team
-  - **Ctrl + Click / Right Click** a beatmap to remove any ban/pick on the beatmap
+The broadcast is the **Oro** design for Rempalago 3 (`src/oro`, from `propuestas/oro`): seven scenes (Ya empezamos, Intro, Showcase, Mappool, Gameplay, Resultado, Campeón) in a single browser source, with a stinger between them.
 
-## Customization
-This overlay allows some customizations without having to modify the source code directly, which includes:
-- Overlay Background Image by replacing `assets/background.png`
-- Colors of the elements by editing `assets/src/styles/theme.css`
+- Add **one** Browser Source in OBS and reuse it in every overlay scene (Add > Existing source), so it keeps its state:
+  - URL: `http://127.0.0.1:24050/vcl-overlay/?round=f` (`ro64`, `ro32`, `ro16`, `qf`, `sf`, `third`, `f`, `show`)
+  - Width: `1920`, Height: `1080`
+- Set the OBS scene transition to **Cut**: the overlay plays its own stinger
+- The **control panel** is a separate page, `panel.html` (`http://127.0.0.1:24050/vcl-overlay/panel.html`). Open it in a browser tab, or inside OBS as a dock (Docks > Custom Browser Docks). It talks to the overlay through the bridge server (`bun dev` starts it, on `ws://127.0.0.1:24052`), so the bridge must be running for the panel to work
+- From the panel: switch scenes (or let them follow OBS: connect to OBS and keep **Seguir la escena de OBS** on; scene names are matched by keyword: `empez`/`start`, `intro`/`vs`, `showcase`, `mappool`/`pick`, `result`, `champ`/`campe`/`ganador`, `gameplay`/`rempalago`/`osu`), start the pick timer, change the round, edit the draft and set up the OBS auto-tiling
+- During gameplay the client band (y 100–820) is transparent: the tournament clients are OBS sources under the overlay
+- **Draft**: Pick, Ban and Gana for each player, and Quitar, per map. A pool map that tosu loads without a pick counts as the next picker's pick, and its winner is set when the map ends. The draft survives a source refresh. Clicking the cards in OBS's Interact window also works (click: left, right click: right, Shift: ban, Alt: winner, Ctrl: clear)
+- **Pick timer**: starts on its own with the referee's `!mp timer` and follows BanchoBot's countdown; the panel starts it by hand
+- Casters come from the Discord IPC bridge; Twitch chat is read anonymously from the channel in `data.json`
+- In development (`bun dev`) only, `?sim` plays the scripted demo match instead of the live one and `P` shows a performance meter. A production build (`bun run build`) leaves both out entirely
+
+### data.json
+```json
+{
+    "mappool": [{ "mod": "NM", "icon": "assets/mods/NM.png", "maps": [4675675] }],
+    "players": { "Clippy": { "seed": 1, "countryRank": 39 } },
+    "twitch": "channel_name"
+}
+```
+`players` (seed and country rank, which tosu does not have) and `twitch` (also `?twitch=`) are optional.
 
 ## Development
 Just as a head-up, since this overlay is completely reworked on Vite, you cannot directly change the HTML, CSS and JS directly just like the old overlay but rather spin up a development server on your local machine and work with it for modification. After you have done everything, you should build the overlay and paste the files in the `dist` folder to tosu folder again.

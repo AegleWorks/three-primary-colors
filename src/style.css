@@ -1,95 +1,10 @@
-@import url("https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap");
-@import "tailwindcss";
+/* Layers, lowest first: the broadcast (src/oro, its own reset included), then
+   Tailwind for the operator panel. Preflight stays out so the broadcast
+   renders exactly as designed; src/styles/overlay.css is unlayered and wins
+   over both. */
+@layer oro, theme, base, components, utilities;
+@import "./oro/stage.css" layer(oro);
+@import "./oro/oro.css" layer(oro);
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
 @import "./styles/theme.css";
-
-body {
-	width: 1920px;
-	height: 1080px;
-	margin: 0;
-	font-family: Rubik, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-		Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-}
-
-@keyframes chokeShake {
-	0%, 100% { transform: translateX(0) scale(1); }
-	15% { transform: translateX(-12px) scale(1.05); }
-	30% { transform: translateX(10px) scale(1.03); }
-	45% { transform: translateX(-8px) scale(1.01); }
-	60% { transform: translateX(6px) scale(1); }
-	75% { transform: translateX(-3px) scale(1); }
-}
-
-@keyframes chokeGlowPulse {
-	0% { opacity: 0; }
-	20% { opacity: 1; }
-	40% { opacity: 0.85; }
-	100% { opacity: 0; }
-}
-
-.animate-choke-shake {
-	animation: chokeShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-
-.animate-choke-vignette {
-	animation: chokeGlowPulse 2s ease-out forwards;
-}
-
-/* Commentator Deck Entry & Exit Animations */
-@keyframes casterPopIn {
-	0% {
-		opacity: 0;
-		transform: scale(0.5) translateY(-10px);
-	}
-	70% {
-		opacity: 1;
-		transform: scale(1.06) translateY(2px);
-	}
-	100% {
-		opacity: 1;
-		transform: scale(1) translateY(0);
-	}
-}
-
-/* Competitive Hit Pill Animations */
-@keyframes badgePop {
-	0% { transform: scale(0.6); opacity: 0; }
-	75% { transform: scale(1.2); opacity: 1; }
-	100% { transform: scale(1); opacity: 1; }
-}
-
-@keyframes fcPulse {
-	0%, 100% { opacity: 1; transform: scale(1); }
-	50% { opacity: 0.35; transform: scale(0.8); }
-}
-
-.animate-badge-pop {
-	animation: badgePop 0.28s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.animate-fc-pulse {
-	animation: fcPulse 1.8s ease-in-out infinite;
-}
-
-.caster-card {
-	max-width: 120px;
-	will-change: transform, opacity;
-}
-
-.caster-card-enter {
-	animation: casterPopIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.caster-card-exit {
-	transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-	            transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-	            max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-	            margin 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-	            padding 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-	opacity: 0 !important;
-	transform: scale(0.5) translateY(-10px) !important;
-	max-width: 0 !important;
-	margin-left: -12px !important;
-	margin-right: -12px !important;
-	overflow: hidden !important;
-	pointer-events: none !important;
-}

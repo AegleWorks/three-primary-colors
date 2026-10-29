@@ -43,6 +43,8 @@ export default class OBSHandler {
 	};
 
 	clientStates: Map<number, ClientSlotState> = new Map();
+	// Called with the program scene's name on connect and on every change.
+	private programSceneListeners: ((sceneName: string) => void)[] = [];
 	private activeSceneItemIdMap: Map<number, number> = new Map(); // clientIndex -> sceneItemId
 
 	constructor(engine?: ZEngine, config?: Partial<OBSHandlerConfig>) {
@@ -92,7 +94,7 @@ export default class OBSHandler {
 				const res = await this.autoSetupScene(targetScene);
 				if (setupStatus) {
 					setupStatus.textContent = res.message;
-					setupStatus.className = res.success ? "text-green-400 text-xs mt-1" : "text-red-400 text-xs mt-1";
+					setupStatus.dataset.ok = String(res.success);
 				}
 			};
 		}
@@ -135,23 +137,27 @@ export default class OBSHandler {
 		const btn = document.querySelector<HTMLButtonElement>("#obsConnectBtn");
 
 		if (dot) {
-			dot.className = `w-3 h-3 rounded-full inline-block ${
-				this.connected ? "bg-green-500" : "bg-red-500"
-			}`;
+			dot.dataset.on = String(this.connected);
 			dot.title = this.connected ? "Connected" : "Disconnected";
 		}
 
 		if (btn) {
-			btn.textContent = this.connected ? "Disconnect OBS" : "Connect to OBS";
+			btn.textContent = this.connected ? "Desconectar de OBS" : "Conectar a OBS";
 		}
 	}
 
 	private setupEventListeners() {
-		this.obs.on("Identified", () => {
+		this.obs.on("Identified", async () => {
 			this.connected = true;
 			this.updateUIStatus();
 			this.log("Connected and Identified with OBS WebSocket");
 			this.refreshAndApply();
+			try {
+				const { currentProgramSceneName } = await this.obs.call("GetCurrentProgramScene");
+				this.emitProgramScene(currentProgramSceneName);
+			} catch (err) {
+				console.warn("[OBSHandler] Could not read the program scene:", err);
+			}
 		});
 
 		this.obs.on("ConnectionClosed", () => {
@@ -161,11 +167,20 @@ export default class OBSHandler {
 		});
 
 		this.obs.on("CurrentProgramSceneChanged", (data) => {
+			this.emitProgramScene(data.sceneName);
 			if (!this.config.sceneName) {
 				this.log(`Active scene changed to: ${data.sceneName}`);
 				this.refreshAndApply();
 			}
 		});
+	}
+
+	onProgramScene(listener: (sceneName: string) => void) {
+		this.programSceneListeners.push(listener);
+	}
+
+	private emitProgramScene(sceneName: string) {
+		for (const listener of this.programSceneListeners) listener(sceneName);
 	}
 
 	/**

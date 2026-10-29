@@ -12,14 +12,12 @@ export interface Caster {
 export default class CasterHandler {
 	casters: Caster[] = [];
 
-	private container: HTMLElement | null = null;
+	private listeners: ((casters: Caster[]) => void)[] = [];
 	private discordWs: WebSocket | null = null;
 	private isDiscordConnected = false;
 
-	constructor(containerSelector = "#commentatorDeck") {
-		this.container = document.querySelector<HTMLElement>(containerSelector);
+	constructor() {
 		this.loadFromURLParams();
-		this.render();
 		this.initDiscordBridge();
 	}
 
@@ -33,26 +31,18 @@ export default class CasterHandler {
 		try {
 			const params = new URLSearchParams(window.location.search);
 
-			const c1Name = params.get("c1") || params.get("caster1");
-			const c1Img = params.get("c1img") || params.get("avatar1") || params.get("c1Avatar");
-			const c2Name = params.get("c2") || params.get("caster2");
-			const c2Img = params.get("c2img") || params.get("avatar2") || params.get("c2Avatar");
-
-			if (c1Name && c1Img) {
-				this.casters.push({
-					id: "caster-1",
-					name: c1Name,
-					avatarUrl: c1Img,
-					isSpeaking: false,
-				});
-			}
-			if (c2Name && c2Img) {
-				this.casters.push({
-					id: "caster-2",
-					name: c2Name,
-					avatarUrl: c2Img,
-					isSpeaking: false,
-				});
+			// Up to four seats: ?c1=Name&c1img=URL ... ?c4=Name&c4img=URL
+			for (let n = 1; n <= 4; n++) {
+				const name = params.get(`c${n}`) || params.get(`caster${n}`);
+				const img = params.get(`c${n}img`) || params.get(`avatar${n}`) || params.get(`c${n}Avatar`);
+				if (name && img) {
+					this.casters.push({
+						id: `caster-${n}`,
+						name,
+						avatarUrl: img,
+						isSpeaking: false,
+					});
+				}
 			}
 		} catch (e) {
 			console.warn("[CasterHandler] Could not parse query params", e);
@@ -60,85 +50,15 @@ export default class CasterHandler {
 	}
 
 	/**
-	 * Renders caster cards into the DOM.
+	 * Subscribes to roster and speaking changes. The listener runs once now.
 	 */
-	render() {
-		if (!this.container) return;
+	onChange(listener: (casters: Caster[]) => void) {
+		this.listeners.push(listener);
+		listener(this.casters);
+	}
 
-		const currentMap = new Map<string, Caster>();
-		for (const c of this.casters) {
-			currentMap.set(c.id, c);
-		}
-
-		// 1. Handle removals with smooth exit animation
-		const existingCards = this.container.querySelectorAll<HTMLElement>(".caster-card");
-		existingCards.forEach((card) => {
-			const casterId = card.dataset.casterId;
-			if (!casterId || !currentMap.has(casterId)) {
-				if (!card.classList.contains("caster-card-exit")) {
-					card.classList.remove("caster-card-enter");
-					card.classList.add("caster-card-exit");
-					setTimeout(() => {
-						card.remove();
-					}, 300);
-				}
-			}
-		});
-
-		// 2. Handle additions & in-place updates with entry animation
-		for (const caster of this.casters) {
-			let card = this.container.querySelector<HTMLElement>(`[data-caster-id="${caster.id}"]`);
-
-			if (card) {
-				if (card.classList.contains("caster-card-exit")) {
-					card.classList.remove("caster-card-exit");
-				}
-
-				const img = card.querySelector<HTMLImageElement>(".caster-avatar");
-				if (img && img.src !== caster.avatarUrl) {
-					img.src = caster.avatarUrl;
-				}
-
-				const nameSpan = card.querySelector<HTMLElement>(".caster-name");
-				if (nameSpan && nameSpan.textContent !== caster.name) {
-					nameSpan.textContent = caster.name;
-				}
-
-				this.updateCasterDOM(caster);
-			} else {
-				card = document.createElement("div");
-				card.id = `caster-${caster.id}`;
-				card.dataset.casterId = caster.id;
-				card.className =
-					"caster-card caster-card-enter flex flex-col items-center gap-1.5 select-none pointer-events-none";
-
-				const ringClasses = caster.isSpeaking
-					? "border-emerald-400 ring-4 ring-emerald-500/60 shadow-[0_0_22px_rgba(16,185,129,0.9)] scale-105"
-					: "border-surface-1/80 ring-0 shadow-none scale-100 opacity-85";
-
-				card.innerHTML = `
-					<div class="relative">
-						<img src="${caster.avatarUrl}" alt="${caster.name}"
-							class="caster-avatar w-11 h-11 rounded-full object-cover border-2 transition-all duration-150 ${ringClasses}"
-							onerror="this.src='https://cdn.discordapp.com/embed/avatars/0.png'"
-						/>
-					</div>
-					<span class="caster-name px-2 py-0.5 rounded-full bg-black/60 backdrop-blur text-[11px] font-semibold text-white/90 border border-white/10 tracking-wide truncate max-w-[110px]">
-						${caster.name}
-					</span>
-				`;
-
-				card.addEventListener(
-					"animationend",
-					() => {
-						card?.classList.remove("caster-card-enter");
-					},
-					{ once: true },
-				);
-
-				this.container.appendChild(card);
-			}
-		}
+	private emit() {
+		for (const listener of this.listeners) listener(this.casters);
 	}
 
 	/**
@@ -153,38 +73,7 @@ export default class CasterHandler {
 		if (caster.isSpeaking === isSpeaking) return;
 		caster.isSpeaking = isSpeaking;
 
-		this.updateCasterDOM(caster);
-	}
-
-	private updateCasterDOM(caster: Caster) {
-		const card = this.container?.querySelector<HTMLElement>(`[data-caster-id="${caster.id}"]`);
-		if (!card) return;
-
-		const avatar = card.querySelector<HTMLElement>(".caster-avatar");
-
-		if (avatar) {
-			if (caster.isSpeaking) {
-				avatar.classList.remove("border-surface-1/80", "ring-0", "shadow-none", "scale-100", "opacity-85");
-				avatar.classList.add(
-					"border-emerald-400",
-					"ring-4",
-					"ring-emerald-500/60",
-					"shadow-[0_0_22px_rgba(16,185,129,0.9)]",
-					"scale-105",
-					"opacity-100",
-				);
-			} else {
-				avatar.classList.remove(
-					"border-emerald-400",
-					"ring-4",
-					"ring-emerald-500/60",
-					"shadow-[0_0_22px_rgba(16,185,129,0.9)]",
-					"scale-105",
-					"opacity-100",
-				);
-				avatar.classList.add("border-surface-1/80", "ring-0", "shadow-none", "scale-100", "opacity-85");
-			}
-		}
+		this.emit();
 	}
 
 	/**
@@ -221,7 +110,7 @@ export default class CasterHandler {
 									isSpeaking: Boolean(u.isSpeaking),
 								};
 							});
-							this.render();
+							this.emit();
 						} else if (msg.type === "discord_speaking") {
 							this.setSpeaking(msg.userId, Boolean(msg.isSpeaking));
 						}

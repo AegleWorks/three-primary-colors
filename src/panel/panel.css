@@ -1,0 +1,819 @@
+/* Control panel, in the broadcast's own language: smoked ink, gold for what
+   is on air, red and blue for the two players, Torus for names and numbers.
+   Built to work as a narrow OBS dock first and as a wide tab second. */
+
+@font-face {
+	font-family: "Torus";
+	src: url("../oro/fonts/Torus-SemiBold.woff2") format("woff2");
+	font-weight: 600;
+}
+
+@font-face {
+	font-family: "Torus";
+	src: url("../oro/fonts/Torus-Heavy.woff2") format("woff2");
+	font-weight: 900;
+}
+
+:root {
+	--ink: #0c0a07;
+	--panel: #16130d;
+	--raise: #211c13;
+	--line: rgba(226, 184, 102, 0.16);
+	--gold: #e2b866;
+	--gold-hi: #ffe3a3;
+	--text: #f1ece2;
+	--dim: #9d9585;
+	--left: #ff4d5e;
+	--right: #4c7dff;
+	--on: #3ddc84;
+	--off: #6d6658;
+	--display: "Torus", "Nunito", sans-serif;
+	color-scheme: dark;
+}
+
+* {
+	box-sizing: border-box;
+	margin: 0;
+}
+
+body {
+	min-height: 100vh;
+	padding: 14px;
+	background: var(--ink);
+	color: var(--text);
+	font: 500 14px/1.45 "Nunito", system-ui, sans-serif;
+}
+
+h2 {
+	font: 900 16px/1.2 var(--display);
+	letter-spacing: 0.01em;
+}
+
+code {
+	font-size: 0.92em;
+	color: var(--gold-hi);
+}
+
+.note {
+	color: var(--dim);
+	font-size: 12.5px;
+}
+
+.dot {
+	width: 8px;
+	height: 8px;
+	flex: none;
+	border-radius: 50%;
+	background: var(--off);
+}
+
+.dot[data-on="true"] {
+	background: var(--on);
+	box-shadow: 0 0 8px rgba(61, 220, 132, 0.6);
+}
+
+.who {
+	font: 900 15px/1.1 var(--display);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.who--l {
+	color: var(--left);
+}
+
+.who--r {
+	color: var(--right);
+}
+
+/* ---------- controls ---------- */
+
+.btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: 34px;
+	padding: 6px 12px;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	background: var(--raise);
+	color: var(--text);
+	font: 700 13.5px/1.1 "Nunito", sans-serif;
+	cursor: pointer;
+}
+
+.btn:hover {
+	border-color: rgba(226, 184, 102, 0.45);
+}
+
+.btn:active {
+	transform: translateY(1px);
+}
+
+.btn:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+.card:focus-visible {
+	outline: 2px solid var(--gold-hi);
+	outline-offset: 2px;
+}
+
+.btn--gold {
+	background: var(--gold);
+	border-color: var(--gold);
+	color: #1a1205;
+}
+
+.btn--gold:hover {
+	background: var(--gold-hi);
+}
+
+.btn--quiet {
+	background: transparent;
+}
+
+.btn--wide {
+	width: 100%;
+}
+
+input,
+select {
+	min-height: 34px;
+	padding: 5px 9px;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	background: var(--ink);
+	color: var(--text);
+	font: inherit;
+}
+
+.field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	color: var(--dim);
+	font-size: 12.5px;
+}
+
+.field--inline {
+	flex-direction: row;
+	align-items: center;
+	gap: 8px;
+}
+
+.field--inline input {
+	width: 70px;
+}
+
+.toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 13px;
+	cursor: pointer;
+}
+
+.toggle input {
+	min-height: 0;
+	accent-color: var(--gold);
+}
+
+.row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.grid2 {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+
+.grid2 .btn {
+	justify-content: flex-start;
+}
+
+/* ---------- on air: what the overlay shows right now ---------- */
+
+.onair {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	grid-template-areas:
+		"scene series"
+		"map map"
+		"links links";
+	align-items: center;
+	gap: 10px 18px;
+	padding: 14px 16px;
+	border: 1px solid var(--line);
+	border-left: 4px solid var(--gold);
+	border-radius: 8px;
+	background: var(--panel);
+}
+
+.onair-scene {
+	grid-area: scene;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.onair-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	color: var(--dim);
+	font-size: 12.5px;
+}
+
+.onair[data-live="true"] .onair-tag .dot {
+	background: var(--left);
+	box-shadow: 0 0 8px rgba(255, 77, 94, 0.7);
+}
+
+.onair-name {
+	font: 900 30px/1 var(--display);
+	color: var(--gold-hi);
+}
+
+.onair-series {
+	grid-area: series;
+	display: grid;
+	grid-template-columns: 1fr auto 1fr;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
+}
+
+.onair-series .who--l {
+	text-align: right;
+}
+
+.score {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font: 900 30px/1 var(--display);
+}
+
+.score i {
+	font-style: normal;
+	color: var(--off);
+}
+
+.onair-map {
+	grid-area: map;
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: space-between;
+	gap: 4px 16px;
+	padding-top: 10px;
+	border-top: 1px solid var(--line);
+	font-weight: 700;
+}
+
+.onair-turn {
+	color: var(--dim);
+	font-weight: 600;
+}
+
+.onair-turn b {
+	font: 900 14px/1 var(--display);
+}
+
+.links {
+	grid-area: links;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+	color: var(--dim);
+	font-size: 12.5px;
+}
+
+.link {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.link--warn {
+	color: var(--gold-hi);
+}
+
+/* ---------- scene rail ---------- */
+
+.rail {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px 14px;
+	margin: 12px 0;
+}
+
+.rail-scenes {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+	gap: 6px;
+	flex: 1 1 100%;
+}
+
+.rail-scenes .btn {
+	min-height: 42px;
+	white-space: nowrap;
+	font: 900 14px/1.1 var(--display);
+}
+
+/* the scene on air: lit like a program bus */
+.rail-scenes .btn[aria-current="true"] {
+	background: var(--gold);
+	border-color: var(--gold);
+	color: #1a1205;
+}
+
+.rail-note {
+	color: var(--dim);
+	font-size: 12.5px;
+}
+
+/* ---------- desk: draft and the side column ---------- */
+
+.desk {
+	display: grid;
+	gap: 12px;
+}
+
+.draft,
+.block {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 14px 16px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--panel);
+}
+
+.head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+}
+
+/* Narrow: the side blocks join the desk's grid, so the selected map's
+   sticky actions can ride along the whole pool. */
+.side {
+	display: contents;
+}
+
+/* The pool, mod by mod, in the overlay's mod colours. A card carries the
+   map's art, and wears the picker's colour on its left edge, the winner's
+   along the bottom and the banner's (dimmed) when banned. */
+.pool {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.mod {
+	--mod: var(--gold);
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.mod[data-mod="nm"] { --mod: #e1dcd0; }
+.mod[data-mod="hd"] { --mod: var(--gold-hi); }
+.mod[data-mod="hr"] { --mod: #ff7584; }
+.mod[data-mod="dt"] { --mod: #b1a3ff; }
+.mod[data-mod="fm"] { --mod: #85d8bf; }
+.mod[data-mod="tb"] { --mod: var(--gold); }
+
+.mod-name {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font: 900 15px/1 var(--display);
+	letter-spacing: 0.06em;
+	color: var(--mod);
+}
+
+.mod-name::after {
+	content: "";
+	flex: 1;
+	height: 1px;
+	background: color-mix(in srgb, var(--mod) 30%, transparent);
+}
+
+.mod-cards {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+	gap: 8px;
+}
+
+.card {
+	--by: transparent;
+	--won: transparent;
+	position: relative;
+	isolation: isolate;
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	min-width: 0;
+	min-height: 118px;
+	padding: 9px 12px 11px 13px;
+	overflow: hidden;
+	border: 1px solid var(--line);
+	border-left: 4px solid var(--by);
+	border-radius: 6px;
+	background: var(--raise);
+	box-shadow: inset 0 -4px 0 var(--won);
+	color: var(--text);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.card-art {
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background-size: cover;
+	background-position: center;
+}
+
+.card-art::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(90deg, rgba(12, 10, 7, 0.94) 35%, rgba(12, 10, 7, 0.55));
+}
+
+.card:hover {
+	border-color: rgba(226, 184, 102, 0.45);
+	border-left-color: var(--by);
+}
+
+.card[data-by="l"] {
+	--by: var(--left);
+}
+
+.card[data-by="r"] {
+	--by: var(--right);
+}
+
+.card[data-won="l"] {
+	--won: var(--left);
+}
+
+.card[data-won="r"] {
+	--won: var(--right);
+}
+
+.card-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 6px;
+	margin-bottom: 3px;
+}
+
+.card-slot {
+	font: 900 14px/1.2 var(--display);
+	color: var(--mod);
+}
+
+.card-state {
+	padding: 2px 7px;
+	border-radius: 4px;
+	background: rgba(12, 10, 7, 0.8);
+	font: 800 11.5px/1.3 "Nunito", sans-serif;
+	white-space: nowrap;
+	color: var(--dim);
+}
+
+.card-state[data-tone="l"] {
+	color: #fff;
+	background: var(--left);
+}
+
+.card-state[data-tone="r"] {
+	color: #fff;
+	background: var(--right);
+}
+
+.card-title {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font: 900 16px/1.2 var(--display);
+}
+
+.card-artist,
+.card-diff {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font-size: 12.5px;
+	color: #cfc7b8;
+}
+
+.card-diff {
+	color: var(--dim);
+}
+
+.card-stats {
+	display: flex;
+	gap: 12px;
+	margin-top: auto;
+	padding-top: 6px;
+	font: 600 12.5px/1 var(--display);
+	color: #cfc7b8;
+}
+
+.card-stats b {
+	color: var(--gold-hi);
+}
+
+.card[data-ban] {
+	color: var(--off);
+}
+
+.card[data-ban] .card-art {
+	filter: grayscale(1) brightness(0.5);
+}
+
+.card[data-ban] .card-title {
+	text-decoration: line-through;
+	color: var(--dim);
+}
+
+.card[data-ban] .card-state[data-tone="l"] {
+	background: color-mix(in srgb, var(--left) 45%, #000);
+}
+
+.card[data-ban] .card-state[data-tone="r"] {
+	background: color-mix(in srgb, var(--right) 45%, #000);
+}
+
+.card[data-ban="l"] {
+	border-left-color: color-mix(in srgb, var(--left) 45%, #000);
+}
+
+.card[data-ban="r"] {
+	border-left-color: color-mix(in srgb, var(--right) 45%, #000);
+}
+
+.card[data-current] {
+	outline: 2px solid var(--gold);
+	outline-offset: -2px;
+}
+
+.card[aria-pressed="true"] {
+	border-color: var(--gold-hi);
+	border-left-color: var(--by);
+	box-shadow: inset 0 -4px 0 var(--won), 0 0 0 2px var(--gold-hi);
+}
+
+/* ---------- selected map ---------- */
+
+/* In a narrow dock the pool is long: the selected map's actions stay pinned
+   to the bottom so they are always in reach. */
+.selected:has(#selectedBody:not([hidden])) {
+	position: sticky;
+	bottom: 0;
+	z-index: 1;
+	border-color: var(--gold);
+}
+
+.selected-art {
+	--mod: var(--gold-hi);
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	margin: -14px -16px 10px;
+	padding: 16px 16px 14px;
+	border-radius: 8px 8px 0 0;
+	background-size: cover;
+	background-position: center;
+}
+
+.selected-art[data-mod="nm"] { --mod: #e1dcd0; }
+.selected-art[data-mod="hr"] { --mod: #ff7584; }
+.selected-art[data-mod="dt"] { --mod: #b1a3ff; }
+.selected-art[data-mod="fm"] { --mod: #85d8bf; }
+.selected-art[data-mod="tb"] { --mod: var(--gold); }
+
+.selected-meta {
+	color: #cfc7b8;
+	font-size: 12.5px;
+}
+
+.selected-head {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	min-width: 0;
+}
+
+.selected-head b {
+	font: 900 22px/1 var(--display);
+	color: var(--mod);
+}
+
+.selected-head span {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font: 900 17px/1.2 var(--display);
+}
+
+.selected-state {
+	display: block;
+	margin: 0 0 8px;
+	color: var(--dim);
+	font-size: 13px;
+}
+
+.sides {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+	margin-bottom: 8px;
+}
+
+.side-col {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 4px;
+	padding: 8px;
+	border-radius: 6px;
+	border-top: 3px solid;
+	background: var(--ink);
+}
+
+.side-col .who {
+	grid-column: 1 / -1;
+	margin-bottom: 2px;
+}
+
+.side-col .btn {
+	min-height: 32px;
+	padding: 4px 6px;
+}
+
+.side-col--l {
+	border-color: var(--left);
+}
+
+.side-col--r {
+	border-color: var(--right);
+}
+
+/* the state the map is in now, for that side */
+.side-col .btn[aria-pressed="true"] {
+	background: var(--side, var(--gold));
+	border-color: var(--side, var(--gold));
+	color: #fff;
+}
+
+.side-col--l .btn {
+	--side: var(--left);
+}
+
+.side-col--r .btn {
+	--side: var(--right);
+}
+
+/* ---------- timer ---------- */
+
+.timer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.presets {
+	display: flex;
+	gap: 6px;
+}
+
+.presets .btn {
+	min-width: 52px;
+	font: 900 14px/1 var(--display);
+}
+
+.presets .btn[aria-pressed="true"] {
+	border-color: var(--gold);
+	color: var(--gold-hi);
+}
+
+.seconds {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--dim);
+}
+
+.seconds input {
+	width: 76px;
+}
+
+/* ---------- demo and OBS ---------- */
+
+.block--sim {
+	border-style: dashed;
+}
+
+.obs summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	cursor: pointer;
+	list-style: none;
+}
+
+.obs summary::after {
+	content: "Mostrar";
+	color: var(--dim);
+	font-size: 12.5px;
+}
+
+.obs[open] summary::after {
+	content: "Ocultar";
+}
+
+.obs[open] {
+	gap: 12px;
+}
+
+#obsSetupStatus[data-ok="true"] {
+	color: var(--on);
+}
+
+#obsSetupStatus[data-ok="false"] {
+	color: var(--left);
+}
+
+/* ---------- wide: a tab rather than a dock ---------- */
+
+@media (min-width: 980px) {
+	body {
+		padding: 18px 22px;
+	}
+
+	.onair {
+		grid-template-columns: auto 1fr auto;
+		grid-template-areas:
+			"scene series links"
+			"map map map";
+	}
+
+	.links {
+		justify-content: flex-end;
+	}
+
+	.rail-scenes {
+		grid-template-columns: repeat(7, 1fr);
+		flex: 1;
+	}
+
+	.desk {
+		grid-template-columns: minmax(0, 1fr) 340px;
+		align-items: start;
+	}
+
+	.side {
+		position: sticky;
+		top: 18px;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.selected:has(#selectedBody:not([hidden])) {
+		position: static;
+	}
+
+	.side-col {
+		grid-template-columns: 1fr;
+		gap: 6px;
+		padding: 10px;
+	}
+
+	.side-col .btn {
+		min-height: 34px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.btn:active {
+		transform: none;
+	}
+}

@@ -10,7 +10,11 @@ export type Modpool = {
 }
 
 export interface Data {
-    mappool: Modpool[]
+    mappool: Modpool[],
+    // seeds and country ranks by player name (tosu has neither)
+    players?: Record<string, { seed?: number, countryRank?: number }>,
+    // Twitch channel whose chat the overlay shows
+    twitch?: string
 }
 
 export type Beatmap = {

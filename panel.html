@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<link rel="icon" type="image/svg" href="/vcl.svg" />
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@500;600;700;800&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/src/panel/panel.css">
+	<title>Rempalago 3 // Panel</title>
+</head>
+
+<!-- The control panel: a browser tab or an OBS custom browser dock. It drives
+     the overlay (index.html) through the bridge server that bun dev starts. -->
+<body>
+	<header class="onair" id="onair">
+		<div class="onair-scene">
+			<span class="onair-tag"><i class="dot" id="onairDot"></i><span id="onairLabel">Sin overlay</span></span>
+			<b class="onair-name" id="onairScene">—</b>
+		</div>
+		<div class="onair-series" id="onairSeries">
+			<span class="who who--l" id="seriesNameL">Izquierda</span>
+			<b class="score"><span id="seriesL">0</span><i>–</i><span id="seriesR">0</span></b>
+			<span class="who who--r" id="seriesNameR">Derecha</span>
+		</div>
+		<div class="onair-map">
+			<span id="onairMap">Sin mapa</span>
+			<span class="onair-turn" id="onairTurn"></span>
+		</div>
+		<div class="links">
+			<span class="link" title="El bridge conecta el panel con el overlay"><i class="dot" id="linkDot"></i>Bridge</span>
+			<span class="link"><i class="dot" id="obsStatusDot"></i>OBS</span>
+			<span class="link" id="roundBadge"></span>
+			<span class="link link--warn" id="overlayCount"></span>
+		</div>
+	</header>
+
+	<nav class="rail" aria-label="Escenas">
+		<div class="rail-scenes" id="scenes"></div>
+		<label class="toggle">
+			<input type="checkbox" id="sceneFollowObs" checked>
+			<span>Seguir a OBS</span>
+		</label>
+		<span class="rail-note" id="sceneObsStatus"></span>
+	</nav>
+
+	<main class="desk">
+		<section class="draft" aria-labelledby="draftTitle">
+			<div class="head">
+				<h2 id="draftTitle">Draft</h2>
+				<button type="button" class="btn btn--quiet" id="draftReset">Reiniciar draft</button>
+			</div>
+			<div class="pool" id="draft"></div>
+			<p class="note">El mapa que carga tosu sin pick cuenta como pick del que sigue. El ganador se marca solo cuando termina el mapa.</p>
+		</section>
+
+		<aside class="side">
+			<section class="block selected" id="selected" aria-live="polite">
+				<p class="note" id="selectedEmpty">Toca un mapa del pool para pickearlo, banearlo o marcar quién lo ganó.</p>
+				<div id="selectedBody" hidden>
+					<div class="selected-art" id="selectedArt">
+						<div class="selected-head">
+							<b id="selectedSlot"></b>
+							<span id="selectedTitle"></span>
+						</div>
+						<span class="selected-meta" id="selectedMeta"></span>
+					</div>
+					<span class="selected-state" id="selectedState"></span>
+					<div class="sides">
+						<div class="side-col side-col--l">
+							<span class="who who--l" id="selNameL">Izquierda</span>
+							<button type="button" class="btn" data-edit="pick" data-side="l">Pick</button>
+							<button type="button" class="btn" data-edit="ban" data-side="l">Ban</button>
+							<button type="button" class="btn" data-edit="win" data-side="l">Ganó</button>
+						</div>
+						<div class="side-col side-col--r">
+							<span class="who who--r" id="selNameR">Derecha</span>
+							<button type="button" class="btn" data-edit="pick" data-side="r">Pick</button>
+							<button type="button" class="btn" data-edit="ban" data-side="r">Ban</button>
+							<button type="button" class="btn" data-edit="win" data-side="r">Ganó</button>
+						</div>
+					</div>
+					<button type="button" class="btn btn--quiet btn--wide" data-edit="clear">Quitar pick o ban</button>
+				</div>
+			</section>
+
+			<section class="block" aria-labelledby="timerTitle">
+				<h2 id="timerTitle">Timer de pick</h2>
+				<div class="timer">
+					<div class="presets" id="timerPresets"></div>
+					<label class="seconds"><input type="number" id="timerSeconds" value="120" min="5" max="600" step="5"> s</label>
+				</div>
+				<div class="row">
+					<button type="button" class="btn btn--gold" id="timerStart">Iniciar timer</button>
+					<button type="button" class="btn" id="timerStop">Parar</button>
+				</div>
+				<p class="note">También arranca solo con el <code>!mp timer</code> del referee.</p>
+			</section>
+
+			<section class="block" aria-labelledby="toolsTitle">
+				<h2 id="toolsTitle">Herramientas</h2>
+				<div class="grid2" id="keys"></div>
+				<label class="field">
+					<span>Ronda</span>
+					<select id="round"></select>
+				</label>
+				<p class="note">Cambiar la ronda recarga el overlay. Para dejarla fija, ponla en la URL del source: <code>?round=sf</code>.</p>
+			</section>
+
+			<section class="block block--sim" id="simBlock" hidden aria-labelledby="simTitle">
+				<h2 id="simTitle">Demo</h2>
+				<p class="note">El overlay está corriendo el partido simulado (<code>?sim</code>).</p>
+				<div class="grid2" id="simKeys"></div>
+			</section>
+
+			<details class="block obs">
+				<summary><h2>Conexión con OBS</h2></summary>
+				<label class="field"><span>WebSocket</span><input type="text" id="obsUrl" value="ws://127.0.0.1:4455"></label>
+				<label class="field"><span>Contraseña</span><input type="password" id="obsPassword" placeholder="Opcional"></label>
+				<label class="field"><span>Escena de gameplay</span><input type="text" id="obsSceneName" value="osu! rempalago"></label>
+				<label class="field"><span>Acomodo de clientes</span>
+					<select id="obsLayoutMode">
+						<option value="dwindle">Dwindle (Hyprland)</option>
+						<option value="grid">Cuadrícula</option>
+						<option value="master-stack">Principal y pila</option>
+						<option value="team-split">Por equipo (izquierda / derecha)</option>
+					</select>
+				</label>
+				<div class="row">
+					<label class="field field--inline"><span>Espacio</span><input type="number" id="obsGap" value="8" min="0" max="64"></label>
+					<label class="toggle"><input type="checkbox" id="obsAutoTile" checked><span>Acomodar al cambiar clientes</span></label>
+				</div>
+				<div class="row">
+					<button type="button" class="btn btn--gold" id="obsConnectBtn">Conectar a OBS</button>
+					<button type="button" class="btn" id="obsApplyBtn">Acomodar ahora</button>
+				</div>
+				<button type="button" class="btn btn--quiet btn--wide" id="obsAutoSetupBtn">Crear la escena de gameplay en OBS</button>
+				<p class="note" id="obsSetupStatus"></p>
+			</details>
+		</aside>
+	</main>
+	<script type="module" src="/src/panel/main.ts"></script>
+</body>
+
+</html>

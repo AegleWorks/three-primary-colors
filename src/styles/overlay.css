@@ -1,0 +1,34 @@
+/* Oro as a browser source: the stage at the top-left at 1:1 on a
+   transparent page, so OBS composites it. The control panel is panel.html. */
+
+html,
+body {
+	background: transparent;
+}
+
+body {
+	width: 1920px;
+	height: 1080px;
+	margin: 0;
+}
+
+.stage {
+	left: 0;
+	transform: none;
+}
+
+/* Live: the tournament clients are OBS sources under this page, so the
+   playfield band (y 100-820) stays see-through during gameplay. */
+.stage[data-live] .clients,
+.stage[data-live] .gp .client {
+	background: none !important;
+}
+
+body[data-scene="gameplay"] .stage[data-live] .backdrop {
+	clip-path: polygon(0 0, 100% 0, 100% 100px, 0 100px, 0 820px, 100% 820px, 100% 100%, 0 100%);
+}
+
+/* An empty caster seat (fewer than two on the call). */
+[data-caster][hidden] {
+	display: none !important;
+}

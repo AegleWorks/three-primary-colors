@@ -8,6 +8,11 @@ export default defineConfig({
 	build: {
 		target: "esnext", //browsers can handle the latest ES features,
 		rolldownOptions: {
+			// The overlay (OBS browser source) and the control panel (tab or dock).
+			input: {
+				index: path.resolve(import.meta.dirname, "index.html"),
+				panel: path.resolve(import.meta.dirname, "panel.html"),
+			},
 			output: {
 				entryFileNames: "assets/[name].js",
 				assetFileNames: "assets/[name].[ext]",

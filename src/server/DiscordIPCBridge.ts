@@ -784,8 +784,32 @@ export class DiscordIPCBridge {
 					channelId: this.state.currentChannelId,
 					users: Array.from(this.state.users.values()),
 				});
+				// A control panel that joins late gets the overlay's last state.
+				if (this.overlayState) ws.send(this.overlayState);
+				ws.on("message", (data) => this.relay(ws, String(data)));
 			});
 		});
+	}
+
+	// Control relay: the control panel (a browser tab or an OBS dock) and the
+	// overlay (an OBS browser source) run in different browsers, so they talk
+	// through this server. Panel commands go to every other client; the
+	// overlay's state goes to every other client and is kept for late joiners.
+	private overlayState: string | null = null;
+
+	private relay(from: WebSocket, raw: string) {
+		let type: unknown;
+		try {
+			type = JSON.parse(raw)?.type;
+		} catch {
+			return;
+		}
+		if (type !== "control" && type !== "overlay_state") return;
+		if (type === "overlay_state") this.overlayState = raw;
+		if (!this.wss) return;
+		for (const client of this.wss.clients) {
+			if (client !== from && client.readyState === WebSocket.OPEN) client.send(raw);
+		}
 	}
 
 	private broadcast(payload: unknown) {

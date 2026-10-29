@@ -1,45 +1,14 @@
 import ZEngine from "@fukutotojido/z-engine";
-import BeatmapHandler from "./handler/BeatmapHandler";
-import ChatHandler from "./handler/ChatHandler";
-import GameStateHandler from "./handler/GameStateHandler";
-import MappoolHandler from "./handler/MappoolHandler";
-import ScoreHandler from "./handler/ScoreHandler";
-import TeamHandler from "./handler/TeamHandler";
-import OBSHandler from "./handler/OBSHandler";
-import ResultHandler from "./handler/ResultHandler";
-import ChokeImpactHandler from "./handler/ChokeImpactHandler";
+import ControlLink from "./control/ControlLink";
 import CasterHandler from "./handler/CasterHandler";
-import Simulator from "./handler/Simulator";
-import Test from "./Test";
+import LiveOro from "./oro/live";
+import OverlayRemote from "./oro/remote";
+import { LIVE } from "./oro/stage.js";
+import "./oro/oro.js";
 
+// The overlay: the browser source in OBS. The control panel (panel.html)
+// drives it through the bridge server.
 const engine = new ZEngine("ws://127.0.0.1:24050/ws");
-const test = new Test(engine);
-
-const beatmapHandler = new BeatmapHandler(engine, test);
-const chatHandler = new ChatHandler(engine, test);
-const teamHandler = new TeamHandler(engine, test);
-const scoreHandler = new ScoreHandler(engine, test);
-const gameStateHandler = new GameStateHandler(engine, test);
-const obsHandler = new OBSHandler(engine);
-const resultHandler = new ResultHandler(engine, test);
-const chokeImpactHandler = new ChokeImpactHandler(engine);
-const casterHandler = new CasterHandler("#commentatorDeck");
-const simulator = new Simulator(engine, obsHandler, chokeImpactHandler, casterHandler);
-new MappoolHandler(beatmapHandler);
-
-test.assign({
-	beatmapHandler,
-	chatHandler,
-	teamHandler,
-	scoreHandler,
-	gameStateHandler,
-	obsHandler,
-	resultHandler,
-});
-
-if (typeof window !== "undefined") {
-	(window as unknown as Record<string, unknown>).__overlayTest__ = test;
-	(window as unknown as Record<string, unknown>).__obsHandler__ = obsHandler;
-	(window as unknown as Record<string, unknown>).__simulator__ = simulator;
-	(window as unknown as Record<string, unknown>).__casterHandler__ = casterHandler;
-}
+// ?sim plays the scripted demo match instead of the live one.
+const live = LIVE ? new LiveOro(engine, new CasterHandler()) : null;
+new OverlayRemote(new ControlLink(), live);
