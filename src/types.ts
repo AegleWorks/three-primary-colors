@@ -10,7 +10,10 @@ export type Modpool = {
 }
 
 export interface Data {
-    mappool: Modpool[],
+    // a Google Sheet with the pool, shared as "anyone with the link can view";
+    // when it can be read it replaces mappool
+    sheet?: { id: string, gid?: number },
+    mappool?: Modpool[],
     // seeds and country ranks by player name (tosu has neither)
     players?: Record<string, { seed?: number, countryRank?: number }>,
     // Twitch channel whose chat the overlay shows

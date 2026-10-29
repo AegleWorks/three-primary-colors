@@ -5881,276 +5881,523 @@ body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after 
 }
 
 /* =====================================================================
-   SHOWCASE — the pool, one map at a time.
+   SHOWCASE — the pool, one map at a time, over its replay. A 16:9 window
+   for the replay (see-through live) with the featured map under it, the
+   casters and Twitch chat beside it, and the pool as a timeline along the
+   bottom. No map art outside the replay: the timeline would give away
+   what is coming.
+
+   x 40 ─ replay 1280x720 ─ 1320 · 1344 ─ side 536 ─ 1880
+   y 40  replay / side
+   y 784 map sheet (under the replay; the side runs on to 954)
+   y 978 timeline, full width, to 1040
    ===================================================================== */
 
-.show {
-	display: flex;
-	flex-direction: column;
-	gap: 28px;
-	padding: 56px 80px 70px;
-}
+.show [data-mod="nm"] { --mc: #e1dcd0; }
+.show [data-mod="hd"] { --mc: var(--gold-hi); }
+.show [data-mod="hr"] { --mc: #ff7584; }
+.show [data-mod="dt"] { --mc: #b1a3ff; }
+.show [data-mod="fm"] { --mc: #85d8bf; }
+.show [data-mod="tb"] { --mc: var(--gold); }
 
-.show-head {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-}
+/* ---------- the replay window ---------- */
 
-.show-head .label {
-	font-size: 17px;
-}
-
-.show-count {
-	font: 900 26px/1 var(--display);
-	color: var(--gold-hi);
-}
-
-.show-body {
-	flex: 1;
-	min-height: 0;
-	display: grid;
-	grid-template-columns: 1fr 470px;
-	gap: 36px;
-}
-
-.feature {
+.replay {
 	--mc: var(--gold);
-	position: relative;
-	display: flex;
-	align-items: flex-end;
-	overflow: hidden;
+	position: absolute;
+	left: 40px;
+	top: 40px;
+	width: 1280px;
+	height: 720px;
+	box-shadow: 0 0 0 1px var(--gold-line), 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+
+/* Stand-in for the replay outside the live overlay: the map's art, dimmed. */
+.replay-stand {
+	position: absolute;
+	inset: 0;
+	background: #050403 center / cover;
+	filter: blur(3px) brightness(0.22) saturate(0.7);
+}
+
+.replay::after {
+	content: "Replay";
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	font: 700 15px/1 var(--label);
+	letter-spacing: 0.4em;
+	text-transform: uppercase;
+	color: var(--faint);
+}
+
+.stage[data-live] .replay::after {
+	display: none;
+}
+
+.replay-corner {
+	position: absolute;
+	width: 30px;
+	height: 30px;
+	border: 0 solid var(--mc);
+	transition: border-color 0.4s;
+}
+
+.replay-corner:nth-of-type(1) { left: -7px; top: -7px; border-width: 3px 0 0 3px; }
+.replay-corner:nth-of-type(2) { right: -7px; top: -7px; border-width: 3px 3px 0 0; }
+.replay-corner:nth-of-type(3) { left: -7px; bottom: -7px; border-width: 0 0 3px 3px; }
+.replay-corner:nth-of-type(4) { right: -7px; bottom: -7px; border-width: 0 3px 3px 0; }
+
+/* ---------- the map sheet: slot | title | numbers ---------- */
+
+.sheet {
+	--mc: var(--gold);
+	position: absolute;
+	left: 40px;
+	top: 784px;
+	width: 1280px;
+	height: 170px;
+	display: grid;
+	grid-template-columns: 236px minmax(0, 1fr) 440px;
 	border: 1px solid var(--hair);
-	background: #050403;
+	border-left: 4px solid var(--mc);
+	transition: border-color 0.4s;
 }
 
-.feature[data-mod="nm"] { --mc: #e1dcd0; }
-.feature[data-mod="hd"] { --mc: var(--gold-hi); }
-.feature[data-mod="hr"] { --mc: #ff7584; }
-.feature[data-mod="dt"] { --mc: #b1a3ff; }
-.feature[data-mod="fm"] { --mc: #85d8bf; }
-.feature[data-mod="tb"] { --mc: var(--gold); }
-
-.feature-art {
-	position: absolute;
-	inset: 0;
-	background-size: cover;
-	background-position: center;
-}
-
-.feature-art::after {
-	content: "";
-	position: absolute;
-	inset: 0;
-	background:
-		linear-gradient(0deg, rgba(4, 3, 1, 0.96) 18%, rgba(4, 3, 1, 0.45) 60%, rgba(4, 3, 1, 0.15)),
-		linear-gradient(90deg, rgba(4, 3, 1, 0.6), transparent 60%);
-}
-
-.feature-body {
-	position: relative;
-	width: 100%;
+.sheet-slot {
 	display: flex;
 	flex-direction: column;
-	padding: 0 56px 52px;
+	justify-content: space-between;
+	padding: 22px 0 22px 26px;
 }
 
-.feature-top {
-	display: flex;
-	align-items: center;
-	gap: 16px;
-	margin-bottom: 18px;
+.sheet-slot .label {
+	font-size: 11px;
+	letter-spacing: 0.22em;
+	white-space: nowrap;
 }
 
-.feature-slot {
-	padding: 8px 14px 7px;
-	background: var(--mc);
-	color: #0b0904;
-	font: 900 24px/1 var(--display);
-	letter-spacing: 0.04em;
+.sheet-id {
+	font: 900 76px/0.8 var(--display);
+	letter-spacing: -0.01em;
+	color: var(--mc);
 }
 
-.feature-mod {
-	font: 700 15px/1 var(--label);
-	letter-spacing: 0.3em;
+.sheet-mod {
+	font: 700 12px/1 var(--label);
+	letter-spacing: 0.26em;
 	text-transform: uppercase;
 	color: var(--mc);
 }
 
-.feature-title {
-	font: 900 72px/1.04 var(--display);
+.sheet-body {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	padding: 0 32px;
+	border-left: 1px solid var(--hair);
+}
+
+.sheet-title {
+	font: 900 32px/1.08 var(--display);
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
 	-webkit-box-orient: vertical;
 	overflow: hidden;
 }
 
-.feature-artist {
-	margin-top: 10px;
-	font: 700 28px/1.2 var(--body);
+.sheet-artist,
+.sheet-diff {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.sheet-artist {
+	margin-top: 6px;
+	font: 700 19px/1.25 var(--body);
 	color: #d9d2c3;
 }
 
-.feature-diff {
+.sheet-diff {
 	margin-top: 8px;
-	font: 800 20px/1.3 var(--body);
-	color: var(--gold);
-}
-
-.feature-diff span {
-	margin-left: 12px;
-	font-weight: 600;
+	font: 600 16px/1.3 var(--body);
 	color: var(--dim);
 }
 
-.feature-diff span b {
+.sheet-diff b {
+	font-weight: 800;
 	color: var(--text);
 }
 
-.feature-stats {
-	display: flex;
-	gap: 44px;
-	margin-top: 30px;
-	padding-top: 24px;
-	border-top: 1px solid var(--gold-line);
+.sheet-diff b:first-child {
+	margin-right: 12px;
+	color: var(--gold);
 }
 
-.feature-stats .stat {
+.sheet-numbers {
+	display: flex;
 	flex-direction: column;
-	align-items: flex-start;
+	justify-content: center;
+	gap: 18px;
+	padding: 0 30px;
+	border-left: 1px solid var(--hair);
+}
+
+/* SR, BPM and length: the three numbers a caster reads out. */
+.sheet-key {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+}
+
+.key {
+	display: flex;
+	flex-direction: column;
 	gap: 8px;
 }
 
-.feature-stats .stat dt {
-	font-size: 12px;
+.key dt,
+.meter dt {
+	font: 700 10px/1 var(--label);
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	color: var(--dim);
 }
 
-.feature-stats .stat dd {
-	font-size: 40px;
+.key dd {
+	font: 900 34px/1 var(--display);
 }
 
-.stat--len dt {
-	color: #d1cabc;
+.key--sr dt,
+.key--sr dd {
+	color: var(--gold-hi);
 }
 
-.feature-progress {
-	position: absolute;
-	left: 0;
-	right: 0;
-	bottom: 0;
+.key dd i {
+	margin-left: 3px;
+	font-size: 0.6em;
+	font-style: normal;
+	vertical-align: 0.35em;
+}
+
+/* CS, AR and OD on one 0-11 scale, so their bars compare. */
+.sheet-meters {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 20px;
+}
+
+.meter {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	grid-template-rows: auto 4px;
+	align-items: baseline;
+	gap: 7px 10px;
+}
+
+.meter dd {
+	justify-self: end;
+	font: 900 20px/1 var(--display);
+}
+
+.meter-bar {
+	position: relative;
+	grid-column: 1 / -1;
 	height: 4px;
 	background: rgba(255, 255, 255, 0.08);
 }
 
-.feature-progress i {
+.meter-bar i {
 	position: absolute;
 	inset: 0;
 	background: var(--mc);
 	transform-origin: left;
-	transform: scaleX(0);
+	transform: scaleX(var(--v, 0));
 }
 
-.feature.is-in .feature-progress i {
-	animation: feature-run 6.5s linear both;
-}
+/* ---------- beside the replay: casters, then Twitch ---------- */
 
-@keyframes feature-run {
-	from {
-		transform: scaleX(0);
-	}
-
-	to {
-		transform: scaleX(1);
-	}
-}
-
-.feature.is-in .feature-art {
-	animation: feature-art 6.5s ease-out both;
-}
-
-@keyframes feature-art {
-	from {
-		opacity: 0.2;
-		transform: scale(1.08);
-	}
-
-	12% {
-		opacity: 1;
-	}
-
-	to {
-		transform: scale(1);
-	}
-}
-
-.feature.is-in .feature-body > * {
-	animation: rise 0.6s calc(0.1s + var(--d, 0s)) var(--out) both;
-}
-
-.feature.is-in .feature-title {
-	--d: 0.06s;
-}
-
-.feature.is-in .feature-artist,
-.feature.is-in .feature-diff {
-	--d: 0.12s;
-}
-
-.feature.is-in .feature-stats {
-	--d: 0.2s;
-}
-
-.show-list {
+.show-side {
+	position: absolute;
+	left: 1344px;
+	top: 40px;
+	width: 536px;
+	height: 914px;
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
-	list-style: none;
+	gap: 16px;
 }
 
-.show-list li {
-	flex: 1;
-	min-height: 0;
-	display: grid;
-	grid-template-columns: 54px 1fr auto;
-	align-items: center;
-	gap: 12px;
-	padding: 0 16px;
-	background: rgba(6, 5, 3, 0.7);
+.show-casters,
+.show-chat {
+	display: flex;
+	flex-direction: column;
+	padding: 18px 22px;
 	border: 1px solid var(--hair);
-	color: var(--dim);
-	transition: background 0.3s, color 0.3s, border-color 0.3s;
 }
 
-.show-list b {
-	font: 700 13px/1 var(--label);
-	letter-spacing: 0.1em;
+.show-casters .chat-head,
+.show-chat .chat-head {
+	margin-bottom: 14px;
+	font-size: 11px;
 }
 
-.show-list span {
+.show-chat .chat-head b {
+	color: #b58cff;
+}
+
+/* One caster gets the row; two to four sit two abreast. */
+.seats {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+}
+
+.show-casters[data-count="1"] .seats {
+	grid-template-columns: 1fr;
+}
+
+.seat {
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 10px 14px 10px 10px;
+	background: rgba(6, 5, 3, 0.6);
+	border: 1px solid var(--hair);
+	transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.seat .pfp {
+	--pfp: 52px;
+	--ring: var(--gold-line);
+	flex: none;
+	transition: box-shadow 0.15s;
+}
+
+.seat b {
+	flex: 1;
+	min-width: 0;
 	overflow: hidden;
 	white-space: nowrap;
 	text-overflow: ellipsis;
-	font: 700 16px/1 var(--display);
+	font: 900 23px/1 var(--display);
 }
 
-.show-list i {
-	font: 600 13px/1 var(--display);
-	font-style: normal;
+/* Talking: the same green as the starting scene's booths. */
+.seat.is-talking {
+	border-color: #3ddc84;
+	box-shadow: 0 0 0 1px #3ddc84, 0 0 24px rgba(61, 220, 132, 0.25);
+}
+
+.seat.is-talking .pfp {
+	box-shadow: 0 0 0 3px #3ddc84, 0 0 18px rgba(61, 220, 132, 0.6);
+}
+
+.seat.is-talking .wave i {
+	background: #3ddc84;
+}
+
+.show-chat {
+	flex: 1;
+	min-height: 0;
+}
+
+.show-chat .feed {
+	font-size: 17px;
+	line-height: 1.55;
+}
+
+.show-chat .msg {
+	white-space: normal;
+}
+
+/* ---------- the pool timeline ---------- */
+
+.line {
+	position: absolute;
+	left: 40px;
+	right: 40px;
+	top: 978px;
+	height: 62px;
+	display: flex;
+	gap: 28px;
+	list-style: none;
+}
+
+.line-mod {
+	--mc: var(--gold);
+	flex: var(--n, 1) 1 0;
+	min-width: 0;
+	display: flex;
+	align-items: flex-end;
+	gap: 12px;
+	transition: flex-grow 0.5s var(--out);
+}
+
+/* the group on screen widens too, so the featured title has room */
+.line-mod[data-now] {
+	flex-grow: calc(var(--n, 1) + 2.5);
+}
+
+.line-head {
+	flex: none;
+	height: 42px;
+	display: flex;
+	align-items: center;
+	font: 900 20px/1 var(--display);
+	color: var(--mc);
+	opacity: 0.7;
+	transition: opacity 0.4s;
+}
+
+.line-mod[data-now] .line-head {
+	opacity: 1;
+}
+
+/* The rail runs above the slots; a diamond marks each one. */
+.line-maps {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	gap: 6px;
+	list-style: none;
+}
+
+.line-map {
+	position: relative;
+	flex: 1 1 0;
+	min-width: 0;
+	height: 42px;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	padding: 0 12px;
+	background: rgba(6, 5, 3, 0.75);
+	border: 1px solid var(--hair);
+	transition: flex-grow 0.5s var(--out), background 0.4s, border-color 0.4s;
+}
+
+.line-map::before {
+	content: "";
+	position: absolute;
+	left: -4px;
+	right: -4px;
+	top: -12px;
+	height: 2px;
+	background: var(--hair);
+}
+
+.line-map::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	top: -16px;
+	width: 6px;
+	height: 6px;
+	margin-left: -4px;
+	background: #050403;
+	border: 2px solid var(--faint);
+	transform: rotate(45deg);
+	transition: background 0.4s, border-color 0.4s, transform 0.4s var(--snap);
+}
+
+.line-n {
+	flex: none;
+	margin-inline: auto;
+	font: 900 22px/1 var(--display);
+	color: var(--dim);
+	transition: color 0.4s;
+}
+
+.line-title {
+	display: none;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font: 800 16px/1 var(--display);
+}
+
+/* already shown */
+.line-map[data-state="past"]::before,
+.line-map[data-state="now"]::before {
+	background: var(--gold-deep);
+}
+
+.line-map[data-state="past"]::after {
+	background: var(--gold-deep);
+	border-color: var(--gold-deep);
+}
+
+.line-map[data-state="past"] .line-n {
 	color: var(--faint);
 }
 
-.show-list li.is-on {
-	background: rgba(226, 184, 102, 0.14);
-	border-color: var(--gold);
-	color: var(--text);
+/* on screen now: wider, in its mod's colour, with its title */
+.line-map[data-state="now"] {
+	flex-grow: 4;
+	background: color-mix(in srgb, var(--mc) 16%, rgba(6, 5, 3, 0.85));
+	border-color: var(--mc);
 }
 
-.show-list li.is-on i {
-	color: var(--gold-hi);
+.line-map[data-state="now"]::before {
+	background: linear-gradient(90deg, var(--gold-deep), var(--mc));
 }
 
-.show[data-active] .show-list li {
-	animation: rise 0.45s calc(0.2s + var(--i, 0) * 0.03s) ease-out both;
+.line-map[data-state="now"]::after {
+	background: var(--mc);
+	border-color: var(--mc);
+	transform: rotate(45deg) scale(1.5);
+}
+
+.line-map[data-state="now"] .line-n {
+	margin-inline: 0;
+	color: var(--mc);
+}
+
+.line-map[data-state="now"] .line-title {
+	display: block;
+	animation: fade 0.3s 0.25s both;
+}
+
+/* ---------- motion: one entrance, then a quiet swap per map ---------- */
+
+.show[data-active] .replay {
+	animation: fade 0.6s both;
+}
+
+.show[data-active] .show-side {
+	animation: rise 0.6s 0.1s var(--out) both;
+}
+
+.show[data-active] .line {
+	animation: rise 0.6s 0.2s var(--out) both;
+}
+
+.sheet.is-in .sheet-slot > *,
+.sheet.is-in .sheet-body > *,
+.sheet.is-in .sheet-numbers > * {
+	animation: rise 0.5s calc(0.05s + var(--d, 0s)) var(--out) both;
+}
+
+.sheet.is-in .sheet-body > * {
+	--d: 0.06s;
+}
+
+.sheet.is-in .sheet-numbers > * {
+	--d: 0.12s;
+}
+
+.sheet.is-in .meter-bar i {
+	animation: meter 0.8s 0.25s var(--out) both;
+}
+
+@keyframes meter {
+	from {
+		transform: scaleX(0);
+	}
 }
 
 /* =====================================================================

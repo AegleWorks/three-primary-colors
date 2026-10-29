@@ -11,6 +11,8 @@ export type Command =
 	| { action: "timer"; seconds: number | null }
 	| { action: "draft"; id: string; side: Side; edit: DraftEdit }
 	| { action: "draftReset" }
+	| { action: "showcase"; id: string }
+	| { action: "poolReload" }
 	| { action: "round"; round: string };
 
 export interface OverlayState {
@@ -27,6 +29,10 @@ export interface OverlayState {
 	map: { id: string; title: string };
 	pool: { id: string; set: number; title: string; artist: string; diff: string; mapper: string; sr: number; bpm: number; len: string }[];
 	draft: Draft;
+	// the pool slot the showcase features
+	showcase: string;
+	// where the pool came from, or what went wrong loading it
+	poolStatus: { ok: boolean; text: string };
 }
 
 type Message = ({ type: "control" } & Command) | ({ type: "overlay_state" } & OverlayState);

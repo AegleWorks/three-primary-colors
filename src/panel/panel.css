@@ -817,3 +817,52 @@ select {
 		transform: none;
 	}
 }
+
+/* ---------- showcase: the pool as the overlay's timeline ---------- */
+
+.showcase-line {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.showcase-mod {
+	flex-direction: row;
+	align-items: center;
+	gap: 10px;
+}
+
+.showcase-mod .mod-name {
+	width: 34px;
+	flex: none;
+}
+
+.showcase-mod .mod-name::after {
+	display: none;
+}
+
+.showcase-slots {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.showcase-slot {
+	min-width: 40px;
+	font: 900 15px/1 var(--display);
+}
+
+.showcase-slot[aria-pressed="true"] {
+	background: var(--mod);
+	border-color: var(--mod);
+	color: #1a1205;
+}
+
+.btn:disabled {
+	opacity: 0.45;
+	cursor: default;
+}
+
+.pool-status[data-ok="false"] {
+	color: #ff9f5a;
+}

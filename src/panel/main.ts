@@ -104,6 +104,11 @@ if (import.meta.env.DEV) for (const [key, label] of SIM_KEYS) $("#simKeys").appe
 else $("#simBlock").remove();
 
 // ---------- draft ----------
+$("#poolReload").addEventListener("click", () => {
+	$("#poolStatus").textContent = "Recargando el pool";
+	delete $("#poolStatus").dataset.ok;
+	send({ action: "poolReload" });
+});
 $("#draftReset").addEventListener("click", () => {
 	if (confirmReset()) send({ action: "draftReset" });
 });
@@ -137,6 +142,12 @@ function stateText(id: string, short = false) {
 }
 
 function renderDraft() {
+	const status = $("#poolStatus");
+	status.hidden = !state?.live || !state.poolStatus?.text;
+	if (state?.poolStatus) {
+		status.textContent = state.poolStatus.text;
+		status.dataset.ok = String(state.poolStatus.ok);
+	}
 	const box = $("#draft");
 	box.innerHTML = "";
 	if (!state) {
@@ -217,6 +228,39 @@ for (const b of document.querySelectorAll<HTMLElement>("#selected [data-edit]"))
 	});
 }
 
+// ---------- showcase ----------
+const modOf = (id: string) => id.replace(/\d+$/, "");
+function stepShowcase(by: number) {
+	if (!state?.pool.length) return;
+	const ids = state.pool.map((m) => m.id);
+	const i = Math.max(0, ids.indexOf(state.showcase));
+	send({ action: "showcase", id: ids[(i + by + ids.length) % ids.length] });
+}
+$("#showcasePrev").addEventListener("click", () => stepShowcase(-1));
+$("#showcaseNext").addEventListener("click", () => stepShowcase(1));
+
+function renderShowcase() {
+	const box = $("#showcaseLine");
+	box.innerHTML = "";
+	const pool = state?.pool ?? [];
+	for (const b of [$("#showcasePrev"), $("#showcaseNext")]) (b as HTMLButtonElement).disabled = !pool.length;
+	if (!pool.length) return;
+	for (const mod of [...new Set(pool.map((m) => modOf(m.id)))]) {
+		const row = document.createElement("div");
+		row.className = "mod showcase-mod";
+		row.dataset.mod = mod.toLowerCase();
+		row.innerHTML = `<b class="mod-name">${mod}</b><div class="showcase-slots"></div>`;
+		for (const map of pool.filter((m) => modOf(m.id) === mod)) {
+			const b = button(map.id === mod ? mod : map.id.slice(mod.length), () => send({ action: "showcase", id: map.id }), "btn showcase-slot");
+			b.title = `${map.id}: ${map.artist} - ${map.title} [${map.diff}]`;
+			b.setAttribute("aria-label", b.title);
+			b.setAttribute("aria-pressed", String(state!.showcase === map.id));
+			row.lastElementChild!.append(b);
+		}
+		box.append(row);
+	}
+}
+
 // ---------- on air ----------
 function renderOnAir() {
 	const onAir = $("#onair");
@@ -258,6 +302,7 @@ setInterval(() => {
 		renderOnAir();
 		renderDraft();
 		renderSelected();
+		renderShowcase();
 	}
 }, 2000);
 
@@ -273,6 +318,8 @@ link.onState((incoming) => {
 	renderOnAir();
 	renderDraft();
 	renderSelected();
+	renderShowcase();
 });
 renderOnAir();
 renderDraft();
+renderShowcase();

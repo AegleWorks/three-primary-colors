@@ -38,6 +38,9 @@ export const oro: {
 	setPlayerInfo(side: Side, info: { seed?: number; rank?: number; countryRank?: number; country?: string; pp?: number }): void;
 	setPool(maps: PoolMap[]): void;
 	draftChanged(): void;
+	feature(id: string): void;
+	featured(): string;
+	onFeatured: (() => void) | null;
 	setCurrentMap(map: PoolMap): void;
 	setStars(stars: Record<Side, number>): void;
 	setResult(result: { winner: Side; stars: Record<Side, number>; l: MapResult; r: MapResult }): void;

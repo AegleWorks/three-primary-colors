@@ -50,8 +50,12 @@
 		<section class="draft" aria-labelledby="draftTitle">
 			<div class="head">
 				<h2 id="draftTitle">Draft</h2>
-				<button type="button" class="btn btn--quiet" id="draftReset">Reiniciar draft</button>
+				<div class="row">
+					<button type="button" class="btn btn--quiet" id="poolReload" title="Vuelve a leer data.json y la sheet del mappool; el draft se mantiene">Recargar pool</button>
+					<button type="button" class="btn btn--quiet" id="draftReset">Reiniciar draft</button>
+				</div>
 			</div>
+			<p class="note pool-status" id="poolStatus" aria-live="polite"></p>
 			<div class="pool" id="draft"></div>
 			<p class="note">El mapa que carga tosu sin pick cuenta como pick del que sigue. El ganador se marca solo cuando termina el mapa.</p>
 		</section>
@@ -84,6 +88,18 @@
 					</div>
 					<button type="button" class="btn btn--quiet btn--wide" data-edit="clear">Quitar pick o ban</button>
 				</div>
+			</section>
+
+			<section class="block showcase" aria-labelledby="showcaseTitle">
+				<div class="head">
+					<h2 id="showcaseTitle">Showcase</h2>
+					<div class="row">
+						<button type="button" class="btn" id="showcasePrev" aria-label="Mapa anterior">Anterior</button>
+						<button type="button" class="btn" id="showcaseNext" aria-label="Mapa siguiente">Siguiente</button>
+					</div>
+				</div>
+				<div class="showcase-line" id="showcaseLine"></div>
+				<p class="note" id="showcaseNote">Toca un mapa para destacarlo en el showcase. Si osu! carga un mapa del pool durante el showcase, se destaca solo y no cuenta como pick.</p>
 			</section>
 
 			<section class="block" aria-labelledby="timerTitle">

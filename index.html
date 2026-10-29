@@ -124,27 +124,52 @@
 			<footer class="intro-foot label" data-bind="format">Best of 13 · primero a 7 mapas</footer>
 		</section>
 
-		<!-- SHOWCASE: the pool, map by map. One featured map with its art and
-		     numbers, the whole pool beside it with the featured one lit. -->
+		<!-- SHOWCASE: the pool, map by map, over a replay. The window is left
+		     see-through live, so a replay source in OBS shows under it at
+		     x 40, y 40, 1280x720 (16:9). Under it the featured map; beside it
+		     the casters and Twitch chat; along the bottom the pool as a
+		     timeline, mod by mod. The panel (or the map tosu loads) picks the
+		     featured map. -->
 		<section data-scene="showcase" class="show">
-			<header class="show-head">
-				<span class="label">Mappool · <span data-bind="round">Final</span></span>
-				<span class="show-count num" id="showCount"></span>
-			</header>
-			<div class="show-body">
-				<article class="feature" id="feature">
-					<div class="feature-art" id="featureArt"></div>
-					<div class="feature-body">
-						<div class="feature-top"><b class="feature-slot" id="featureSlot"></b><span class="feature-mod" id="featureMod"></span></div>
-						<h2 class="feature-title" id="featureTitle"></h2>
-						<span class="feature-artist" id="featureArtist"></span>
-						<span class="feature-diff" id="featureDiff"></span>
-						<dl class="feature-stats" id="featureStats"></dl>
-					</div>
-					<i class="feature-progress" aria-hidden="true"><i id="featureProgress"></i></i>
-				</article>
-				<ol class="show-list" id="showList"></ol>
+			<div class="replay" id="replay" aria-hidden="true">
+				<div class="replay-stand" id="replayStand"></div>
+				<i class="replay-corner"></i><i class="replay-corner"></i><i class="replay-corner"></i><i class="replay-corner"></i>
 			</div>
+
+			<article class="sheet glass" id="sheet">
+				<div class="sheet-slot">
+					<span class="label">Showcase · <span data-bind="round">Final</span></span>
+					<b class="sheet-id" id="sheetId"></b>
+					<span class="sheet-mod" id="sheetMod"></span>
+				</div>
+				<div class="sheet-body">
+					<h2 class="sheet-title" id="sheetTitle"></h2>
+					<span class="sheet-artist" id="sheetArtist"></span>
+					<span class="sheet-diff"><b id="sheetDiff"></b>mapeado por <b id="sheetMapper"></b></span>
+				</div>
+				<div class="sheet-numbers">
+					<dl class="sheet-key" id="sheetKey"></dl>
+					<dl class="sheet-meters" id="sheetMeters"></dl>
+				</div>
+			</article>
+
+			<aside class="show-side">
+				<section class="show-casters glass" data-count="2">
+					<span class="chat-head"><b>Casters</b></span>
+					<div class="seats">
+					<div class="seat" data-caster="0"><span class="pfp" data-pfp="c0"></span><b data-name="c0">hxovc</b><i class="wave"><i></i><i></i><i></i></i></div>
+					<div class="seat" data-caster="1"><span class="pfp" data-pfp="c1"></span><b data-name="c1">Kuervo</b><i class="wave"><i></i><i></i><i></i></i></div>
+					<div class="seat" data-caster="2" hidden><span class="pfp" data-pfp="c2"></span><b data-name="c2"></b><i class="wave"><i></i><i></i><i></i></i></div>
+					<div class="seat" data-caster="3" hidden><span class="pfp" data-pfp="c3"></span><b data-name="c3"></b><i class="wave"><i></i><i></i><i></i></i></div>
+					</div>
+				</section>
+				<section class="show-chat glass">
+					<span class="chat-head"><b>Twitch</b>chat en vivo</span>
+					<div class="feed" data-twitch></div>
+				</section>
+			</aside>
+
+			<ol class="line" id="showLine"></ol>
 		</section>
 
 		<!-- MAPPOOL -->

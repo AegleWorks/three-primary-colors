@@ -410,14 +410,14 @@ function seatCasters() {
 	seatQueued = false;
 	if (seatOn.join() === seated) return;
 	seated = seatOn.join();
-	const seats = $$(".casters [data-caster], .start-casters [data-caster]");
+	const seats = $$(".casters [data-caster], .start-casters [data-caster], .show-casters [data-caster]");
 	const rect = (el) => el.getBoundingClientRect();
 	const before = new Map(seats.filter((el) => !el.hidden).map((el) => [el, rect(el)]));
 	const shown = [0, 1, 2, 3].filter((i) => seatOn[i]);
 	const left = Math.ceil(shown.length / 2);
 	shown.forEach((i, n) => casterSides[n < left ? "l" : "r"].append($(`.casters [data-caster="${i}"]`)));
 	for (const el of seats) el.hidden = !seatOn[Number(el.dataset.caster)];
-	for (const box of [$(".casters"), $(".start-casters")]) box.dataset.count = shown.length;
+	for (const box of [$(".casters"), $(".start-casters"), $(".show-casters")]) box.dataset.count = shown.length;
 	if (shot || calm.matches) return;
 	// rects are in screen px; the stage may be scaled (preview), transforms are not
 	const k = stage.getBoundingClientRect().width / 1920 || 1;
@@ -1561,62 +1561,99 @@ if (SIM) window.addEventListener("keydown", (e) => {
 });
 
 // ---------- mappool showcase ----------
-// One map at a time, every map in the pool in order. Arrows step by hand.
+// One map at a time over its replay. The panel, the arrows or the map tosu
+// loads choose the featured one; only the demo steps through on its own.
 const FEATURE_MS = 6500;
 const MOD_NAME = { NM: "No Mod", HD: "Hidden", HR: "Hard Rock", DT: "Double Time", FM: "Free Mod", TB: "Tiebreaker" };
-const showList = $("#showList");
-function renderShowList() {
-	showList.innerHTML = "";
-	POOL.forEach((m, i) => {
-		const li = document.createElement("li");
-		li.style.setProperty("--i", i);
-		li.innerHTML = `<b class="mod--${modOf(m.id).toLowerCase()}">${m.id}</b><span>${m.title}</span><i class="num">${m.sr.toFixed(2)}★</i>`;
-		showList.append(li);
-	});
+// AR and OD top out near 11 with DT, so every meter shares that scale.
+const METER_MAX = 11;
+const showLine = $("#showLine");
+const sheet = $("#sheet");
+const num1 = (v) => String(Number(Number(v).toFixed(1)));
+function renderShowLine() {
+	showLine.innerHTML = "";
+	for (const mod of [...new Set(POOL.map((m) => modOf(m.id)))]) {
+		const maps = POOL.filter((m) => modOf(m.id) === mod);
+		const group = document.createElement("li");
+		group.className = "line-mod";
+		group.dataset.mod = mod.toLowerCase();
+		group.style.setProperty("--n", maps.length);
+		// a lone slot (TB) names its mod itself
+		group.innerHTML = `${maps.length === 1 && maps[0].id === mod ? "" : `<b class="line-head">${mod}</b>`}<ol class="line-maps"></ol>`;
+		for (const m of maps) {
+			const li = document.createElement("li");
+			li.className = "line-map";
+			li.dataset.id = m.id;
+			li.innerHTML = `<b class="line-n num"></b><span class="line-title"></span>`;
+			$(".line-n", li).textContent = m.id === mod ? mod : m.id.slice(mod.length);
+			$(".line-title", li).textContent = m.title;
+			$(".line-maps", group).append(li);
+		}
+		showLine.append(group);
+	}
+	if (POOL.length) featureMap(Math.min(featured, POOL.length - 1), false);
 }
-renderShowList();
 let featured = 0;
 let featureTimer = 0;
-function featureMap(i) {
+function featureMap(i, animate = true) {
 	if (!POOL.length) return;
 	featured = (i + POOL.length) % POOL.length;
 	const m = POOL[featured];
 	const mod = modOf(m.id);
-	const feat = $("#feature");
-	feat.dataset.mod = mod.toLowerCase();
-	$("#featureArt").style.backgroundImage = cover(m);
-	$("#featureSlot").textContent = m.id;
-	$("#featureMod").textContent = MOD_NAME[mod] || mod;
-	$("#featureTitle").textContent = m.title;
-	$("#featureArtist").textContent = m.artist;
-	$("#featureDiff").innerHTML = `[${m.diff}] <span>mapeado por <b>${m.mapper}</b></span>`;
-	$("#featureStats").innerHTML = [
-		["SR", m.sr.toFixed(2), "sr"],
-		["BPM", Math.round(m.bpm), "bpm"],
-		["Duración", m.len, "len"],
-		["AR", m.ar, "ar"],
-		["OD", m.od, "od"],
-		["CS", m.cs, "cs"],
+	sheet.dataset.mod = mod.toLowerCase();
+	$("#replay").dataset.mod = mod.toLowerCase();
+	$("#replayStand").style.backgroundImage = cover(m);
+	$("#sheetId").textContent = m.id;
+	$("#sheetMod").textContent = MOD_NAME[mod] || mod;
+	$("#sheetTitle").textContent = m.title;
+	$("#sheetArtist").textContent = m.artist;
+	$("#sheetDiff").textContent = `[${m.diff}]`;
+	$("#sheetMapper").textContent = m.mapper;
+	$("#sheetKey").innerHTML = [
+		["SR", m.sr.toFixed(2), "sr", "★"],
+		["BPM", Math.round(m.bpm), "bpm", ""],
+		["Duración", m.len, "len", ""],
 	]
-		.map(([k, v, c]) => `<div class="stat stat--${c}"><dt>${k}</dt><dd>${v}</dd></div>`)
+		.map(([k, v, c, unit]) => `<div class="key key--${c}"><dt>${k}</dt><dd class="num">${v}${unit ? `<i>${unit}</i>` : ""}</dd></div>`)
 		.join("");
-	$("#showCount").textContent = `${String(featured + 1).padStart(2, "0")} / ${POOL.length}`;
-	$$("li", showList).forEach((li, n) => li.classList.toggle("is-on", n === featured));
-	if (!shot) restart(feat, "is-in");
+	$("#sheetMeters").innerHTML = [
+		["CS", m.cs],
+		["AR", m.ar],
+		["OD", m.od],
+	]
+		.map(([k, v]) => `<div class="meter" style="--v:${Math.min(v / METER_MAX, 1)}"><dt>${k}</dt><dd class="num">${num1(v)}</dd><i class="meter-bar"><i></i></i></div>`)
+		.join("");
+	const ids = POOL.map((p) => p.id);
+	$$(".line-map", showLine).forEach((li) => {
+		const n = ids.indexOf(li.dataset.id);
+		li.dataset.state = n < featured ? "past" : n === featured ? "now" : "next";
+	});
+	$$(".line-mod", showLine).forEach((g) => g.toggleAttribute("data-now", g.dataset.mod === mod.toLowerCase()));
+	if (animate && !shot) restart(sheet, "is-in");
+	oro.onFeatured?.();
 }
+function featureId(id) {
+	const i = POOL.findIndex((m) => m.id === id);
+	if (i < 0 || (i === featured && sheet.dataset.mod)) return;
+	featureMap(i);
+}
+const autoStep = () => {
+	clearInterval(featureTimer);
+	if (SIM && !shot && document.body.dataset.scene === "showcase") featureTimer = setInterval(() => featureMap(featured + 1), FEATURE_MS);
+};
 onEvent((type, name) => {
 	if (type !== "scene") return;
 	clearInterval(featureTimer);
 	if (name !== "showcase") return;
-	featureMap(0);
-	if (!shot) featureTimer = setInterval(() => featureMap(featured + 1), FEATURE_MS);
+	// live, the operator may have lined up a map before cutting here
+	featureMap(SIM ? 0 : featured);
+	autoStep();
 });
 window.addEventListener("keydown", (e) => {
 	if (document.body.dataset.scene !== "showcase") return;
 	if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-	clearInterval(featureTimer);
 	featureMap(featured + (e.key === "ArrowRight" ? 1 : -1));
-	featureTimer = setInterval(() => featureMap(featured + 1), FEATURE_MS);
+	autoStep();
 });
 
 // ---------- FC choke: shards off the cut, a heart monitor that flatlines ----------
@@ -2472,7 +2509,7 @@ export const oro = {
 		TB_MAP = byId("TB") || BLANK;
 		$("#tbiMap").textContent = TB_MAP.id ? `${TB_MAP.title} · ${TB_MAP.artist} · ${TB_MAP.sr.toFixed(2)}★ · ${TB_MAP.len}` : "";
 		renderPool();
-		renderShowList();
+		renderShowLine();
 	},
 	// Picks, bans and winners changed (DRAFT is edited in place).
 	draftChanged() {
@@ -2480,6 +2517,11 @@ export const oro = {
 		renderSeriesCopy(MATCH.stars, lastWin);
 		STINGER_LABEL.gameplay = mapLabel();
 	},
+	// The showcase's featured map, by pool slot; read back with featured().
+	feature: (id) => featureId(id),
+	featured: () => POOL[featured]?.id ?? "",
+	// Set by the control link: told whenever the featured map changes.
+	onFeatured: null,
 	setCurrentMap(map) {
 		current = map;
 		DRAFT.current = map.id || null;
@@ -2528,6 +2570,9 @@ export const oro = {
 		renderPfps($(".result"));
 	},
 };
+
+// The demo pool is there from the start; live, setPool draws the line.
+renderShowLine();
 
 // Live, nothing from the demo shows while tosu's first data is on its way:
 // the sample names and the sample result table go blank.

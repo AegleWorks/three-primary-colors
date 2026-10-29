@@ -6,10 +6,12 @@ import TwitchChat from "../handler/TwitchChat";
 import type { DraftEdit } from "../control/ControlLink";
 import type { Beatmap, Data } from "../types";
 import { oro, type PoolMap } from "./oro.js";
+import { fetchSheetPool, type SheetRow } from "./sheet";
 import { DRAFT, ROUND, clock, ingest, onEvent, setSource, type MatchState, type Side } from "./stage.js";
 
 // Feeds the Oro broadcast from the live match: tosu for the players, scores,
-// map and lobby chat; data.json for the pool, seeds and Twitch channel; the
+// map and lobby chat; data.json for the seeds, the Twitch channel and the
+// pool (or the Google Sheet it points to); the
 // Discord bridge for the casters. Oro does the drawing; this only translates.
 
 type Chat = { team: string; time: string; name: string; messageBody: string };
@@ -190,6 +192,11 @@ export default class LiveOro {
 			cs: Number(Number(bm.stats?.CS).toFixed(1)) || 0,
 			len: fmtLength(Number(bm.time?.full) || 0),
 		};
+		// A replay in the showcase is not a pick: it only features its map.
+		if (document.body.dataset.scene === "showcase") {
+			if (slot) oro.feature(slot.id);
+			return;
+		}
 		const key = JSON.stringify(map);
 		if (key === this.mapKey) return;
 		this.mapKey = key;
@@ -248,45 +255,84 @@ export default class LiveOro {
 			await this.loadPool(json);
 		} catch (e) {
 			console.error("[LiveOro] Failed to load data.json:", (e as Error).message);
+			this.poolStatus = { ok: false, text: `No se pudo cargar el pool: ${(e as Error).message}` };
+			this.onUpdate?.();
 		}
 	}
 
-	// Slots are named by mod and position (NM1, NM2...), a lone TB just "TB".
+	// The pool: the Google Sheet when data.json names one, else data.json's
+	// own mappool, where slots are named by mod and position (NM1, NM2...).
+	// A lone TB is just "TB" either way.
 	private async loadPool(json: Data) {
-		const ids = json.mappool.flatMap((mod) => mod.maps);
-		if (!ids.length) return;
+		let rows: SheetRow[] = [];
+		let from = "data.json";
+		if (json.sheet) {
+			try {
+				rows = await fetchSheetPool(json.sheet);
+				from = "la sheet";
+			} catch (e) {
+				console.error("[LiveOro] Failed to read the mappool sheet:", (e as Error).message);
+				this.poolStatus = { ok: false, text: `No se pudo leer la sheet (${(e as Error).message}); uso el mappool de data.json` };
+			}
+		}
+		if (!rows.length) rows = (json.mappool ?? []).flatMap(({ mod, maps }) => maps.map((beatmapId, i) => ({ slot: `${mod}${i + 1}`, beatmapId })));
+		const tbs = rows.filter((r) => r.slot.replace(/\d+$/, "") === "TB");
+		if (tbs.length === 1) tbs[0].slot = "TB";
+		if (!rows.length) {
+			this.poolStatus = { ok: false, text: `No hay mapas en ${from}` };
+			this.onUpdate?.();
+			return;
+		}
 		const query = new URLSearchParams();
-		for (const id of ids) query.append("ids", String(id));
+		for (const id of new Set(rows.map((r) => r.beatmapId))) query.append("ids", String(id));
 		const res = await axios.get(`https://api.try-z.net/beatmaps?${query}`);
 		const beatmaps: Beatmap[] = res.data?.beatmaps ?? [];
-		this.pool = json.mappool.flatMap(({ mod, maps }) =>
-			maps.flatMap((id, i) => {
-				const b = beatmaps.find((m) => m.id === id);
-				if (!b) return [];
-				return [
-					{
-						id: mod === "TB" && maps.length === 1 ? "TB" : `${mod}${i + 1}`,
-						beatmapId: b.id,
-						set: b.beatmapset_id,
-						artist: b.beatmapset.artist,
-						title: b.beatmapset.title,
-						mapper: b.beatmapset.creator,
-						diff: b.version,
-						sr: b.difficulty_rating,
-						bpm: b.bpm,
-						ar: b.ar,
-						od: b.accuracy,
-						cs: b.cs,
-						len: fmtLength(b.total_length * 1000),
-					},
-				];
-			}),
-		);
+		const missing: string[] = [];
+		this.pool = rows.flatMap((r) => {
+			const b = beatmaps.find((m) => m.id === r.beatmapId);
+			if (!b) {
+				missing.push(r.slot);
+				return [];
+			}
+			return [
+				{
+					id: r.slot,
+					beatmapId: b.id,
+					set: b.beatmapset_id,
+					artist: b.beatmapset.artist,
+					title: b.beatmapset.title,
+					mapper: r.mapper ?? b.beatmapset.creator,
+					diff: b.version,
+					sr: r.sr ?? b.difficulty_rating,
+					bpm: r.bpm ?? b.bpm,
+					ar: r.ar ?? b.ar,
+					od: r.od ?? b.accuracy,
+					cs: r.cs ?? b.cs,
+					len: r.len ?? fmtLength(b.total_length * 1000),
+				},
+			];
+		});
+		const time = new Date().toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+		const warn = missing.length ? `; sin datos en osu! para ${missing.join(", ")}` : "";
+		if (from === "la sheet" || !json.sheet) this.poolStatus = { ok: !missing.length, text: `${this.pool.length} mapas de ${from} a las ${time}${warn}` };
 		oro.setPool(this.pool);
 		this.onUpdate?.();
 		this.mapKey = "";
 		this.readMap(this.engine.cache);
 	}
+
+	// From the panel: read data.json and the sheet again, keeping the draft.
+	async reloadPool() {
+		try {
+			const json: Data = (await axios.get("./data.json", { params: { t: Date.now() } })).data;
+			await this.loadPool(json);
+		} catch (e) {
+			this.poolStatus = { ok: false, text: `No se pudo recargar el pool: ${(e as Error).message}` };
+			this.onUpdate?.();
+		}
+	}
+
+	poolStatus = { ok: true, text: "Cargando el pool" };
 
 	// ---------- the draft: edited from the control panel ----------
 	// Also by clicking the cards in OBS's Interact window: click picks for the

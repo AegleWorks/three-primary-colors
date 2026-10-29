@@ -19,7 +19,7 @@ static/
     ├── index.html
     └── vcl.svg
 ```
-- Update data in `data.json` file (example is provided in the file)
+- Update data in `data.json` file (example is provided in the file); the mappool can live in a Google Sheet
 
 ## Usage
 The broadcast is the **Oro** design for Rempalago 3 (`src/oro`, from `propuestas/oro`): seven scenes (Ya empezamos, Intro, Showcase, Mappool, Gameplay, Resultado, Campeón) in a single browser source, with a stinger between them.
@@ -39,11 +39,14 @@ The broadcast is the **Oro** design for Rempalago 3 (`src/oro`, from `propuestas
 ### data.json
 ```json
 {
+    "sheet": { "id": "1fqjgrT9W8ET8l3vniE3KPU77Qz_e2LtSt7bwkA-Bh9c", "gid": 0 },
     "mappool": [{ "mod": "NM", "icon": "assets/mods/NM.png", "maps": [4675675] }],
     "players": { "Clippy": { "seed": 1, "countryRank": 39 } },
     "twitch": "channel_name"
 }
 ```
+**The pool** comes from the Google Sheet in `sheet` (`id` from its URL, `gid` the tab), which must be shared as "anyone with the link can view". Columns are matched by header: `Mod` (the slot: `NM1`, `DT2`, `TB`) and `ID` (beatmap id) are required; `SR`, `BPM`, `Length`, `CS`, `AR`, `OD` and `Mapper`, when filled, replace the osu! API's values (write them with the mod applied). Rows without an ID are skipped. Artist, title, difficulty and cover always come from the API. Without `sheet`, or when the sheet cannot be read, `mappool` is used. **Recargar pool** in the panel reads the sheet again without touching the draft.
+
 `players` (seed and country rank, which tosu does not have) and `twitch` (also `?twitch=`) are optional.
 
 ## Development

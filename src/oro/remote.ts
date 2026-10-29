@@ -33,6 +33,12 @@ export default class OverlayRemote {
 				case "draftReset":
 					this.live?.resetDraft();
 					break;
+				case "poolReload":
+					this.live?.reloadPool();
+					break;
+				case "showcase":
+					oro.feature(command.id);
+					break;
 				case "round": {
 					const url = new URL(location.href);
 					url.searchParams.set("round", command.round);
@@ -43,6 +49,7 @@ export default class OverlayRemote {
 		});
 		onEvent((type) => type === "scene" && this.publish());
 		if (live) live.onUpdate = () => this.publish();
+		oro.onFeatured = () => this.publish();
 		link.onStatus = (connected) => connected && this.publish();
 		setInterval(() => this.publish(), HEARTBEAT_MS);
 	}
@@ -59,6 +66,8 @@ export default class OverlayRemote {
 			map: this.live?.current ?? { id: "", title: "" },
 			pool: (this.live?.poolMaps ?? []).map(({ id, set, title, artist, diff, mapper, sr, bpm, len }) => ({ id, set, title, artist, diff, mapper, sr, bpm, len })),
 			draft: DRAFT,
+			showcase: oro.featured(),
+			poolStatus: this.live?.poolStatus ?? { ok: true, text: "" },
 		});
 	}
 }
