@@ -1,90 +1,173 @@
-# Vietnam Community League - Tournament Overlay
-A complete rework of [vcl-tournament-overlay-tosu](https://github.com/vncommunityleague/vcl-tournament-overlay-tosu), using [Z-Engine](https://www.npmjs.com/package/@fukutotojido/z-engine) as value change listener. Developed by [ANON TOKYO](https://github.com/FukutoTojido).
+# Overlay de Rempalago 3
 
-## Why this thing exist?
-- You hate configuring Lazer but still prefer the design of its tournament overlay
-- You prefer using an open-source and highly customizable (if you know how to) solution
+El overlay de transmisión del torneo Rempalago 3 de osu!: siete escenas (Ya empezamos, Intro, Showcase, Mappool, Gameplay, Resultado, Campeón) que leen el partido en vivo desde osu!, más un panel de control para quien maneja la transmisión. Funciona en **Windows** con tosu y OBS.
 
-## Setup
-Streamers on Windows: follow **[SETUP.md](SETUP.md)** (Spanish, step by step). In short:
+## Descargar
 
-- Install [tosu](https://github.com/tosuapp/tosu/releases/latest)
-- Download `Rempalago-vX.Y.Z.zip` from this fork's [Releases](https://github.com/AegleWorks/three-primary-colors/releases/latest) and extract it into tosu's folder:
-```
-tosu/
-├── tosu.exe
-├── rempalago-bridge.exe
-├── LEEME.md
-└── static/
-    └── vcl-overlay/
-        ├── data.json
-        ├── index.html
-        └── panel.html
-```
-- Update `static/vcl-overlay/data.json`; the mappool can live in a Google Sheet
-- Run `rempalago-bridge.exe` and keep it open (the panel and the casters need it)
+**[⬇ Descargar Rempalago.zip](https://github.com/AegleWorks/three-primary-colors/releases/latest/download/Rempalago.zip)**
 
-## Usage
-The broadcast is the **Oro** design for Rempalago 3 (`src/oro`, from `propuestas/oro`): seven scenes (Ya empezamos, Intro, Showcase, Mappool, Gameplay, Resultado, Campeón) in a single browser source, with a stinger between them.
+No necesitas cuenta de GitHub ni instalar nada más que lo de la tabla de abajo. Para instalarlo, sigue [Instalación](#instalación).
 
-- Add **one** Browser Source in OBS and reuse it in every overlay scene (Add > Existing source), so it keeps its state:
-  - URL: `http://127.0.0.1:24050/vcl-overlay/?round=f` (`ro64`, `ro32`, `ro16`, `qf`, `sf`, `third`, `f`, `show`)
-  - Width: `1920`, Height: `1080`
-- Set the OBS scene transition to **Cut**: the overlay plays its own stinger
-- The **control panel** is a separate page, `panel.html` (`http://127.0.0.1:24050/vcl-overlay/panel.html`). Open it in a browser tab, or inside OBS as a dock (Docks > Custom Browser Docks). It talks to the overlay through the bridge server (`rempalago-bridge.exe`, or `bun dev` when developing, on `ws://127.0.0.1:24052`), so the bridge must be running for the panel to work
-- From the panel: switch scenes (or let them follow OBS: connect to OBS and keep **Seguir la escena de OBS** on; scene names are matched by keyword: `empez`/`start`, `intro`/`vs`, `showcase`, `mappool`/`pick`, `result`, `champ`/`campe`/`ganador`, `gameplay`/`rempalago`/`osu`), start the pick timer, change the round, edit the draft and set up the OBS auto-tiling
-- During gameplay the client band (y 100–820) is transparent: the tournament clients are OBS sources under the overlay
-- **Draft**: Pick, Ban and Gana for each player, and Quitar, per map. A pool map that tosu loads without a pick counts as the next picker's pick, and its winner is set when the map ends. The draft survives a source refresh. Clicking the cards in OBS's Interact window also works (click: left, right click: right, Shift: ban, Alt: winner, Ctrl: clear)
-- **Pick timer**: starts on its own with the referee's `!mp timer` and follows BanchoBot's countdown; the panel starts it by hand
-- Casters come from the Discord IPC bridge; Twitch chat is read anonymously from the channel in `data.json`
-- In development (`bun dev`) only, `?sim` plays the scripted demo match instead of the live one and `P` shows a performance meter. A production build (`bun run build`) leaves both out entirely
+## Lo que necesitas
 
-### data.json
+| Programa | Para qué |
+|----------|----------|
+| Windows 10 u 11 | Todo corre aquí |
+| [tosu](https://github.com/tosuapp/tosu/releases/latest) | Lee osu! y sirve el overlay |
+| osu! (stable) con el cliente de torneo | Los jugadores y el lobby |
+| [OBS Studio](https://obsproject.com/) 30 o más nuevo | La transmisión |
+| Discord de escritorio (no el del navegador) | Los casters y quién está hablando |
+| `Rempalago.zip` | El overlay, el panel y el bridge: [descárgalo aquí](https://github.com/AegleWorks/three-primary-colors/releases/latest/download/Rempalago.zip) |
+
+## Instalación
+
+1. **Instala tosu.** Descarga `tosu.exe`, ponlo en su propia carpeta (por ejemplo `C:\tosu`), ábrelo una vez y ciérralo. Así crea su carpeta `static`.
+2. **Descomprime el zip dentro de la carpeta de tosu.** Si Windows pregunta, acepta combinar las carpetas. Debe quedar así:
+   ```
+   C:\tosu\
+   ├── tosu.exe
+   ├── rempalago-bridge.exe
+   ├── LEEME.md
+   └── static\
+       └── vcl-overlay\
+           ├── index.html
+           ├── panel.html
+           └── data.json
+   ```
+3. **Configura `static\vcl-overlay\data.json`** con el Bloc de notas (ver [data.json](#datajson)).
+4. **Abre en este orden:** Discord (y entra al canal de voz de los casters), tosu, el cliente de torneo de osu! y por último `rempalago-bridge.exe`.
+   - La primera vez Discord muestra una ventana para autorizar la conexión: dale **Autorizar**.
+   - Deja abierta la ventana del bridge durante toda la transmisión.
+5. **En OBS, agrega el overlay** (ver [OBS](#obs)).
+6. **Abre el panel** en `http://127.0.0.1:24050/vcl-overlay/panel.html`. Arriba debe aparecer **Bridge** en verde y **Al aire**.
+
+Si todo eso se ve bien, ya puedes transmitir.
+
+## data.json
+
 ```json
 {
     "sheet": { "id": "1fqjgrT9W8ET8l3vniE3KPU77Qz_e2LtSt7bwkA-Bh9c", "gid": 0 },
-    "mappool": [{ "mod": "NM", "icon": "assets/mods/NM.png", "maps": [4675675] }],
     "players": { "Clippy": { "seed": 1, "countryRank": 39 } },
-    "twitch": "channel_name"
+    "twitch": "nombre_del_canal"
 }
 ```
-**The pool** comes from the Google Sheet in `sheet` (`id` from its URL, `gid` the tab), which must be shared as "anyone with the link can view". Columns are matched by header: `Mod` (the slot: `NM1`, `DT2`, `TB`) and `ID` (beatmap id) are required; `SR`, `BPM`, `Length`, `CS`, `AR`, `OD` and `Mapper`, when filled, replace the osu! API's values (write them with the mod applied). Rows without an ID are skipped. Artist, title, difficulty and cover always come from the API. Without `sheet`, or when the sheet cannot be read, `mappool` is used. **Recargar pool** in the panel reads the sheet again without touching the draft.
 
-`players` (seed and country rank, which tosu does not have) and `twitch` (also `?twitch=`) are optional.
+| Campo | Qué es |
+|-------|--------|
+| `sheet.id` | El código largo de la URL de la Google Sheet del mappool, entre `/d/` y `/edit` |
+| `sheet.gid` | La pestaña de la sheet: el número después de `gid=` en la URL (la primera suele ser `0`) |
+| `players` | Seed y rank de país por nombre de osu! (tosu no los tiene). Opcional |
+| `twitch` | El canal de Twitch cuyo chat sale en pantalla. Opcional |
 
-## Development
-Just as a head-up, since this overlay is completely reworked on Vite, you cannot directly change the HTML, CSS and JS directly just like the old overlay but rather spin up a development server on your local machine and work with it for modification. After you have done everything, you should build the overlay and paste the files in the `dist` folder to tosu folder again.
+**La sheet del mappool:**
 
-- Install [Bun](https://bun.sh/docs/installation)
-- Clone the repository and start developing
-```
-git clone https://github.com/vncommunityleague/vcl-overlay.git
-bun install
-bun dev
-```
-- Your overlay should be available at `http://localhost:5173`
+- Tiene que estar compartida como **"Cualquier persona con el enlace puede ver"**.
+- Columnas obligatorias: `Mod` (el slot: `NM1`, `DT2`, `TB`) e `ID` (el beatmap id). Las filas sin ID se ignoran.
+- Si llenas `SR`, `BPM`, `Length`, `CS`, `AR`, `OD` y `Mapper`, esos valores reemplazan los de osu!. Escríbelos con el mod ya aplicado: en un DT, el AR y el BPM de DT.
+- No renombres los encabezados; el orden de las columnas sí lo puedes cambiar.
+- ¿Cambiaste la sheet en pleno partido? En el panel toca **Recargar pool**. El draft no se pierde.
 
-### Release
-`bun run release` builds `release/Rempalago-vX.Y.Z.zip` (version from `package.json`): the overlay under `static/vcl-overlay/`, `rempalago-bridge.exe` cross-compiled for Windows x64 (no Bun needed to run it) and `SETUP.md` as `LEEME.md`. Upload the zip to a GitHub release.
+Si cambias cualquier otra cosa de `data.json`, actualiza el source del overlay en OBS (clic derecho → Actualizar).
 
-## Build
-- Build the overlay
-```
-bun run build
-```
+## OBS
 
-## FAQs
-**Does this support accuracy?**
-- Not only by accuracy but also by max combo or miss count.
+**El overlay: un solo Browser Source para todas las escenas.**
 
-**Does this support automatic pick?**
-- Removed in this version, old one still has it. 
+1. En la primera escena: Fuentes → **+** → **Navegador**. Llámalo `Overlay`.
+2. URL: `http://127.0.0.1:24050/vcl-overlay/?round=f`. Cambia `f` por la ronda:
 
-**Who should I contact to get support?**
-- For additional support, DM `itsmehoaq` on Discord (or ping in osu! Tournament Hub) - note that any requests regarding modifying overlay design or functionality will be ignored.
-- If you are using this overlay, please make a fork so we know which tournament this is being used for :D
+   | Ronda | `round=` |
+   |-------|----------|
+   | Ronda de 64, 32, 16 | `ro64`, `ro32`, `ro16` |
+   | Cuartos, semis | `qf`, `sf` |
+   | Tercer puesto, final | `third`, `f` |
+   | Showmatch del staff | `show` |
 
-## Screenshots
-<img width="1917" height="1075" alt="image" src="https://github.com/user-attachments/assets/69908ac5-8f5e-48dc-9150-da6b44a98e9a" />
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/2b1055a6-647c-46a2-b00a-50e4116d8c29" />
+3. Ancho `1920`, alto `1080`.
+4. En las demás escenas: **+** → **Navegador** → **Agregar existente** → `Overlay`. Así conserva el draft y el estado entre escenas.
+5. Transición de escenas: **Corte**. El overlay pone su propia animación entre escenas.
 
+**El panel como dock:** Docks → **Docks de navegador personalizados** → nombre `Panel`, URL `http://127.0.0.1:24050/vcl-overlay/panel.html`.
+
+**Nombres de escena.** Con **Seguir a OBS** activo en el panel, el overlay cambia solo según el nombre de la escena de OBS. Basta con que el nombre contenga una de estas palabras:
+
+| Escena del overlay | El nombre en OBS contiene |
+|--------------------|---------------------------|
+| Ya empezamos | `empez` o `start` |
+| Intro | `intro` o `vs` |
+| Showcase | `showcase` |
+| Mappool | `mappool` o `pick` |
+| Gameplay | `gameplay`, `rempalago` u `osu` |
+| Resultado | `result` |
+| Campeón | `champ`, `campe` o `ganador` |
+
+Para que el panel vea las escenas, conecta OBS: Herramientas → **Configuración del servidor WebSocket** → activa el servidor y copia la contraseña. En el panel, abre **Conexión con OBS**, pega la contraseña y toca **Conectar a OBS**.
+
+**Dónde van los clientes de osu!** El overlay deja huecos transparentes; los clientes van **debajo** del `Overlay` en la lista de fuentes:
+
+| Escena | Hueco | Qué va ahí |
+|--------|-------|------------|
+| Gameplay | Franja de y 100 a y 820, todo el ancho | Los dos clientes de torneo. Con el cliente de torneo abierto, **Crear la escena de gameplay en OBS** (en el panel) crea la escena `osu! rempalago` con las capturas ya acomodadas; después agrégale el `Overlay` existente encima |
+| Showcase | x 40, y 40, 1280×720 | La captura del osu! que reproduce la replay. Clic derecho → Transformar → Editar transformación → Posición `40, 40`, Tamaño `1280×720` |
+
+## Durante el partido
+
+| Quieres | En el panel |
+|---------|-------------|
+| Cambiar de escena | Los botones de escena, o deja que siga a OBS |
+| Marcar picks, bans y quién ganó | Toca un mapa del draft y usa Pick / Ban / Ganó |
+| Arrancar el timer de pick | **Iniciar timer**, o deja que lo arranque el `!mp timer` del referee |
+| Elegir el mapa del showcase | Los botones del bloque **Showcase**, o carga el mapa en osu! y se destaca solo |
+| Releer la sheet | **Recargar pool** |
+
+## Lo que el overlay hace solo
+
+Estas son las reglas con las que el overlay lleva el partido. Conviene que el referee y quien maneja el panel las conozcan.
+
+| Cuando | El overlay |
+|--------|------------|
+| tosu carga un mapa del pool que nadie ha pickeado | Lo cuenta como pick del jugador al que le toca |
+| Termina un mapa | Marca al ganador en el draft y arma la pantalla de resultado. Las estrellas de la serie las lleva el cliente de torneo |
+| Se carga el TB | Activa el modo tiebreaker en gameplay (con su intro) |
+| El referee escribe `!mp timer` | Arranca el timer de pick y lo sincroniza con la cuenta de BanchoBot |
+| Estás en el showcase y osu! carga un mapa del pool | Lo destaca en el showcase, **sin** contarlo como pick |
+| Se recarga el Browser Source | Conserva el draft de esa ronda |
+| Cambias la escena en OBS (con el panel abierto, OBS conectado y **Seguir a OBS** activo) | Cambia a la escena del overlay que corresponde |
+
+Todo lo automático se corrige a mano desde el panel: tocas el mapa y usas Pick, Ban, Ganó o **Quitar pick o ban**.
+
+## Si algo falla
+
+| Ves | Qué hacer |
+|-----|-----------|
+| Windows dice "Windows protegió su PC" al abrir el bridge | Es porque el exe no está firmado. **Más información** → **Ejecutar de todas formas** |
+| El panel dice **Sin bridge** | Abre `rempalago-bridge.exe` y déjalo abierto |
+| La ventana del bridge dice que el puerto 24052 está en uso | Ya hay otro bridge abierto. Cierra uno de los dos |
+| El panel dice **Esperando al overlay** | El Browser Source no está cargado. Revisa la URL y que tosu esté abierto |
+| No salen los casters | Usa Discord de escritorio, en este PC, dentro del canal de voz. Si no apareció la ventana de autorizar, cierra el bridge, borra `.discord_token.json` (junto al exe) y ábrelo de nuevo |
+| El panel dice "No se pudo leer la sheet" | Revisa que la sheet esté compartida con "cualquiera con el enlace" y que `sheet.id` sea el correcto. Mientras tanto se usa el `mappool` de `data.json` |
+| Un slot aparece en "sin datos en osu!" | El `ID` de esa fila no existe o está mal escrito |
+| El overlay se ve negro donde va el juego | El cliente de osu! está encima del overlay en la lista de fuentes. Ponlo debajo |
+
+## Checklist antes de salir al aire
+
+- [ ] tosu, osu! torneo, Discord y el bridge abiertos
+- [ ] El panel muestra **Bridge** y **OBS** en verde y **Al aire**
+- [ ] El draft muestra el pool completo, con la línea "N mapas de la sheet"
+- [ ] Los casters aparecen en "Ya empezamos" y se iluminan al hablar
+- [ ] El chat de Twitch se mueve
+- [ ] Los clientes se ven en los huecos de Gameplay y Showcase
+
+## Para desarrolladores
+
+Todo lo de arriba es para quien transmite. Para modificar el overlay:
+
+- Instala [Bun](https://bun.sh/docs/installation), clona el repo y corre `bun install` y `bun dev`. Esto levanta el overlay en `http://localhost:5173`, el panel en `/panel.html` y el bridge.
+- `?sim` (solo en `bun dev`) corre un partido simulado en lugar del real; `P` muestra un medidor de rendimiento.
+- El diseño es **Oro** (`src/oro`, a partir de `propuestas/oro`). El panel está en `src/panel`; el bridge, en `src/server`.
+- `bun run build` genera `dist/`. `bun run release` genera `release/Rempalago.zip`, con el overlay en `static/vcl-overlay/`, `rempalago-bridge.exe` compilado para Windows x64 y este README como `LEEME.md`. Ese zip es el que se sube al release de GitHub, con ese mismo nombre, para que el enlace de descarga siga funcionando.
+
+## Créditos
+
+Basado en [vcl-overlay](https://github.com/vncommunityleague/vcl-overlay) de Vietnam Community League, desarrollado por [ANON TOKYO](https://github.com/FukutoTojido), con [Z-Engine](https://www.npmjs.com/package/@fukutotojido/z-engine) para leer tosu.
