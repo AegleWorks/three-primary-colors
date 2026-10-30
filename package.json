@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "bun run scripts/dev.ts",
     "dev:vite": "vite",
-    "discord:bridge": "bun run src/server/DiscordIPCBridge.ts",
+    "discord:bridge": "bun run src/server/bridge.ts",
+    "release": "bun run scripts/release.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"

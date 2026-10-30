@@ -764,14 +764,16 @@ export class DiscordIPCBridge {
 						this.initWebSocketServer(retries - 1);
 					}, 300);
 				} else {
-					console.warn(`[DiscordBridge] Port ${this.port} is already in use.`);
+					console.warn(`[DiscordBridge] Port ${this.port} is already in use: another bridge is probably open already.`);
 				}
 			} else {
 				console.warn(`[DiscordBridge] Server error:`, err);
 			}
 		});
 
-		server.listen(this.port, () => {
+		// Loopback only: the overlay and the panel are on this machine, and on
+		// Windows it keeps the firewall prompt away.
+		server.listen(this.port, "127.0.0.1", () => {
 			console.log(`[DiscordBridge] WebSocket broadcast server listening on ws://127.0.0.1:${this.port}`);
 			const wss = new WebSocketServer({ server });
 			this.wss = wss;
@@ -845,15 +847,4 @@ export class DiscordIPCBridge {
 		const index = parseInt(discriminator, 10) % 5 || 0;
 		return `https://cdn.discordapp.com/embed/avatars/${index}.png`;
 	}
-}
-
-// Standalone execution support
-if (process.argv[1] && process.argv[1].includes("DiscordIPCBridge")) {
-	const bridge = new DiscordIPCBridge();
-	bridge.start();
-
-	process.on("SIGINT", () => {
-		bridge.stop();
-		process.exit(0);
-	});
 }

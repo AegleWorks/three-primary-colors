@@ -6,20 +6,23 @@ A complete rework of [vcl-tournament-overlay-tosu](https://github.com/vncommunit
 - You prefer using an open-source and highly customizable (if you know how to) solution
 
 ## Setup
+Streamers on Windows: follow **[SETUP.md](SETUP.md)** (Spanish, step by step). In short:
+
 - Install [tosu](https://github.com/tosuapp/tosu/releases/latest)
-- Download the latest release from the [Release](https://github.com/vncommunityleague/vcl-overlay/releases/latest) page of this repository
-- Extract the downloaded zip file to `static` folder of tosu.
-- Your file structure should be like this
+- Download `Rempalago-vX.Y.Z.zip` from this fork's [Releases](https://github.com/AegleWorks/three-primary-colors/releases/latest) and extract it into tosu's folder:
 ```
-static/
-└── vcl-overlay/
-    ├── assets/
-    ├── check.svg
-    ├── data.json
-    ├── index.html
-    └── vcl.svg
+tosu/
+├── tosu.exe
+├── rempalago-bridge.exe
+├── LEEME.md
+└── static/
+    └── vcl-overlay/
+        ├── data.json
+        ├── index.html
+        └── panel.html
 ```
-- Update data in `data.json` file (example is provided in the file); the mappool can live in a Google Sheet
+- Update `static/vcl-overlay/data.json`; the mappool can live in a Google Sheet
+- Run `rempalago-bridge.exe` and keep it open (the panel and the casters need it)
 
 ## Usage
 The broadcast is the **Oro** design for Rempalago 3 (`src/oro`, from `propuestas/oro`): seven scenes (Ya empezamos, Intro, Showcase, Mappool, Gameplay, Resultado, Campeón) in a single browser source, with a stinger between them.
@@ -28,7 +31,7 @@ The broadcast is the **Oro** design for Rempalago 3 (`src/oro`, from `propuestas
   - URL: `http://127.0.0.1:24050/vcl-overlay/?round=f` (`ro64`, `ro32`, `ro16`, `qf`, `sf`, `third`, `f`, `show`)
   - Width: `1920`, Height: `1080`
 - Set the OBS scene transition to **Cut**: the overlay plays its own stinger
-- The **control panel** is a separate page, `panel.html` (`http://127.0.0.1:24050/vcl-overlay/panel.html`). Open it in a browser tab, or inside OBS as a dock (Docks > Custom Browser Docks). It talks to the overlay through the bridge server (`bun dev` starts it, on `ws://127.0.0.1:24052`), so the bridge must be running for the panel to work
+- The **control panel** is a separate page, `panel.html` (`http://127.0.0.1:24050/vcl-overlay/panel.html`). Open it in a browser tab, or inside OBS as a dock (Docks > Custom Browser Docks). It talks to the overlay through the bridge server (`rempalago-bridge.exe`, or `bun dev` when developing, on `ws://127.0.0.1:24052`), so the bridge must be running for the panel to work
 - From the panel: switch scenes (or let them follow OBS: connect to OBS and keep **Seguir la escena de OBS** on; scene names are matched by keyword: `empez`/`start`, `intro`/`vs`, `showcase`, `mappool`/`pick`, `result`, `champ`/`campe`/`ganador`, `gameplay`/`rempalago`/`osu`), start the pick timer, change the round, edit the draft and set up the OBS auto-tiling
 - During gameplay the client band (y 100–820) is transparent: the tournament clients are OBS sources under the overlay
 - **Draft**: Pick, Ban and Gana for each player, and Quitar, per map. A pool map that tosu loads without a pick counts as the next picker's pick, and its winner is set when the map ends. The draft survives a source refresh. Clicking the cards in OBS's Interact window also works (click: left, right click: right, Shift: ban, Alt: winner, Ctrl: clear)
@@ -60,6 +63,9 @@ bun install
 bun dev
 ```
 - Your overlay should be available at `http://localhost:5173`
+
+### Release
+`bun run release` builds `release/Rempalago-vX.Y.Z.zip` (version from `package.json`): the overlay under `static/vcl-overlay/`, `rempalago-bridge.exe` cross-compiled for Windows x64 (no Bun needed to run it) and `SETUP.md` as `LEEME.md`. Upload the zip to a GitHub release.
 
 ## Build
 - Build the overlay

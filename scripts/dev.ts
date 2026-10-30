@@ -4,7 +4,7 @@ console.log("[DevRunner] Starting Discord IPC Bridge and Vite dev server...");
 
 const isWin = process.platform === "win32";
 
-const bridge = spawn("bun", ["src/server/DiscordIPCBridge.ts"], {
+const bridge = spawn("bun", ["src/server/bridge.ts"], {
 	stdio: "inherit",
 	env: process.env,
 	shell: isWin,
