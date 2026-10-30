@@ -12,9 +12,12 @@ body {
 	margin: 0;
 }
 
+/* The stage too: its black would show through the holes cut in the
+   backdrop for the game. Elsewhere the backdrop covers it. */
 .stage {
 	left: 0;
 	transform: none;
+	background: transparent;
 }
 
 /* Live: the tournament clients are OBS sources under this page, so the
