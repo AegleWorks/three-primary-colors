@@ -16,8 +16,9 @@ export interface Data {
     mappool?: Modpool[],
     // seeds and country ranks by player name (tosu has neither)
     players?: Record<string, { seed?: number, countryRank?: number }>,
-    // Twitch channel whose chat the overlay shows
-    twitch?: string
+    // Twitch channel(s) whose chat the overlay can show; the first is the
+    // default, the panel switches between them
+    twitch?: string | string[]
 }
 
 export type Beatmap = {

@@ -49,7 +49,7 @@ Si todo eso se ve bien, ya puedes transmitir.
 {
     "sheet": { "id": "1fqjgrT9W8ET8l3vniE3KPU77Qz_e2LtSt7bwkA-Bh9c", "gid": 0 },
     "players": { "Clippy": { "seed": 1, "countryRank": 39 } },
-    "twitch": "nombre_del_canal"
+    "twitch": ["torneorempalago", "torneorempalago_b"]
 }
 ```
 
@@ -58,7 +58,7 @@ Si todo eso se ve bien, ya puedes transmitir.
 | `sheet.id` | El código largo de la URL de la Google Sheet del mappool, entre `/d/` y `/edit` |
 | `sheet.gid` | La pestaña de la sheet: el número después de `gid=` en la URL (la primera suele ser `0`) |
 | `players` | Seed y rank de país por nombre de osu! (tosu no los tiene). Opcional |
-| `twitch` | El canal de Twitch cuyo chat sale en pantalla. Opcional |
+| `twitch` | Los canales de Twitch cuyo chat puede salir en pantalla. El primero es el de arranque; el panel cambia entre ellos. Opcional |
 
 **La sheet del mappool:**
 
@@ -120,6 +120,7 @@ Para que el panel vea las escenas, conecta OBS: Herramientas → **Configuració
 | Arrancar el timer de pick | **Iniciar timer**, o deja que lo arranque el `!mp timer` del referee |
 | Elegir el mapa del showcase | Los botones del bloque **Showcase**, o carga el mapa en osu! y se destaca solo |
 | Releer la sheet | **Recargar pool** |
+| Cambiar el chat de Twitch que sale en pantalla | **Chat de Twitch**: toca el canal. Cada canal dice si está en vivo |
 
 ## Lo que el overlay hace solo
 
@@ -134,6 +135,8 @@ Estas son las reglas con las que el overlay lleva el partido. Conviene que el re
 | Estás en el showcase y osu! carga un mapa del pool | Lo destaca en el showcase, **sin** contarlo como pick |
 | Se recarga el Browser Source | Conserva el draft de esa ronda |
 | Cambias la escena en OBS (con el panel abierto, OBS conectado y **Seguir a OBS** activo) | Cambia a la escena del overlay que corresponde |
+| Cambias el canal de Twitch en el panel | Vacía el chat en pantalla y lo llena con el del canal nuevo. Recuerda el canal aunque se recargue el source |
+| Alguien escribe en el chat | Sale con su foto de Twitch; mientras carga, con su inicial en su color |
 
 Todo lo automático se corrige a mano desde el panel: tocas el mapa y usas Pick, Ban, Ganó o **Quitar pick o ban**.
 
@@ -156,7 +159,7 @@ Todo lo automático se corrige a mano desde el panel: tocas el mapa y usas Pick,
 - [ ] El panel muestra **Bridge** y **OBS** en verde y **Al aire**
 - [ ] El draft muestra el pool completo, con la línea "N mapas de la sheet"
 - [ ] Los casters aparecen en "Ya empezamos" y se iluminan al hablar
-- [ ] El chat de Twitch se mueve
+- [ ] **Chat de Twitch** en el panel dice "Leyendo #" con el canal correcto, y el chat se mueve
 - [ ] Los clientes se ven en los huecos de Gameplay y Showcase
 
 ## Para desarrolladores

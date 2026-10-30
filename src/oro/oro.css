@@ -5592,6 +5592,28 @@ body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after 
 	margin-right: 8px;
 }
 
+/* The chatter's picture, sized to the line; their initial in their colour
+   until it loads, or when they have none. */
+.tw-pfp {
+	display: inline-grid;
+	place-items: center;
+	/* in the span's own 0.7em: 1.3em, 0.45em and -0.3em of the line's text */
+	width: 1.86em;
+	height: 1.86em;
+	margin-right: 0.64em;
+	vertical-align: -0.43em;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--tint, #b58cff) 28%, #0b0904) center / cover no-repeat;
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--tint, #b58cff) 45%, transparent);
+	color: var(--tint, #b58cff);
+	font: 900 0.7em/1 var(--display);
+	text-transform: uppercase;
+}
+
+.tw-pfp.has-pic {
+	color: transparent;
+}
+
 /* =====================================================================
    BANCHO GHOST MISS — a small amber cue on the player's client: the break
    the casters just saw was Bancho's, the combo came back.

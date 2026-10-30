@@ -2,7 +2,8 @@ import type ZEngine from "@fukutotojido/z-engine";
 import axios from "axios";
 import IPCClient from "../handler/IPCClient";
 import type CasterHandler from "../handler/CasterHandler";
-import TwitchChat from "../handler/TwitchChat";
+import TwitchChat, { type TwitchStatus } from "../handler/TwitchChat";
+import { avatar } from "../handler/TwitchUsers";
 import type { DraftEdit } from "../control/ControlLink";
 import type { Beatmap, Data } from "../types";
 import { oro, type PoolMap } from "./oro.js";
@@ -20,6 +21,7 @@ type PlayerInfo = { seed?: number; countryRank?: number };
 const SIDES: Side[] = ["l", "r"];
 const TEAM: Record<string, Side> = { left: "l", right: "r" };
 const DRAFT_KEY = `draft:${ROUND.key}`;
+const TWITCH_KEY = "twitch:channel";
 const countryName = new Intl.DisplayNames(["es"], { type: "region" });
 const host = window.location.hostname || "127.0.0.1";
 const fmtLength = (ms: number) => {
@@ -250,14 +252,54 @@ export default class LiveOro {
 			const json: Data = (await axios.get("./data.json")).data;
 			this.players = Object.fromEntries(Object.entries(json.players ?? {}).map(([name, info]) => [name.toLowerCase(), info]));
 			for (const side of SIDES) this.refreshPlayer(side);
-			const channel = new URLSearchParams(location.search).get("twitch") || json.twitch;
-			if (channel) new TwitchChat(channel, ({ who, color, msg }) => oro.twitchLine(who, color, msg));
+			this.startTwitch(json.twitch);
 			await this.loadPool(json);
 		} catch (e) {
 			console.error("[LiveOro] Failed to load data.json:", (e as Error).message);
 			this.poolStatus = { ok: false, text: `No se pudo cargar el pool: ${(e as Error).message}` };
 			this.onUpdate?.();
 		}
+	}
+
+	// ---------- Twitch: the channel whose chat is on screen ----------
+	// data.json lists the channels (the first is the default); ?twitch= adds
+	// one and starts on it. The panel switches between them, and the choice
+	// survives a source refresh.
+
+	private chat: TwitchChat | null = null;
+	twitch: { channels: string[]; channel: string; status: TwitchStatus | "off" } = { channels: [], channel: "", status: "off" };
+
+	private startTwitch(listed: Data["twitch"]) {
+		const fromUrl = new URLSearchParams(location.search).get("twitch")?.toLowerCase();
+		const channels = [...new Set([...(fromUrl ? [fromUrl] : []), ...[listed ?? []].flat().map((c) => c.trim().toLowerCase())])].filter(Boolean);
+		this.twitch.channels = channels;
+		if (!channels.length) return;
+		let saved = "";
+		try {
+			saved = localStorage.getItem(TWITCH_KEY) ?? "";
+		} catch {}
+		const channel = fromUrl || (channels.includes(saved) ? saved : channels[0]);
+		oro.twitchChannel(channel);
+		this.chat = new TwitchChat(
+			channel,
+			({ who, color, msg, userId }) => {
+				oro.twitchLine(who, color, msg, userId);
+				avatar(userId).then((url) => url && oro.twitchAvatar(userId, url));
+			},
+			(status, name) => {
+				this.twitch = { ...this.twitch, channel: name, status };
+				this.onUpdate?.();
+			},
+		);
+	}
+
+	setTwitchChannel(channel: string) {
+		if (!this.chat || !this.twitch.channels.includes(channel) || channel === this.chat.current) return;
+		try {
+			localStorage.setItem(TWITCH_KEY, channel);
+		} catch {}
+		oro.twitchChannel(channel);
+		this.chat.join(channel);
 	}
 
 	// The pool: the Google Sheet when data.json names one, else data.json's

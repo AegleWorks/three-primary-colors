@@ -2,6 +2,7 @@ import ZEngine from "@fukutotojido/z-engine";
 import ControlLink, { type Command, type DraftEdit, type OverlayState } from "../control/ControlLink";
 import OBSHandler from "../handler/OBSHandler";
 import SceneSync from "../handler/SceneSync";
+import { channels as twitchChannels, type TwitchUser } from "../handler/TwitchUsers";
 import { ROUNDS } from "../config/rounds";
 import type { SceneName, Side } from "../oro/stage.js";
 
@@ -262,6 +263,92 @@ function renderShowcase() {
 	}
 }
 
+// ---------- Twitch: which channel's chat is on screen ----------
+// Names, pictures and live status come from IVR, refreshed every minute; the
+// channel list and the one in use come from the overlay.
+const TWITCH_REFRESH_MS = 60000;
+let channelInfo = new Map<string, TwitchUser>();
+let infoFor = "";
+let infoAt = 0;
+// the channel just picked, shown as chosen until the overlay confirms it
+let pending: string | null = null;
+let pendingTimer = 0;
+// what the picker last drew: heartbeats redraw nothing, so focus stays put
+let drawn = "";
+
+async function loadChannelInfo(logins: string[]) {
+	infoFor = logins.join();
+	infoAt = Date.now();
+	try {
+		const users = await twitchChannels(logins);
+		channelInfo = new Map(users.map((u) => [u.login, u]));
+	} catch {
+		// keep what we had; names still show without pictures
+	}
+	renderTwitch();
+}
+setInterval(() => {
+	const logins = state?.twitch?.channels ?? [];
+	if (logins.length) loadChannelInfo(logins);
+}, TWITCH_REFRESH_MS);
+
+function renderTwitch() {
+	const box = $("#twitchChannels");
+	const status = $("#twitchState");
+	const tw = state?.live ? state.twitch : undefined;
+	const logins = tw?.channels ?? [];
+	if (logins.length && (logins.join() !== infoFor || Date.now() - infoAt > TWITCH_REFRESH_MS)) loadChannelInfo(logins);
+	if (pending && tw?.channel === pending) pending = null;
+	const chosen = pending ?? tw?.channel ?? "";
+	const key = JSON.stringify([Boolean(state), state?.live, logins, chosen, pending, tw?.status, [...channelInfo.values()]]);
+	if (key === drawn) return;
+	drawn = key;
+	const focused = (document.activeElement as HTMLInputElement | null)?.name === "twitchChannel" ? (document.activeElement as HTMLInputElement).value : null;
+	box.innerHTML = "";
+	status.textContent = "";
+	delete status.dataset.state;
+	if (!state) return;
+	if (!state.live) {
+		box.innerHTML = `<p class="note">La demo no lee Twitch.</p>`;
+		return;
+	}
+	if (!logins.length) {
+		box.innerHTML = `<p class="note">No hay canales. Agrégalos en <code>data.json</code>: <code>"twitch": ["canal_a", "canal_b"]</code>.</p>`;
+		return;
+	}
+	const joined = !pending && tw?.status === "joined";
+	status.dataset.state = joined ? "on" : "wait";
+	status.textContent = joined ? `Leyendo #${tw!.channel}` : "Conectando…";
+	for (const login of logins) {
+		const info = channelInfo.get(login);
+		const label = document.createElement("label");
+		label.className = "channel";
+		const on = login === chosen;
+		label.innerHTML = `
+			<input type="radio" name="twitchChannel" value="${esc(login)}"${on ? " checked" : ""}>
+			<span class="channel-pfp"${info?.logo ? ` style="background-image:url('${esc(info.logo)}')"` : ""}>${info?.logo ? "" : esc(login[0].toUpperCase())}</span>
+			<span class="channel-text">
+				<b>${esc(info?.displayName ?? login)}</b>
+				<span>twitch.tv/${esc(login)}</span>
+			</span>
+			<span class="channel-live" data-live="${info?.live ?? false}">${info ? (info.live ? "En vivo" : "Offline") : ""}</span>`;
+		const input = label.querySelector("input")!;
+		input.addEventListener("change", () => {
+			pending = login;
+			clearTimeout(pendingTimer);
+			// no answer from the overlay: show what it really reads again
+			pendingTimer = window.setTimeout(() => {
+				pending = null;
+				renderTwitch();
+			}, 8000);
+			send({ action: "twitch", channel: login });
+			renderTwitch();
+		});
+		box.append(label);
+		if (focused === login) input.focus();
+	}
+}
+
 // ---------- on air ----------
 function renderOnAir() {
 	const onAir = $("#onair");
@@ -304,6 +391,7 @@ setInterval(() => {
 		renderDraft();
 		renderSelected();
 		renderShowcase();
+		renderTwitch();
 	}
 }, 2000);
 
@@ -320,7 +408,9 @@ link.onState((incoming) => {
 	renderDraft();
 	renderSelected();
 	renderShowcase();
+	renderTwitch();
 });
 renderOnAir();
 renderDraft();
 renderShowcase();
+renderTwitch();

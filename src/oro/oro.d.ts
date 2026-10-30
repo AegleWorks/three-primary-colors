@@ -33,7 +33,9 @@ export const oro: {
 	timer(seconds: number | null): void;
 	showCaster(caster: number, on: boolean): void;
 	setChatMode(mode: "lobby" | "playing"): void;
-	twitchLine(who: string, color: string, msg: string): void;
+	twitchLine(who: string, color: string, msg: string, userId?: string): void;
+	twitchAvatar(userId: string, url: string): void;
+	twitchChannel(name: string): void;
 	chat(who: string, side: Side | "bot" | "ref", msg: string, time: string): void;
 	setPlayerInfo(side: Side, info: { seed?: number; rank?: number; countryRank?: number; country?: string; pp?: number }): void;
 	setPool(maps: PoolMap[]): void;

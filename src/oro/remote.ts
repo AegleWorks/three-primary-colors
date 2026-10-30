@@ -33,6 +33,9 @@ export default class OverlayRemote {
 				case "draftReset":
 					this.live?.resetDraft();
 					break;
+				case "twitch":
+					this.live?.setTwitchChannel(command.channel);
+					break;
 				case "poolReload":
 					this.live?.reloadPool();
 					break;
@@ -68,6 +71,7 @@ export default class OverlayRemote {
 			draft: DRAFT,
 			showcase: oro.featured(),
 			poolStatus: this.live?.poolStatus ?? { ok: true, text: "" },
+			twitch: this.live?.twitch ?? { channels: [], channel: "", status: "off" },
 		});
 	}
 }

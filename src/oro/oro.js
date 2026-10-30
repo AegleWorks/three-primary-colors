@@ -349,14 +349,33 @@ const TWITCH = !SIM ? [] : [
 	["medellin_clicks", "#72f2a0", "hxovc qué análisis tan bueno"],
 ];
 let twitchIndex = 0;
-function twitchLine([who, color, msg] = TWITCH[twitchIndex++ % TWITCH.length]) {
+// Chatters' pictures by user id, as they arrive; until then (or without one)
+// the line wears the chatter's initial in their colour.
+const twitchPfps = new Map();
+const pfpStyle = (url) => (url ? `background-image:url('${esc(url)}')` : "");
+function twitchLine([who, color, msg, userId = ""] = TWITCH[twitchIndex++ % TWITCH.length]) {
+	const tint = esc(color || "#b58cff");
 	for (const el of twitchFeeds) {
 		const p = document.createElement("p");
 		p.className = "msg msg--tw";
-		p.innerHTML = `<b style="color:${esc(color || "#b58cff")}">${esc(who)}</b>${esc(msg)}`;
+		const url = twitchPfps.get(userId);
+		p.innerHTML = `<span class="tw-pfp${url ? " has-pic" : ""}" data-tw="${esc(userId)}" style="--tint:${tint};${pfpStyle(url)}">${esc([...who][0] || "?")}</span><b style="color:${tint}">${esc(who)}</b>${esc(msg)}`;
 		el.append(p);
 		keep(el);
 	}
+}
+function twitchAvatar(userId, url) {
+	if (!userId || !url) return;
+	twitchPfps.set(userId, url);
+	for (const el of $$(`[data-tw="${CSS.escape(userId)}"]`)) {
+		el.style.backgroundImage = `url('${url}')`;
+		el.classList.add("has-pic");
+	}
+}
+// The chat heads name the channel being read.
+function twitchChannel(name) {
+	for (const el of $$("[data-twitch-channel]")) el.textContent = name ? `#${name}` : "chat en vivo";
+	for (const el of twitchFeeds) el.innerHTML = "";
 }
 if (SIM) for (let i = 0; i < 9; i++) twitchLine();
 if (SIM && !shot) (function chatter() {
@@ -2474,7 +2493,10 @@ export const oro = {
 	// Seat a caster (0-3) or free the seat; the rest rearrange around it.
 	showCaster,
 	setChatMode,
-	twitchLine: (who, color, msg) => twitchLine([who, color, msg]),
+	twitchLine: (who, color, msg, userId) => twitchLine([who, color, msg, userId]),
+	twitchAvatar,
+	// A new channel: its name in the chat heads, and the old lines go.
+	twitchChannel,
 	// One lobby line from tosu: into the lobby chat and the pick timer.
 	chat(who, side, msg, time) {
 		lobbyLine(who, side, msg, time);

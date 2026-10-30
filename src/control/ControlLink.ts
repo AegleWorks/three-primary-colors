@@ -13,6 +13,7 @@ export type Command =
 	| { action: "draftReset" }
 	| { action: "showcase"; id: string }
 	| { action: "poolReload" }
+	| { action: "twitch"; channel: string }
 	| { action: "round"; round: string };
 
 export interface OverlayState {
@@ -33,6 +34,9 @@ export interface OverlayState {
 	showcase: string;
 	// where the pool came from, or what went wrong loading it
 	poolStatus: { ok: boolean; text: string };
+	// the Twitch channels the overlay can read, the one it reads, and whether
+	// it has joined it yet
+	twitch: { channels: string[]; channel: string; status: "off" | "connecting" | "joined" };
 }
 
 type Message = ({ type: "control" } & Command) | ({ type: "overlay_state" } & OverlayState);
