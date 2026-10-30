@@ -2,7 +2,8 @@ import ZEngine from "@fukutotojido/z-engine";
 import ControlLink, { type Command, type DraftEdit, type OverlayState } from "../control/ControlLink";
 import OBSHandler from "../handler/OBSHandler";
 import SceneSync from "../handler/SceneSync";
-import { ROUNDS, type SceneName, type Side } from "../oro/stage.js";
+import { ROUNDS } from "../config/rounds";
+import type { SceneName, Side } from "../oro/stage.js";
 
 // The control panel. Everything it does is a command to the overlay; what it
 // shows (scene, series, map, pool, draft) is the state the overlay publishes

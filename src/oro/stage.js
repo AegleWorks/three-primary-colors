@@ -1,3 +1,4 @@
+import { ROUNDS } from "../config/rounds";
 // Shared runtime for the overlay proposals.
 // Scales a fixed 1920x1080 stage to the window, switches scenes with the
 // keyboard and simulates a live 1v1 map so every direction reacts to the same
@@ -10,16 +11,7 @@
 // round's name with its article, for copy like "avanza a los cuartos de
 // final"; `next` is the round the winner moves on to, `title` what a
 // terminal round crowns. Preview another round with ?round=KEY.
-export const ROUNDS = {
-	ro64: { name: "Ronda de 64", the: "la ronda de 64", bestOf: 9, bans: 1, next: "ro32" },
-	ro32: { name: "Ronda de 32", the: "la ronda de 32", bestOf: 9, bans: 1, next: "ro16" },
-	ro16: { name: "Octavos de final", the: "los octavos de final", bestOf: 11, bans: 2, next: "qf" },
-	qf: { name: "Cuartos de final", the: "los cuartos de final", bestOf: 11, bans: 2, next: "sf" },
-	sf: { name: "Semifinal", the: "la semifinal", bestOf: 13, bans: 2, next: "f" },
-	third: { name: "Tercer puesto", the: "el tercer puesto", bestOf: 13, bans: 2, title: "Tercer puesto de Rempalago 3", short: "Tercer puesto" },
-	f: { name: "Final", the: "la final", bestOf: 13, bans: 2, title: "Campeón de Rempalago 3", short: "Campeón" },
-	show: { name: "Showmatch del staff", the: "el showmatch del staff", bestOf: 9, bans: 0, title: "Gana el showmatch del staff", short: "Showmatch", exhibition: true },
-};
+export { ROUNDS };
 // Live (the default) reads the match from tosu; ?sim runs the scripted
 // demo match the proposal was designed against. The demo exists only in
 // development: everything behind `import.meta.env.DEV && !LIVE` is constant
