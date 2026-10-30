@@ -141,28 +141,48 @@
 			</section>
 
 			<details class="block obs">
-				<summary><h2>Conexión con OBS</h2></summary>
-				<label class="field"><span>WebSocket</span><input type="text" id="obsUrl" value="ws://127.0.0.1:4455"></label>
-				<label class="field"><span>Contraseña</span><input type="password" id="obsPassword" placeholder="Opcional"></label>
-				<label class="field"><span>Escena de gameplay</span><input type="text" id="obsSceneName" value="osu! rempalago"></label>
-				<label class="field"><span>Acomodo de clientes</span>
-					<select id="obsLayoutMode">
-						<option value="dwindle">Dwindle (Hyprland)</option>
-						<option value="grid">Cuadrícula</option>
-						<option value="master-stack">Principal y pila</option>
-						<option value="team-split">Por equipo (izquierda / derecha)</option>
-					</select>
-				</label>
-				<div class="row">
-					<label class="field field--inline"><span>Espacio</span><input type="number" id="obsGap" value="8" min="0" max="64"></label>
-					<label class="toggle"><input type="checkbox" id="obsAutoTile" checked><span>Acomodar al cambiar clientes</span></label>
-				</div>
-				<div class="row">
+				<summary><h2>OBS</h2></summary>
+
+				<fieldset class="obs-part">
+					<legend>Conexión</legend>
+					<p class="note">En OBS: Herramientas → Configuración del servidor WebSocket → activa el servidor y copia la contraseña.</p>
+					<label class="field"><span>WebSocket</span><input type="text" id="obsUrl" value="ws://127.0.0.1:4455"></label>
+					<label class="field"><span>Contraseña</span><input type="password" id="obsPassword" placeholder="Opcional" autocomplete="off"></label>
 					<button type="button" class="btn btn--gold" id="obsConnectBtn">Conectar a OBS</button>
+				</fieldset>
+
+				<fieldset class="obs-part">
+					<legend>Armar escenas</legend>
+					<p class="note">Crea la escena si no existe, captura las ventanas de osu! que estén abiertas y pone el overlay encima. No cambia la escena que está al aire. Después se mantiene sola: si abres o cierras un osu!, la escena se actualiza.</p>
+					<div class="obs-scene">
+						<label class="field"><span>Escena de gameplay</span><input type="text" id="obsSceneName" value="osu! rempalago"></label>
+						<button type="button" class="btn" id="obsAutoSetupBtn">Armar gameplay</button>
+					</div>
+					<p class="note obs-hint">Las ventanas del cliente de torneo, acomodadas en la franja del juego.</p>
+					<div class="obs-scene">
+						<label class="field"><span>Escena del showcase</span><input type="text" id="obsShowcaseName" value="Showcase"></label>
+						<button type="button" class="btn" id="obsShowcaseBtn">Armar showcase</button>
+					</div>
+					<p class="note obs-hint">El osu! que reproduce la replay (no el de torneo), en el hueco de la replay.</p>
+					<p class="note obs-status" id="obsSetupStatus" aria-live="polite"></p>
+				</fieldset>
+
+				<fieldset class="obs-part">
+					<legend>Acomodo de clientes</legend>
+					<label class="field"><span>Distribución</span>
+						<select id="obsLayoutMode">
+							<option value="dwindle">Dwindle (Hyprland)</option>
+							<option value="grid">Cuadrícula</option>
+							<option value="master-stack">Principal y pila</option>
+							<option value="team-split">Por equipo (izquierda / derecha)</option>
+						</select>
+					</label>
+					<div class="row">
+						<label class="field field--inline"><span>Espacio</span><input type="number" id="obsGap" value="8" min="0" max="64"></label>
+						<label class="toggle"><input type="checkbox" id="obsAutoTile" checked><span>Acomodar al cambiar clientes</span></label>
+					</div>
 					<button type="button" class="btn" id="obsApplyBtn">Acomodar ahora</button>
-				</div>
-				<button type="button" class="btn btn--quiet btn--wide" id="obsAutoSetupBtn">Crear la escena de gameplay en OBS</button>
-				<p class="note" id="obsSetupStatus"></p>
+				</fieldset>
 			</details>
 		</aside>
 	</main>

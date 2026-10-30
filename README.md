@@ -102,14 +102,20 @@ Si cambias cualquier otra cosa de `data.json`, actualiza el source del overlay e
 | Resultado | `result` |
 | Campeón | `champ`, `campe` o `ganador` |
 
-Para que el panel vea las escenas, conecta OBS: Herramientas → **Configuración del servidor WebSocket** → activa el servidor y copia la contraseña. En el panel, abre **Conexión con OBS**, pega la contraseña y toca **Conectar a OBS**.
+Para que el panel vea las escenas, conecta OBS: Herramientas → **Configuración del servidor WebSocket** → activa el servidor y copia la contraseña. En el panel, abre **OBS**, pega la contraseña y toca **Conectar a OBS**.
 
-**Dónde van los clientes de osu!** El overlay deja huecos transparentes; los clientes van **debajo** del `Overlay` en la lista de fuentes:
+**Las escenas de gameplay y showcase se arman solas.** Con OBS conectado, en el panel → **OBS** → **Armar escenas**:
 
-| Escena | Hueco | Qué va ahí |
-|--------|-------|------------|
-| Gameplay | Franja de y 100 a y 820, todo el ancho | Los dos clientes de torneo. Con el cliente de torneo abierto, **Crear la escena de gameplay en OBS** (en el panel) crea la escena `osu! rempalago` con las capturas ya acomodadas; después agrégale el `Overlay` existente encima |
-| Showcase | x 40, y 40, 1280×720 | La captura del osu! que reproduce la replay. Clic derecho → Transformar → Editar transformación → Posición `40, 40`, Tamaño `1280×720` |
+| Botón | Qué hace | Antes de tocarlo, abre |
+|-------|----------|------------------------|
+| **Armar gameplay** | Crea la escena `osu! rempalago` (o la que escribas), captura cada cliente de torneo abierto, los acomoda en la franja del juego (y 100 a y 820) y pone el `Overlay` encima | El cliente de torneo |
+| **Armar showcase** | Crea la escena `Showcase`, captura el osu! que reproduce la replay en su hueco (x 40, y 40, 1280×720) y pone el `Overlay` encima | Un osu! aparte del de torneo, el que va a reproducir la replay |
+
+- Reutiliza tu `Overlay`: no crea otro Browser Source si ya tienes uno, así todas las escenas comparten el mismo.
+- Solo captura ventanas que estén abiertas. Mientras el panel esté conectado a OBS se mantiene al día: si abres un cliente, aparece y se reacomoda; si lo cierras, su captura se oculta.
+- No cambia la escena que está al aire.
+- Si mueves a mano la captura del showcase, no te la vuelve a mover; tocar **Armar showcase** la devuelve a su lugar.
+- Los botones se pueden tocar las veces que quieras: arreglan la escena sin duplicar nada.
 
 ## Durante el partido
 

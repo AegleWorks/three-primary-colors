@@ -76,6 +76,9 @@ for (const [scene, label] of SCENES) {
 	$("#scenes").append(b);
 }
 const obs = new OBSHandler(new ZEngine("ws://127.0.0.1:24050/ws"));
+// A browser source the setup creates opens the overlay next to this page,
+// in the round the overlay is showing.
+obs.overlayUrl = () => new URL(`./?round=${encodeURIComponent(state?.round || "f")}`, location.href).href;
 new SceneSync(obs, (scene) => send({ action: "scene", scene }));
 
 // ---------- timer ----------

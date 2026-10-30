@@ -753,6 +753,50 @@ select {
 	gap: 12px;
 }
 
+.obs-part {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 12px 0 0;
+	border: 0;
+	border-top: 1px solid var(--line);
+	min-width: 0;
+}
+
+.obs-part legend {
+	padding: 0 8px 0 0;
+	font: 900 13px/1 var(--display);
+	letter-spacing: 0.04em;
+	color: var(--gold-hi);
+}
+
+/* name field and its button on one line */
+.obs-scene {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: end;
+	gap: 8px;
+}
+
+.obs-hint {
+	margin-top: -4px;
+}
+
+.obs-status:empty {
+	display: none;
+}
+
+.obs-status {
+	padding: 8px 10px;
+	border-radius: 6px;
+	background: var(--ink);
+}
+
+.obs-status[data-busy] {
+	color: var(--gold-hi);
+}
+
 #obsSetupStatus[data-ok="true"] {
 	color: var(--on);
 }
