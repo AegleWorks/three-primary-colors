@@ -5597,11 +5597,12 @@ body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after 
 .tw-pfp {
 	display: inline-grid;
 	place-items: center;
-	/* in the span's own 0.7em: 1.3em, 0.45em and -0.3em of the line's text */
+	/* in the span's own 0.7em: 1.3em and 0.45em of the line's text */
 	width: 1.86em;
 	height: 1.86em;
 	margin-right: 0.64em;
-	vertical-align: -0.43em;
+	/* not a length: a grid's baseline is its initial's, not its bottom edge */
+	vertical-align: middle;
 	border-radius: 50%;
 	background: color-mix(in srgb, var(--tint, #b58cff) 28%, #0b0904) center / cover no-repeat;
 	box-shadow: 0 0 0 1px color-mix(in srgb, var(--tint, #b58cff) 45%, transparent);
