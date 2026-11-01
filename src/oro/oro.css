@@ -5615,6 +5615,24 @@ body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after 
 	color: transparent;
 }
 
+/* Badges before the name and emotes in the text, both kept inside the line. */
+.tw-badge,
+.tw-emote {
+	display: inline;
+	vertical-align: middle;
+}
+
+.tw-badge {
+	height: 1.15em;
+	margin-right: 0.25em;
+	border-radius: 2px;
+}
+
+.tw-emote {
+	height: 1.4em;
+	margin-inline: 0.1em;
+}
+
 /* =====================================================================
    BANCHO GHOST MISS — a small amber cue on the player's client: the break
    the casters just saw was Bancho's, the combo came back.

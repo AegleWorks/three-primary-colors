@@ -142,7 +142,7 @@ Estas son las reglas con las que el overlay lleva el partido. Conviene que el re
 | Se recarga el Browser Source | Conserva el draft de esa ronda |
 | Cambias la escena en OBS (con el panel abierto, OBS conectado y **Seguir a OBS** activo) | Cambia a la escena del overlay que corresponde |
 | Cambias el canal de Twitch en el panel | Vacía el chat en pantalla y lo llena con el del canal nuevo. Recuerda el canal aunque se recargue el source |
-| Alguien escribe en el chat | Sale con su foto de Twitch; mientras carga, con su inicial en su color |
+| Alguien escribe en el chat | Sale con su foto de Twitch (mientras carga, con su inicial en su color), sus emblemas y sus emotes |
 
 Todo lo automático se corrige a mano desde el panel: tocas el mapa y usas Pick, Ban, Ganó o **Quitar pick o ban**.
 

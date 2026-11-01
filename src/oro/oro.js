@@ -341,7 +341,7 @@ const TWITCH = !SIM ? [] : [
 	["mafe.dt", "#c39bff", "DT2 es injugable, qué pick tan duro"],
 	["calilove", "#ff9f5a", "saludos desde Cali"],
 	["osu_bogota", "#5af0c8", "acc de 98 en DT, qué locura"],
-	["rempa_fan", "#ffb3c7", "PogChamp PogChamp"],
+	["rempa_fan", "#ffb3c7", "PogChamp PogChamp", "", [{ id: "305954156", start: 0, end: 7 }, { id: "305954156", start: 9, end: 16 }]],
 	["daniel_hr", "#ff6b6b", "se viene la remontada"],
 	["nico_tapper", "#8ab4ff", "el combo, cuidado con el combo"],
 	["vale_osu", "#f7a8ff", "KEKW ese slider"],
@@ -353,13 +353,30 @@ let twitchIndex = 0;
 // the line wears the chatter's initial in their colour.
 const twitchPfps = new Map();
 const pfpStyle = (url) => (url ? `background-image:url('${esc(url)}')` : "");
-function twitchLine([who, color, msg, userId = ""] = TWITCH[twitchIndex++ % TWITCH.length]) {
+// Chatters' badges by user id, the same way; they belong to the channel, so a
+// switch forgets them.
+const twitchBadgeTags = new Map();
+// The message with its emotes in place. Twitch counts characters, not UTF-16
+// units, so an emoji earlier in the line doesn't shift them.
+function twitchText(msg, emotes) {
+	const chars = [...msg];
+	let html = "";
+	let at = 0;
+	for (const { id, start, end } of emotes) {
+		const name = chars.slice(start, end + 1).join("");
+		html += `${esc(chars.slice(at, start).join(""))}<img class="tw-emote" src="https://static-cdn.jtvnw.net/emoticons/v2/${esc(id)}/default/dark/2.0" alt="${esc(name)}">`;
+		at = end + 1;
+	}
+	return html + esc(chars.slice(at).join(""));
+}
+function twitchLine([who, color, msg, userId = "", emotes = []] = TWITCH[twitchIndex++ % TWITCH.length]) {
 	const tint = esc(color || "#b58cff");
+	const text = twitchText(msg, emotes);
 	for (const el of twitchFeeds) {
 		const p = document.createElement("p");
 		p.className = "msg msg--tw";
 		const url = twitchPfps.get(userId);
-		p.innerHTML = `<span class="tw-pfp${url ? " has-pic" : ""}" data-tw="${esc(userId)}" style="--tint:${tint};${pfpStyle(url)}">${esc([...who][0] || "?")}</span><b style="color:${tint}">${esc(who)}</b>${esc(msg)}`;
+		p.innerHTML = `<span class="tw-pfp${url ? " has-pic" : ""}" data-tw="${esc(userId)}" style="--tint:${tint};${pfpStyle(url)}">${esc([...who][0] || "?")}</span><span data-tw-badges="${esc(userId)}">${twitchBadgeTags.get(userId) ?? ""}</span><b style="color:${tint}">${esc(who)}</b>${text}`;
 		el.append(p);
 		keep(el);
 	}
@@ -372,10 +389,17 @@ function twitchAvatar(userId, url) {
 		el.classList.add("has-pic");
 	}
 }
+function twitchBadges(userId, urls) {
+	const tags = urls.map((url) => `<img class="tw-badge" src="${esc(url)}" alt="">`).join("");
+	if (!userId || tags === (twitchBadgeTags.get(userId) ?? "")) return;
+	twitchBadgeTags.set(userId, tags);
+	for (const el of $$(`[data-tw-badges="${CSS.escape(userId)}"]`)) el.innerHTML = tags;
+}
 // The chat heads name the channel being read.
 function twitchChannel(name) {
 	for (const el of $$("[data-twitch-channel]")) el.textContent = name ? `#${name}` : "chat en vivo";
 	for (const el of twitchFeeds) el.innerHTML = "";
+	twitchBadgeTags.clear();
 }
 if (SIM) for (let i = 0; i < 9; i++) twitchLine();
 if (SIM && !shot) (function chatter() {
@@ -2493,8 +2517,9 @@ export const oro = {
 	// Seat a caster (0-3) or free the seat; the rest rearrange around it.
 	showCaster,
 	setChatMode,
-	twitchLine: (who, color, msg, userId) => twitchLine([who, color, msg, userId]),
+	twitchLine: (who, color, msg, userId, emotes) => twitchLine([who, color, msg, userId, emotes]),
 	twitchAvatar,
+	twitchBadges,
 	// A new channel: its name in the chat heads, and the old lines go.
 	twitchChannel,
 	// One lobby line from tosu: into the lobby chat and the pick timer.

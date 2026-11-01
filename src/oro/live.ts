@@ -3,7 +3,7 @@ import axios from "axios";
 import IPCClient from "../handler/IPCClient";
 import type CasterHandler from "../handler/CasterHandler";
 import TwitchChat, { type TwitchStatus } from "../handler/TwitchChat";
-import { avatar } from "../handler/TwitchUsers";
+import { avatar, chatBadges } from "../handler/TwitchUsers";
 import type { DraftEdit } from "../control/ControlLink";
 import type { Beatmap, Data } from "../types";
 import { oro, type PoolMap } from "./oro.js";
@@ -282,9 +282,10 @@ export default class LiveOro {
 		oro.twitchChannel(channel);
 		this.chat = new TwitchChat(
 			channel,
-			({ who, color, msg, userId }) => {
-				oro.twitchLine(who, color, msg, userId);
+			({ channel: room, who, color, msg, userId, badges, emotes }) => {
+				oro.twitchLine(who, color, msg, userId, emotes);
 				avatar(userId).then((url) => url && oro.twitchAvatar(userId, url));
+				chatBadges(room, badges).then((urls) => this.chat?.current === room && oro.twitchBadges(userId, urls));
 			},
 			(status, name) => {
 				this.twitch = { ...this.twitch, channel: name, status };
