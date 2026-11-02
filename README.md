@@ -113,6 +113,8 @@ Para que el panel vea las escenas, conecta OBS: Herramientas → **Configuració
 
 - Reutiliza tu `Overlay`: no crea otro Browser Source si ya tienes uno, así todas las escenas comparten el mismo.
 - Solo captura ventanas que estén abiertas. Mientras el panel esté conectado a OBS se mantiene al día: si abres un cliente, aparece y se reacomoda; si lo cierras, su captura se oculta.
+- Usa **Captura de juego**, una por cliente, así una ventana tapada se sigue viendo. Si traías capturas de ventana (`osu! 1`, `osu! replay`), las reemplaza solo; una que hayas movido a mano en el showcase vuelve a su lugar.
+- Si una captura sale negra: corre OBS como administrador si osu! también corre así, y usa la misma GPU para OBS y osu! (en laptops, Configuración de gráficos de Windows → Alto rendimiento para los dos).
 - No cambia la escena que está al aire.
 - Si mueves a mano la captura del showcase, no te la vuelve a mover; tocar **Armar showcase** la devuelve a su lugar.
 - Los botones se pueden tocar las veces que quieras: arreglan la escena sin duplicar nada.

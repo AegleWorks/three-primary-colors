@@ -6,11 +6,17 @@ import TilingEngine, {
 	type TilingOptions,
 } from "./TilingEngine";
 
-// OBS window capture (win-capture): "priority" picks how a lost window is
-// found again. TITLE: the title must match; EXE: the title, else any window
+// OBS game capture (win-capture): it hooks the osu! process, one per tournament
+// client, so a covered window still shows. "priority" picks how a lost window
+// is found again. TITLE: the title must match; EXE: the title, else any window
 // of the same program.
+const CAPTURE_KIND = "game_capture";
+const OLD_CAPTURE_KIND = "window_capture";
 const WINDOW_PRIORITY_TITLE = 1;
 const WINDOW_PRIORITY_EXE = 2;
+// OBS drops the hook while a source is off screen and hooks again when it
+// shows, so a scene change waits on this.
+const HOOK_RATE_FASTEST = 3;
 const SYNC_MS = 5000;
 const PROBE_INPUT = "rempalago: buscando ventanas";
 const REPLAY_INPUT = "osu! replay";
@@ -35,7 +41,7 @@ function parseWindow(value: string): OsuWindow | null {
 	return { value, title, exe, client: client ? Number(client[1]) : null, manager: /manager/i.test(title) };
 }
 
-const captureSettings = (win: OsuWindow, priority: number) => ({ window: win.value, priority, cursor: false, client_area: true });
+const captureSettings = (win: OsuWindow, priority: number) => ({ capture_mode: "window", window: win.value, priority, capture_cursor: false, hook_rate: HOOK_RATE_FASTEST });
 
 export interface OBSHandlerConfig {
 	url?: string;
@@ -517,7 +523,7 @@ export default class OBSHandler {
 	}
 
 	// ---------- scene setup: gameplay and showcase ----------
-	// Windows only (OBS's window_capture). Captures exist only for osu!
+	// Windows only (OBS's game_capture). Captures exist only for osu!
 	// windows that are open, and follow them: sync() runs on connect, when
 	// tosu's client count changes and every few seconds, showing a capture
 	// when its window opens and hiding it when it closes.
@@ -546,12 +552,12 @@ export default class OBSHandler {
 	// already exists; with none, from a throwaway capture made for the asking.
 	private async listOsuWindows(probeScene?: string): Promise<OsuWindow[]> {
 		const inputs = await this.inputNames();
-		let probe = [...inputs].find(([, kind]) => kind === "window_capture")?.[0];
+		let probe = [...inputs].find(([, kind]) => kind === CAPTURE_KIND || kind === OLD_CAPTURE_KIND)?.[0];
 		let temporary = false;
 		if (!probe) {
 			if (!probeScene) return [];
 			probe = PROBE_INPUT;
-			await this.obs.call("CreateInput", { sceneName: probeScene, inputName: probe, inputKind: "window_capture", inputSettings: {}, sceneItemEnabled: false });
+			await this.obs.call("CreateInput", { sceneName: probeScene, inputName: probe, inputKind: CAPTURE_KIND, inputSettings: {}, sceneItemEnabled: false });
 			temporary = true;
 		}
 		try {
@@ -597,8 +603,9 @@ export default class OBSHandler {
 		this.windowed.clear();
 		for (const [i, win] of clients.entries()) {
 			const name = `osu! ${i + 1}`;
+			await this.retireWindowCapture(inputs, name);
 			if (!inputs.has(name)) {
-				await this.obs.call("CreateInput", { sceneName, inputName: name, inputKind: "window_capture", inputSettings: captureSettings(win, WINDOW_PRIORITY_TITLE) });
+				await this.obs.call("CreateInput", { sceneName, inputName: name, inputKind: CAPTURE_KIND, inputSettings: captureSettings(win, WINDOW_PRIORITY_TITLE) });
 				added = true;
 			} else {
 				await this.bindCapture(name, win, WINDOW_PRIORITY_TITLE);
@@ -628,15 +635,18 @@ export default class OBSHandler {
 		const win = this.replayWindow(windows);
 		if (!win) return null;
 		const inputs = await this.inputNames();
+		await this.retireWindowCapture(inputs, REPLAY_INPUT);
 		if (!inputs.has(REPLAY_INPUT)) {
-			const { sceneItemId } = await this.obs.call("CreateInput", { sceneName, inputName: REPLAY_INPUT, inputKind: "window_capture", inputSettings: captureSettings(win, WINDOW_PRIORITY_EXE) });
+			const { sceneItemId } = await this.obs.call("CreateInput", { sceneName, inputName: REPLAY_INPUT, inputKind: CAPTURE_KIND, inputSettings: captureSettings(win, WINDOW_PRIORITY_EXE) });
 			await this.placeReplay(sceneName, sceneItemId);
 			await this.ensureOverlay(sceneName);
 			return win;
 		}
-		await this.bindCapture(REPLAY_INPUT, win, WINDOW_PRIORITY_EXE);
 		const { sceneItems } = await this.obs.call("GetSceneItemList", { sceneName });
 		const item = sceneItems.find((si) => si.sourceName === REPLAY_INPUT);
+		// the replay's title changes with every map; a hooked capture has its window
+		const hooked = Number((item?.sceneItemTransform as { sourceWidth?: number } | undefined)?.sourceWidth) > 0;
+		await this.bindCapture(REPLAY_INPUT, win, WINDOW_PRIORITY_EXE, hooked);
 		if (!item) {
 			await this.placeReplay(sceneName, (await this.obs.call("CreateSceneItem", { sceneName, sourceName: REPLAY_INPUT })).sceneItemId);
 			await this.ensureOverlay(sceneName);
@@ -653,12 +663,24 @@ export default class OBSHandler {
 		});
 	}
 
-	// Points an existing capture at a window, only when it changed (setting
-	// the same window again makes OBS re-hook it, a visible blink).
-	private async bindCapture(inputName: string, win: OsuWindow, priority: number) {
+	// Points an existing capture at a window, only when it changed (a new
+	// window makes OBS drop the hook and find it again, a visible blink).
+	private async bindCapture(inputName: string, win: OsuWindow, priority: number, hooked = false) {
 		const { inputSettings } = await this.obs.call("GetInputSettings", { inputName });
-		if (inputSettings.window === win.value && inputSettings.priority === priority) return;
+		const set = inputSettings.capture_mode === "window" && inputSettings.priority === priority;
+		if (set && (hooked || inputSettings.window === win.value)) return;
 		await this.obs.call("SetInputSettings", { inputName, inputSettings: captureSettings(win, priority) });
+	}
+
+	// A source can't change kind, so a window capture from an earlier version
+	// makes way for a game capture. Renamed first: OBS may hold on to the name
+	// for a moment after removing it.
+	private async retireWindowCapture(inputs: Map<string, string>, inputName: string) {
+		if (inputs.get(inputName) !== OLD_CAPTURE_KIND) return;
+		const retired = `${inputName} (${Date.now()})`;
+		await this.obs.call("SetInputName", { inputName, newInputName: retired });
+		await this.obs.call("RemoveInput", { inputName: retired });
+		inputs.delete(inputName);
 	}
 
 	// The overlay goes on top of the captures. An overlay browser source that
@@ -710,7 +732,7 @@ export default class OBSHandler {
 	private async ready(): Promise<string | null> {
 		if (!this.connected && !(await this.connect())) return `No se pudo conectar a OBS en ${this.config.url}. Revisa que OBS esté abierto y el servidor WebSocket activo.`;
 		const { inputKinds } = await this.obs.call("GetInputKindList");
-		if (!inputKinds.includes("window_capture")) return "Este OBS no tiene Captura de ventana; el armado automático necesita OBS en Windows.";
+		if (!inputKinds.includes(CAPTURE_KIND)) return "Este OBS no tiene Captura de juego; el armado automático necesita OBS en Windows.";
 		if (!inputKinds.includes("browser_source")) return "Este OBS no tiene la fuente Navegador; reinstala OBS con el plugin de navegador.";
 		return null;
 	}
