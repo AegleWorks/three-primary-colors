@@ -9,6 +9,8 @@ export const normalizeCode = (code: string) => code.toUpperCase().replace(/[^0-9
 
 export interface RemoteStatus {
 	type: "remote_status";
+	// the bridge's own, for the panel to compare with its own
+	version: string;
 	// false when this build has no relay to talk to
 	available: boolean;
 	on: boolean;

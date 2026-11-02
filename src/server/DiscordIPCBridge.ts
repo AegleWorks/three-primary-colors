@@ -768,7 +768,7 @@ export class DiscordIPCBridge {
 						this.initWebSocketServer(retries - 1);
 					}, 300);
 				} else {
-					console.warn(`[DiscordBridge] Port ${this.port} is already in use: another bridge is probably open already.`);
+					console.warn(`\n  ¡Ya hay otro bridge abierto! El panel está hablando con ese, no con este.\n  Ciérralo (mira las otras ventanas negras) y abre este de nuevo.\n`);
 				}
 			} else {
 				console.warn(`[DiscordBridge] Server error:`, err);

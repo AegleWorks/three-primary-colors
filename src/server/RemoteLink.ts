@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomInt } from "node:crypto";
 import { WebSocket } from "ws";
+import { version } from "../../package.json";
 import { normalizeCode, PANEL_URL, relayRoom, RELAY_URL, type RemoteStatus } from "../config/remote";
 
 // The bridge's line to the relay (relay/ in this repo), off until the panel
@@ -51,6 +52,7 @@ export default class RemoteLink {
 		const on = Boolean(this.code);
 		return {
 			type: "remote_status",
+			version,
 			available: Boolean(RELAY),
 			on,
 			online: this.ws?.readyState === WebSocket.OPEN,

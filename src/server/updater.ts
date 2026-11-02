@@ -88,6 +88,8 @@ export async function update(root: string): Promise<boolean> {
 		// still running: the bridge that just updated us; the next start clears it
 	}
 	if (process.env.REMPALAGO_UPDATED || fs.existsSync(path.join(root, OPT_OUT))) return false;
+	// tosu serves the overlay from its own folder: anywhere else, this updates a copy nobody sees
+	if (!fs.existsSync(path.join(root, "tosu.exe"))) console.warn("  Ojo: este bridge no está junto a tosu.exe. Lo que actualice aquí no llega al overlay ni al panel.\n");
 	try {
 		const release = await latestRelease();
 		if (!isNewer(release.tag_name)) return false;
