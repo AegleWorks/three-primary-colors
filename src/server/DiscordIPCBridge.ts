@@ -778,8 +778,12 @@ export class DiscordIPCBridge {
 			const wss = new WebSocketServer({ server });
 			this.wss = wss;
 
-			wss.on("connection", (ws: WebSocket) => {
+			wss.on("connection", (ws: WebSocket, req) => {
 				console.log(`[DiscordBridge] Overlay client connected to WebSocket broadcast`);
+				if (req.url?.includes("panel")) {
+					this.panels.add(ws);
+					ws.on("close", () => this.panels.delete(ws));
+				}
 				this.sendToClient(ws, {
 					type: "discord_roster",
 					connected: this.state.connectedToDiscord,
@@ -798,6 +802,11 @@ export class DiscordIPCBridge {
 	// through this server. Panel commands go to every other client; the
 	// overlay's state goes to every other client and is kept for late joiners.
 	private overlayState: string | null = null;
+	private panels = new Set<WebSocket>();
+
+	get panelOpen() {
+		return this.panels.size > 0;
+	}
 
 	private relay(from: WebSocket, raw: string) {
 		let type: unknown;

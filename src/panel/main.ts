@@ -11,7 +11,8 @@ import type { SceneName, Side } from "../oro/stage.js";
 // back, so the panel never guesses.
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector<T>(s)!;
-const link = new ControlLink();
+// ?panel tells the bridge a panel is open, so it doesn't open another
+const link = new ControlLink("ws://127.0.0.1:24052/?panel");
 const send = (command: Command) => link.send(command);
 let state: OverlayState | null = null;
 // Every overlay that has spoken lately, by id, in the order they were first

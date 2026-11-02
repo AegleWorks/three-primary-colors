@@ -39,9 +39,17 @@ No necesitas cuenta de GitHub ni instalar nada más que lo de la tabla de abajo.
    - La primera vez Discord muestra una ventana para autorizar la conexión: dale **Autorizar**.
    - Deja abierta la ventana del bridge durante toda la transmisión.
 5. **En OBS, agrega el overlay** (ver [OBS](#obs)).
-6. **Abre el panel** en `http://127.0.0.1:24050/vcl-overlay/panel.html`. Arriba debe aparecer **Bridge** en verde y **Al aire**.
+6. **El panel se abre solo** en tu navegador cuando el bridge y tosu están corriendo, salvo que ya lo tengas abierto (por ejemplo, como dock en OBS). Su dirección es `http://127.0.0.1:24050/vcl-overlay/panel.html`. Arriba debe aparecer **Bridge** en verde y **Al aire**.
 
 Si todo eso se ve bien, ya puedes transmitir.
+
+## Actualizaciones
+
+El bridge se actualiza solo. Cada vez que lo abres, revisa si hay una versión nueva y, si la hay, la baja, actualiza el overlay, el panel y a sí mismo, y sigue en la misma ventana. Si algo falla (por ejemplo, no hay internet), te avisa y sigue con la versión que tienes.
+
+- **Tu `data.json` no se toca.** Tampoco tu sesión de Discord.
+- Si OBS ya estaba abierto, actualiza el source del overlay (clic derecho → Actualizar) para que cargue la versión nueva. Por eso conviene abrir el bridge antes de empezar a transmitir.
+- Para congelar la versión (por ejemplo, durante una final), crea un archivo vacío llamado `no-actualizar.txt` junto a `rempalago-bridge.exe`. Bórralo para volver a actualizar.
 
 ## data.json
 
@@ -177,7 +185,7 @@ Todo lo de arriba es para quien transmite. Para modificar el overlay:
 - Instala [Bun](https://bun.sh/docs/installation), clona el repo y corre `bun install` y `bun dev`. Esto levanta el overlay en `http://localhost:5173`, el panel en `/panel.html` y el bridge.
 - `?sim` (solo en `bun dev`) corre un partido simulado en lugar del real; `P` muestra un medidor de rendimiento.
 - El diseño es **Oro** (`src/oro`, a partir de `propuestas/oro`). El panel está en `src/panel`; el bridge, en `src/server`.
-- `bun run build` genera `dist/`. `bun run release` genera `release/Rempalago.zip`, con el overlay en `static/vcl-overlay/`, `rempalago-bridge.exe` compilado para Windows x64 y este README como `LEEME.md`. Ese zip es el que se sube al release de GitHub, con ese mismo nombre, para que el enlace de descarga siga funcionando.
+- `bun run build` genera `dist/`. `bun run release` genera `release/Rempalago.zip`, con el overlay en `static/vcl-overlay/`, `rempalago-bridge.exe` compilado para Windows x64 y este README como `LEEME.md`. Ese zip es el que se sube al release de GitHub, con ese mismo nombre, para que el enlace de descarga siga funcionando. El bridge instalado compara `package.json` con el tag del último release: sube siempre la versión antes de `bun run release`, y el tag debe coincidir. Un release que no sea prerelease le llega a todos al abrir el bridge.
 
 ## Créditos
 
