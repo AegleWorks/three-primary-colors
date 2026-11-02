@@ -388,6 +388,7 @@ select {
 }
 
 .mod[data-mod="nm"] { --mod: #e1dcd0; }
+.mod[data-mod="ez"] { --mod: #8fe36b; }
 .mod[data-mod="hd"] { --mod: var(--gold-hi); }
 .mod[data-mod="hr"] { --mod: #ff7584; }
 .mod[data-mod="dt"] { --mod: #b1a3ff; }
@@ -604,6 +605,7 @@ select {
 }
 
 .selected-art[data-mod="nm"] { --mod: #e1dcd0; }
+.selected-art[data-mod="ez"] { --mod: #8fe36b; }
 .selected-art[data-mod="hr"] { --mod: #ff7584; }
 .selected-art[data-mod="dt"] { --mod: #b1a3ff; }
 .selected-art[data-mod="fm"] { --mod: #85d8bf; }

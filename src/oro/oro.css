@@ -2356,6 +2356,10 @@ body[data-scene="champion"] .backdrop-grade {
 	color: #e1dcd0;
 }
 
+.mod--ez {
+	color: #8fe36b;
+}
+
 .mod--hd {
 	color: var(--gold-hi);
 }
@@ -5935,6 +5939,7 @@ body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after 
    ===================================================================== */
 
 .show [data-mod="nm"] { --mc: #e1dcd0; }
+.show [data-mod="ez"] { --mc: #8fe36b; }
 .show [data-mod="hd"] { --mc: var(--gold-hi); }
 .show [data-mod="hr"] { --mc: #ff7584; }
 .show [data-mod="dt"] { --mc: #b1a3ff; }

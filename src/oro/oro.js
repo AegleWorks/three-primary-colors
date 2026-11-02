@@ -1607,7 +1607,7 @@ if (SIM) window.addEventListener("keydown", (e) => {
 // One map at a time over its replay. The panel, the arrows or the map tosu
 // loads choose the featured one; only the demo steps through on its own.
 const FEATURE_MS = 6500;
-const MOD_NAME = { NM: "No Mod", HD: "Hidden", HR: "Hard Rock", DT: "Double Time", FM: "Free Mod", TB: "Tiebreaker" };
+const MOD_NAME = { NM: "No Mod", EZ: "Easy", HD: "Hidden", HR: "Hard Rock", DT: "Double Time", FM: "Free Mod", TB: "Tiebreaker" };
 // AR and OD top out near 11 with DT, so every meter shares that scale.
 const METER_MAX = 11;
 const showLine = $("#showLine");
