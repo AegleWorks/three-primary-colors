@@ -45,6 +45,8 @@ type Message = ({ type: "control" } & Command) | ({ type: "overlay_state" } & Ov
 export default class ControlLink {
 	private ws: WebSocket | null = null;
 	private handlers: ((message: Message) => void)[] = [];
+	// the bridge says it once on connecting, maybe before anyone is listening
+	private remoteStatus: RemoteStatus | null = null;
 
 	constructor(private url = "ws://127.0.0.1:24052") {
 		this.connect();
@@ -71,6 +73,7 @@ export default class ControlLink {
 	}
 
 	onRemoteStatus(fn: (status: RemoteStatus) => void) {
+		if (this.remoteStatus) fn(this.remoteStatus);
 		this.handlers.push((m) => m.type === "remote_status" && fn(m));
 	}
 
@@ -93,6 +96,7 @@ export default class ControlLink {
 		ws.onmessage = (event) => {
 			try {
 				const message = JSON.parse(event.data);
+				if (message.type === "remote_status") this.remoteStatus = message;
 				for (const handler of this.handlers) handler(message);
 			} catch {}
 		};
