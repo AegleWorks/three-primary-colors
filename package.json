@@ -10,6 +10,7 @@
     "release": "bun run scripts/release.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit && vite build",
+    "build:remote": "vite build --mode remote --outDir dist-remote",
     "preview": "vite preview"
   },
   "devDependencies": {

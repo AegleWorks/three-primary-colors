@@ -1,10 +1,8 @@
-import ZEngine from "@fukutotojido/z-engine";
 import ControlLink, { type Command, type DraftEdit, type OverlayState } from "../control/ControlLink";
-import OBSHandler from "../handler/OBSHandler";
-import SceneSync from "../handler/SceneSync";
 import { channels as twitchChannels, type TwitchUser } from "../handler/TwitchUsers";
 import { ROUNDS } from "../config/rounds";
 import type { SceneName, Side } from "../oro/stage.js";
+import { askForRoom, refused, REMOTE } from "./remote";
 
 // The control panel. Everything it does is a command to the overlay; what it
 // shows (scene, series, map, pool, draft) is the state the overlay publishes
@@ -12,7 +10,9 @@ import type { SceneName, Side } from "../oro/stage.js";
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector<T>(s)!;
 // ?panel tells the bridge a panel is open, so it doesn't open another
-const link = new ControlLink("ws://127.0.0.1:24052/?panel");
+if (REMOTE) document.body.dataset.remote = "";
+const link = new ControlLink(REMOTE ? await askForRoom() : "ws://127.0.0.1:24052/?panel");
+link.onRefused = refused;
 const send = (command: Command) => link.send(command);
 let state: OverlayState | null = null;
 // Every overlay that has spoken lately, by id, in the order they were first
@@ -76,11 +76,8 @@ for (const [scene, label] of SCENES) {
 	b.dataset.scene = scene;
 	$("#scenes").append(b);
 }
-const obs = new OBSHandler(new ZEngine("ws://127.0.0.1:24050/ws"));
-// A browser source the setup creates opens the overlay next to this page,
-// in the round the overlay is showing.
-obs.overlayUrl = () => new URL(`./?round=${encodeURIComponent(state?.round || "f")}`, location.href).href;
-new SceneSync(obs, (scene) => send({ action: "scene", scene }));
+// spelled out so the build drops OBS from the remote panel altogether
+if (import.meta.env.MODE !== "remote") import("./local").then(({ startLocal }) => startLocal(link, send, () => state));
 
 // ---------- timer ----------
 const secondsInput = $<HTMLInputElement>("#timerSeconds");
@@ -358,7 +355,7 @@ function renderOnAir() {
 	const onAir = $("#onair");
 	onAir.dataset.live = String(Boolean(state && link.connected));
 	if (!state || !link.connected) {
-		$("#onairLabel").textContent = link.connected ? "Esperando al overlay" : "Sin bridge: corre bun dev";
+		$("#onairLabel").textContent = link.connected ? "Esperando al overlay" : REMOTE ? "Reconectando" : "Sin bridge: corre bun dev";
 		$("#onairScene").textContent = "—";
 		return;
 	}

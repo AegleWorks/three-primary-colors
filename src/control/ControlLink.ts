@@ -1,3 +1,4 @@
+import type { RemoteStatus } from "../config/remote";
 import type { Draft, SceneName, Side } from "../oro/stage.js";
 
 // The wire between the control panel and the overlay, relayed by the bridge
@@ -39,7 +40,7 @@ export interface OverlayState {
 	twitch: { channels: string[]; channel: string; status: "off" | "connecting" | "joined" };
 }
 
-type Message = ({ type: "control" } & Command) | ({ type: "overlay_state" } & OverlayState);
+type Message = ({ type: "control" } & Command) | ({ type: "overlay_state" } & OverlayState) | RemoteStatus | { type: "remote"; on: boolean };
 
 export default class ControlLink {
 	private ws: WebSocket | null = null;
@@ -69,7 +70,17 @@ export default class ControlLink {
 		this.handlers.push((m) => m.type === "overlay_state" && fn(m));
 	}
 
+	onRemoteStatus(fn: (status: RemoteStatus) => void) {
+		this.handlers.push((m) => m.type === "remote_status" && fn(m));
+	}
+
+	setRemote(on: boolean) {
+		this.raw({ type: "remote", on });
+	}
+
 	onStatus?: (connected: boolean) => void;
+	// The relay turned this link away for good (a 44xx close): retrying won't help.
+	onRefused?: (code: number) => void;
 
 	private raw(message: Message) {
 		if (this.connected) this.ws!.send(JSON.stringify(message));
@@ -85,9 +96,10 @@ export default class ControlLink {
 				for (const handler of this.handlers) handler(message);
 			} catch {}
 		};
-		ws.onclose = () => {
+		ws.onclose = ({ code }) => {
 			this.onStatus?.(false);
-			setTimeout(() => this.connect(), 2000);
+			if (code >= 4400 && code < 4500) this.onRefused?.(code);
+			else setTimeout(() => this.connect(), 2000);
 		};
 		ws.onerror = () => ws.close();
 	}

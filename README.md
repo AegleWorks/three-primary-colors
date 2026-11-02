@@ -51,6 +51,19 @@ El bridge se actualiza solo. Cada vez que lo abres, revisa si hay una versión n
 - Si OBS ya estaba abierto, actualiza el source del overlay (clic derecho → Actualizar) para que cargue la versión nueva. Por eso conviene abrir el bridge antes de empezar a transmitir.
 - Para congelar la versión (por ejemplo, durante una final), crea un archivo vacío llamado `no-actualizar.txt` junto a `rempalago-bridge.exe`. Bórralo para volver a actualizar.
 
+## Panel remoto
+
+Otra persona puede manejar el panel desde su navegador, sin instalar nada y sin que abras puertos.
+
+1. En tu panel, abre **Panel remoto** y toca **Activar acceso remoto**.
+2. Pásale el enlace o el código a quien vaya a operar. Entra por `https://panel.aegleworks.com`.
+3. Para terminar, toca **Cortar acceso**: el código deja de servir al instante y la próxima vez sale otro.
+
+- Puede hacer lo mismo que tu panel: escenas, draft, timer, showcase, pool, chat de Twitch, ronda. Hasta 4 paneles a la vez; si dos tocan lo mismo, gana el último.
+- No puede tocar OBS, tu PC ni tu Discord: esas partes solo existen en tu panel.
+- Quien tenga el código controla lo que sale al aire, así que pásalo solo a quien corresponda.
+- Si se cae el internet o el relay, el bridge reconecta solo con el mismo código, y tu panel local sigue funcionando.
+
 ## data.json
 
 ```json
@@ -185,6 +198,7 @@ Todo lo de arriba es para quien transmite. Para modificar el overlay:
 - Instala [Bun](https://bun.sh/docs/installation), clona el repo y corre `bun install` y `bun dev`. Esto levanta el overlay en `http://localhost:5173`, el panel en `/panel.html` y el bridge.
 - `?sim` (solo en `bun dev`) corre un partido simulado en lugar del real; `P` muestra un medidor de rendimiento.
 - El diseño es **Oro** (`src/oro`, a partir de `propuestas/oro`). El panel está en `src/panel`; el bridge, en `src/server`.
+- El panel remoto tiene dos piezas: el relay (`relay/`, un Cloudflare Worker con Durable Objects; se publica con `wrangler deploy` y su URL va en `RELAY_URL`, en `src/config/remote.ts`) y la página (`bun run build:remote`, en Vercel con `vercel.json`). Con `RELAY_URL` vacío, el panel no ofrece el acceso remoto. El bridge filtra los comandos remotos en `src/server/RemoteLink.ts`: un comando nuevo no llega de afuera hasta agregarlo ahí.
 - `bun run build` genera `dist/`. `bun run release` genera `release/Rempalago.zip`, con el overlay en `static/vcl-overlay/`, `rempalago-bridge.exe` compilado para Windows x64 y este README como `LEEME.md`. Ese zip es el que se sube al release de GitHub, con ese mismo nombre, para que el enlace de descarga siga funcionando. El bridge instalado compara `package.json` con el tag del último release: sube siempre la versión antes de `bun run release`, y el tag debe coincidir. Un release que no sea prerelease le llega a todos al abrir el bridge.
 
 ## Créditos

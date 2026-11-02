@@ -1,0 +1,5 @@
+{
+  "buildCommand": "bun run build:remote",
+  "outputDirectory": "dist-remote",
+  "rewrites": [{ "source": "/", "destination": "/panel.html" }]
+}

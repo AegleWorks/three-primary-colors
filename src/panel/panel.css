@@ -1041,3 +1041,47 @@ select {
 	background: #eb0400;
 	color: #fff;
 }
+
+/* ---------- remote control: the code screen and the panel it opens ---------- */
+.remote-gate {
+	display: none;
+	flex-direction: column;
+	gap: 12px;
+	width: min(360px, calc(100vw - 32px));
+	margin: 18vh auto 0;
+}
+
+body[data-gate] .remote-gate {
+	display: flex;
+}
+
+body[data-gate] > :not(.remote-gate):not(script) {
+	display: none;
+}
+
+.remote-gate h1 {
+	margin: 0;
+	font-size: 24px;
+}
+
+.remote-gate input {
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+.remote-error {
+	min-height: 1.4em;
+	color: #ff7584;
+}
+
+body[data-remote] [data-local] {
+	display: none;
+}
+
+.remote-code {
+	display: block;
+	margin-bottom: 8px;
+	font-size: 22px;
+	letter-spacing: 0.08em;
+	user-select: all;
+}

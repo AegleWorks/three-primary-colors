@@ -15,6 +15,14 @@
 <!-- The control panel: a browser tab or an OBS custom browser dock. It drives
      the overlay (index.html) through the bridge server that bun dev starts. -->
 <body>
+	<form class="remote-gate" id="remoteGate">
+		<h1>Panel remoto</h1>
+		<p class="note">Escribe el código que te pasó quien transmite.</p>
+		<label class="field"><span>Código</span><input type="text" id="remoteCode" placeholder="XXXX-XXXX-XXXX" autocomplete="off" spellcheck="false" autocapitalize="characters"></label>
+		<p class="note remote-error" id="remoteError" aria-live="polite"></p>
+		<button type="submit" class="btn btn--gold">Entrar</button>
+	</form>
+
 	<header class="onair" id="onair">
 		<div class="onair-scene">
 			<span class="onair-tag"><i class="dot" id="onairDot"></i><span id="onairLabel">Sin overlay</span></span>
@@ -31,7 +39,7 @@
 		</div>
 		<div class="links">
 			<span class="link" title="El bridge conecta el panel con el overlay"><i class="dot" id="linkDot"></i>Bridge</span>
-			<span class="link"><i class="dot" id="obsStatusDot"></i>OBS</span>
+			<span class="link" data-local><i class="dot" id="obsStatusDot"></i>OBS</span>
 			<span class="link" id="roundBadge"></span>
 			<span class="link link--warn" id="overlayCount"></span>
 		</div>
@@ -39,11 +47,11 @@
 
 	<nav class="rail" aria-label="Escenas">
 		<div class="rail-scenes" id="scenes"></div>
-		<label class="toggle">
+		<label class="toggle" data-local>
 			<input type="checkbox" id="sceneFollowObs" checked>
 			<span>Seguir a OBS</span>
 		</label>
-		<span class="rail-note" id="sceneObsStatus"></span>
+		<span class="rail-note" id="sceneObsStatus" data-local></span>
 	</nav>
 
 	<main class="desk">
@@ -140,7 +148,24 @@
 				<div class="grid2" id="simKeys"></div>
 			</section>
 
-			<details class="block obs">
+			<section class="block remote" id="remoteBlock" data-local hidden aria-labelledby="remoteTitle">
+				<div class="head">
+					<h2 id="remoteTitle">Panel remoto</h2>
+					<span class="twitch-state" id="remoteState" aria-live="polite"></span>
+				</div>
+				<p class="note">Deja que otra persona maneje este panel desde su navegador. No puede tocar OBS ni tu PC, solo lo que ves aquí arriba.</p>
+				<div id="remoteOn" hidden>
+					<b class="remote-code" id="remoteCodeShown"></b>
+					<div class="row">
+						<button type="button" class="btn" id="remoteCopyCode">Copiar código</button>
+						<button type="button" class="btn" id="remoteCopyLink">Copiar enlace</button>
+					</div>
+					<p class="note">Compártelo solo con quien vaya a operar: quien lo tenga controla lo que sale al aire.</p>
+				</div>
+				<button type="button" class="btn btn--gold btn--wide" id="remoteToggle">Activar acceso remoto</button>
+			</section>
+
+			<details class="block obs" data-local>
 				<summary><h2>OBS</h2></summary>
 
 				<fieldset class="obs-part">
