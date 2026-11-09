@@ -5,7 +5,8 @@ import * as path from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import RemoteLink from "./RemoteLink";
 
-const LOCAL_ORIGIN = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
+export const BRIDGE_PORT = 24052;
+const LOCAL_ORIGIN =/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
 
 export interface DiscordUser {
 	id: string;
@@ -339,7 +340,7 @@ export class DiscordIPCBridge {
 		users: new Map(),
 	};
 
-	constructor(port = 24052) {
+	constructor(port = BRIDGE_PORT) {
 		this.port = port;
 	}
 
