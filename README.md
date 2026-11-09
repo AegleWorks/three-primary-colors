@@ -21,10 +21,10 @@ No necesitas cuenta de GitHub ni instalar nada más que lo de la tabla de abajo.
 
 ## Instalación
 
-1. **Instala tosu.** Descarga `tosu.exe`, ponlo en su propia carpeta (por ejemplo `C:\tosu`), ábrelo una vez y ciérralo. Así crea su carpeta `static`.
-2. **Descomprime el zip dentro de la carpeta de tosu.** Si Windows pregunta, acepta combinar las carpetas. Debe quedar así:
+1. **Descarga `rempalago-bridge.exe`** [desde la última release](https://github.com/AegleWorks/three-primary-colors/releases/latest) y ponlo en una carpeta vacía, por ejemplo `C:\Rempalago`. Ábrelo: si falta tosu, pregunta si lo instala ahí (responde **S**). Ese mismo paso descarga el overlay, el panel y el resto. Todo queda en esa carpeta, y las actualizaciones van a esa misma carpeta.
+2. **Abre tosu una vez** desde esa carpeta y ciérralo. Así crea su carpeta `static`. Debe quedar así:
    ```
-   C:\tosu\
+   C:\Rempalago\
    ├── tosu.exe
    ├── rempalago-bridge.exe
    ├── LEEME.md
