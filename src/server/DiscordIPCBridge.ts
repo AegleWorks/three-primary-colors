@@ -3,6 +3,9 @@ import * as http from "node:http";
 import * as net from "node:net";
 import * as path from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
+import RemoteLink from "./RemoteLink";
+
+const LOCAL_ORIGIN = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
 
 export interface DiscordUser {
 	id: string;
@@ -351,6 +354,7 @@ export class DiscordIPCBridge {
 	}
 
 	stop(cb?: () => void) {
+		this.remote.stop();
 		if (this.scanTimer) {
 			clearInterval(this.scanTimer);
 			this.scanTimer = null;
@@ -764,7 +768,7 @@ export class DiscordIPCBridge {
 						this.initWebSocketServer(retries - 1);
 					}, 300);
 				} else {
-					console.warn(`[DiscordBridge] Port ${this.port} is already in use: another bridge is probably open already.`);
+					console.warn(`\n  ¡Ya hay otro bridge abierto! El panel está hablando con ese, no con este.\n  Ciérralo (mira las otras ventanas negras) y abre este de nuevo.\n`);
 				}
 			} else {
 				console.warn(`[DiscordBridge] Server error:`, err);
@@ -775,11 +779,17 @@ export class DiscordIPCBridge {
 		// Windows it keeps the firewall prompt away.
 		server.listen(this.port, "127.0.0.1", () => {
 			console.log(`[DiscordBridge] WebSocket broadcast server listening on ws://127.0.0.1:${this.port}`);
-			const wss = new WebSocketServer({ server });
+			// A page on any website can open a socket to this machine; only our
+			// own pages (served by tosu, or the dev server) may reach this one.
+			const wss = new WebSocketServer({ server, verifyClient: ({ origin }: { origin?: string }) => !origin || LOCAL_ORIGIN.test(origin) });
 			this.wss = wss;
 
-			wss.on("connection", (ws: WebSocket) => {
+			wss.on("connection", (ws: WebSocket, req) => {
 				console.log(`[DiscordBridge] Overlay client connected to WebSocket broadcast`);
+				if (req.url?.includes("panel")) {
+					this.panels.add(ws);
+					ws.on("close", () => this.panels.delete(ws));
+				}
 				this.sendToClient(ws, {
 					type: "discord_roster",
 					connected: this.state.connectedToDiscord,
@@ -788,6 +798,7 @@ export class DiscordIPCBridge {
 				});
 				// A control panel that joins late gets the overlay's last state.
 				if (this.overlayState) ws.send(this.overlayState);
+				this.sendToClient(ws, this.remote.status);
 				ws.on("message", (data) => this.relay(ws, String(data)));
 			});
 		});
@@ -798,16 +809,39 @@ export class DiscordIPCBridge {
 	// through this server. Panel commands go to every other client; the
 	// overlay's state goes to every other client and is kept for late joiners.
 	private overlayState: string | null = null;
+	private panels = new Set<WebSocket>();
+	// Remote panels, reached through the relay; off until a panel here turns it on.
+	private remote = new RemoteLink(
+		(raw) => this.toOverlay(raw),
+		(status) => this.broadcast(status),
+		() => this.overlayState,
+	);
+
+	get panelOpen() {
+		return this.panels.size > 0;
+	}
+
+	private toOverlay(raw: string) {
+		if (!this.wss) return;
+		for (const client of this.wss.clients) {
+			if (client.readyState === WebSocket.OPEN) client.send(raw);
+		}
+	}
 
 	private relay(from: WebSocket, raw: string) {
-		let type: unknown;
+		let message: { type?: unknown; on?: unknown };
 		try {
-			type = JSON.parse(raw)?.type;
+			message = JSON.parse(raw);
 		} catch {
 			return;
 		}
+		const type = message?.type;
+		if (type === "remote") return message.on ? this.remote.start() : this.remote.stop();
 		if (type !== "control" && type !== "overlay_state") return;
-		if (type === "overlay_state") this.overlayState = raw;
+		if (type === "overlay_state") {
+			this.overlayState = raw;
+			this.remote.forward(raw);
+		}
 		if (!this.wss) return;
 		for (const client of this.wss.clients) {
 			if (client !== from && client.readyState === WebSocket.OPEN) client.send(raw);

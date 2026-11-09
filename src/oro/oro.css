@@ -2356,6 +2356,10 @@ body[data-scene="champion"] .backdrop-grade {
 	color: #e1dcd0;
 }
 
+.mod--ez {
+	color: #8fe36b;
+}
+
 .mod--hd {
 	color: var(--gold-hi);
 }
@@ -5597,11 +5601,12 @@ body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after 
 .tw-pfp {
 	display: inline-grid;
 	place-items: center;
-	/* in the span's own 0.7em: 1.3em, 0.45em and -0.3em of the line's text */
+	/* in the span's own 0.7em: 1.3em and 0.45em of the line's text */
 	width: 1.86em;
 	height: 1.86em;
 	margin-right: 0.64em;
-	vertical-align: -0.43em;
+	/* not a length: a grid's baseline is its initial's, not its bottom edge */
+	vertical-align: middle;
 	border-radius: 50%;
 	background: color-mix(in srgb, var(--tint, #b58cff) 28%, #0b0904) center / cover no-repeat;
 	box-shadow: 0 0 0 1px color-mix(in srgb, var(--tint, #b58cff) 45%, transparent);
@@ -5612,6 +5617,24 @@ body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after 
 
 .tw-pfp.has-pic {
 	color: transparent;
+}
+
+/* Badges before the name and emotes in the text, both kept inside the line. */
+.tw-badge,
+.tw-emote {
+	display: inline;
+	vertical-align: middle;
+}
+
+.tw-badge {
+	height: 1.15em;
+	margin-right: 0.25em;
+	border-radius: 2px;
+}
+
+.tw-emote {
+	height: 1.4em;
+	margin-inline: 0.1em;
 }
 
 /* =====================================================================
@@ -5916,6 +5939,7 @@ body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after 
    ===================================================================== */
 
 .show [data-mod="nm"] { --mc: #e1dcd0; }
+.show [data-mod="ez"] { --mc: #8fe36b; }
 .show [data-mod="hd"] { --mc: var(--gold-hi); }
 .show [data-mod="hr"] { --mc: #ff7584; }
 .show [data-mod="dt"] { --mc: #b1a3ff; }
@@ -6466,4 +6490,249 @@ body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after 
 
 .stage[data-round="show"] .backdrop-video {
 	filter: saturate(1.35) contrast(1.12);
+}
+
+/* =====================================================================
+   QUALIFIERS
+   One player's qualifier run: who they are on the left, every map's score
+   and placement on the right, by mod. qualifiers.ts re-renders .quals-body
+   for each player, so the entrances replay on every change.
+   ===================================================================== */
+
+body[data-scene="qualifiers"] .backdrop-grade {
+	background:
+		radial-gradient(80% 80% at 50% 40%, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.9)),
+		rgba(0, 0, 0, 0.35);
+}
+
+.quals-head {
+	position: absolute;
+	inset: 46px 0 auto;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 14px;
+}
+
+.quals-head::after {
+	content: "";
+	width: 1920px;
+	height: 1px;
+	margin-top: 30px;
+	background: linear-gradient(90deg, transparent, var(--gold-line) 15%, var(--gold) 50%, var(--gold-line) 85%, transparent);
+}
+
+.quals-heading {
+	margin: 0;
+	font: 900 54px/1 var(--display);
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--gold-hi);
+}
+
+.quals[data-active] .quals-head > * {
+	animation: rise 0.7s 0.1s var(--out) both;
+}
+
+.quals[data-active] .quals-head::after {
+	animation: grow 1s 0.2s var(--out) both;
+}
+
+.quals[data-active] .dust {
+	animation: fade 2s 0.3s ease-out both;
+}
+
+.quals-body {
+	position: absolute;
+	inset: 240px 600px 70px 60px;
+	display: grid;
+	grid-template-columns: 400px 1fr;
+	gap: 50px;
+	align-items: start;
+}
+
+/* The casters and Twitch chat, as on the showcase, down the right side. */
+.quals-side {
+	left: 1360px;
+	top: 230px;
+	width: 520px;
+	height: 790px;
+}
+
+.quals[data-active] .quals-side {
+	animation: rise 0.6s 0.3s var(--out) both;
+}
+
+.quals-empty {
+	grid-column: 1 / -1;
+	justify-self: center;
+	color: var(--dim);
+}
+
+/* ---------- the player ---------- */
+
+.quals-id {
+	display: flex;
+	align-items: center;
+	gap: 24px;
+}
+
+.quals-pfp {
+	--pfp: 150px;
+	border-radius: 18px;
+	box-shadow: 0 0 0 2px var(--gold), 0 0 60px rgba(226, 184, 102, 0.25), 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
+.quals-who {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-width: 0;
+}
+
+.quals-flag {
+	width: 84px;
+	height: auto;
+	border-radius: 6px;
+	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.quals-name {
+	margin: 0;
+	font: 900 46px/1 var(--display);
+	color: var(--text);
+	overflow-wrap: anywhere;
+}
+
+.quals-stats {
+	margin: 56px 0 0;
+	display: grid;
+	gap: 18px;
+}
+
+.quals-stats div {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	padding-bottom: 14px;
+	border-bottom: 1px solid var(--hair);
+}
+
+.quals-stats dt {
+	font: 700 15px/1 var(--label);
+	letter-spacing: 0.24em;
+	text-transform: uppercase;
+	color: var(--dim);
+}
+
+.quals-stats dd {
+	margin: 0;
+	font: 900 40px/1 var(--display);
+	color: var(--gold-hi);
+}
+
+.quals-stats small {
+	font-size: 18px;
+	font-weight: 600;
+	color: var(--faint);
+}
+
+.quals[data-active] .quals-pfp {
+	animation: winner-in 0.8s 0.25s var(--out) both;
+}
+
+.quals[data-active] .quals-who,
+.quals[data-active] .quals-stats div {
+	animation: rise 0.6s var(--out) both;
+}
+
+.quals[data-active] .quals-who {
+	animation-delay: 0.4s;
+}
+
+.quals[data-active] .quals-stats div:nth-child(1) {
+	animation-delay: 0.55s;
+}
+
+.quals[data-active] .quals-stats div:nth-child(2) {
+	animation-delay: 0.62s;
+}
+
+.quals[data-active] .quals-stats div:nth-child(3) {
+	animation-delay: 0.69s;
+}
+
+/* ---------- the maps ---------- */
+
+.quals-maps {
+	display: grid;
+	gap: 22px;
+}
+
+.quals-mod header {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	margin-bottom: 8px;
+}
+
+.quals-modname {
+	font: 700 22px/1 var(--label);
+	letter-spacing: 0.1em;
+}
+
+.quals-modseed {
+	padding: 4px 12px;
+	border: 1px solid var(--gold-line);
+	border-radius: 999px;
+	font: 900 17px/1 var(--display);
+	color: var(--gold-hi);
+}
+
+.quals-row {
+	display: grid;
+	grid-template-columns: 52px 1fr 120px 56px;
+	align-items: baseline;
+	gap: 14px;
+	padding: 7px 0;
+	border-top: 1px solid var(--hair);
+	font: 600 19px/1.2 var(--body);
+}
+
+.quals-slot {
+	font: 700 14px/1 var(--label);
+	letter-spacing: 0.12em;
+	color: var(--faint);
+}
+
+.quals-title {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	color: var(--text);
+}
+
+.quals-score {
+	text-align: right;
+	font: 600 22px/1 var(--display);
+	color: var(--text);
+}
+
+.quals-rank {
+	text-align: right;
+	font: 900 22px/1 var(--display);
+	color: var(--dim);
+}
+
+.quals-row.is-podium .quals-rank {
+	color: var(--gold);
+}
+
+.quals-row.is-top .quals-rank {
+	color: var(--gold-hi);
+	text-shadow: 0 0 18px rgba(255, 227, 163, 0.6);
+}
+
+.quals[data-active] .quals-mod {
+	animation: wipe-in 0.7s calc(0.5s + var(--i) * 0.12s) var(--out) both;
 }

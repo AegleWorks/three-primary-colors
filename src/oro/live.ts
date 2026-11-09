@@ -3,11 +3,12 @@ import axios from "axios";
 import IPCClient from "../handler/IPCClient";
 import type CasterHandler from "../handler/CasterHandler";
 import TwitchChat, { type TwitchStatus } from "../handler/TwitchChat";
-import { avatar } from "../handler/TwitchUsers";
-import type { DraftEdit } from "../control/ControlLink";
+import { avatar, chatBadges } from "../handler/TwitchUsers";
+import type { DraftEdit, DraftSnapshot } from "../control/ControlLink";
 import type { Beatmap, Data } from "../types";
 import { oro, type PoolMap } from "./oro.js";
 import { fetchSheetPool, type SheetRow } from "./sheet";
+import Sources from "./sources";
 import { DRAFT, ROUND, clock, ingest, onEvent, setSource, type MatchState, type Side } from "./stage.js";
 
 // Feeds the Oro broadcast from the live match: tosu for the players, scores,
@@ -282,9 +283,10 @@ export default class LiveOro {
 		oro.twitchChannel(channel);
 		this.chat = new TwitchChat(
 			channel,
-			({ who, color, msg, userId }) => {
-				oro.twitchLine(who, color, msg, userId);
+			({ channel: room, who, color, msg, userId, badges, emotes }) => {
+				oro.twitchLine(who, color, msg, userId, emotes);
 				avatar(userId).then((url) => url && oro.twitchAvatar(userId, url));
+				chatBadges(room, badges).then((urls) => this.chat?.current === room && oro.twitchBadges(userId, urls));
 			},
 			(status, name) => {
 				this.twitch = { ...this.twitch, channel: name, status };
@@ -310,7 +312,7 @@ export default class LiveOro {
 		let from = "data.json";
 		if (json.sheet) {
 			try {
-				rows = await fetchSheetPool(json.sheet);
+				rows = await fetchSheetPool({ ...json.sheet, gid: this.poolGid ?? json.sheet.gid });
 				from = "la sheet";
 			} catch (e) {
 				console.error("[LiveOro] Failed to read the mappool sheet:", (e as Error).message);
@@ -363,6 +365,17 @@ export default class LiveOro {
 		this.readMap(this.engine.cache);
 	}
 
+	// The sheet tab the match plays, as picked in the panel (see Sources); until
+	// then data.json's gid.
+	private poolGid: number | null = Sources.savedPool();
+
+	setPoolTab(gid: number) {
+		this.poolGid = gid;
+		this.poolStatus = { ok: true, text: "Cargando el pool" };
+		this.onUpdate?.();
+		this.reloadPool();
+	}
+
 	// From the panel: read data.json and the sheet again, keeping the draft.
 	async reloadPool() {
 		try {
@@ -399,6 +412,20 @@ export default class LiveOro {
 		} else {
 			pick.by = side;
 		}
+		this.saveDraft();
+		oro.draftChanged();
+	}
+
+	// The panel's undo: the draft as it was before an edit or a reset. It comes
+	// over the wire, so only well-formed sides and slots get in.
+	restoreDraft(draft: DraftSnapshot) {
+		const side = (s: unknown): s is Side => s === "l" || s === "r";
+		DRAFT.bans = Object.fromEntries(Object.entries(draft?.bans ?? {}).filter(([, s]) => side(s)));
+		DRAFT.picks = (Array.isArray(draft?.picks) ? draft.picks : [])
+			.filter((p) => typeof p?.id === "string" && side(p.by))
+			.map((p) => ({ id: p.id, by: p.by, won: side(p.won) ? p.won : null }));
+		if (side(draft?.tbWon)) DRAFT.tbWon = draft.tbWon;
+		else delete DRAFT.tbWon;
 		this.saveDraft();
 		oro.draftChanged();
 	}

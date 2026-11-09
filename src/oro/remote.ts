@@ -1,6 +1,8 @@
 import type ControlLink from "../control/ControlLink";
 import type LiveOro from "./live";
 import { oro } from "./oro.js";
+import type Qualifiers from "./qualifiers";
+import type Sources from "./sources";
 import { DRAFT, LIVE, ROUND, goTo, onEvent } from "./stage.js";
 
 // The overlay's end of the control link: runs the panel's commands and tells
@@ -10,10 +12,26 @@ const ID = Math.random().toString(36).slice(2, 10);
 // Re-sent this often so the panel can tell which overlays are still open.
 const HEARTBEAT_MS = 4000;
 
+// A browser tab in the background gets its timers slowed to about one a
+// minute, so the panel would think the overlay closed. A worker's timers
+// keep their pace, so the beat comes from one; where workers aren't allowed,
+// a plain interval.
+function heartbeat(beat: () => void) {
+	try {
+		const code = `setInterval(() => postMessage(0), ${HEARTBEAT_MS});`;
+		const worker = new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
+		worker.onmessage = beat;
+	} catch {
+		setInterval(beat, HEARTBEAT_MS);
+	}
+}
+
 export default class OverlayRemote {
 	constructor(
 		private link: ControlLink,
 		private live: LiveOro | null,
+		private qualifiers: Qualifiers,
+		private sources: Sources,
 	) {
 		link.onCommand((command) => {
 			switch (command.action) {
@@ -33,6 +51,9 @@ export default class OverlayRemote {
 				case "draftReset":
 					this.live?.resetDraft();
 					break;
+				case "draftRestore":
+					this.live?.restoreDraft(command.draft);
+					break;
 				case "twitch":
 					this.live?.setTwitchChannel(command.channel);
 					break;
@@ -41,6 +62,15 @@ export default class OverlayRemote {
 					break;
 				case "showcase":
 					oro.feature(command.id);
+					break;
+				case "qualifier":
+					qualifiers.show(Number(command.index) || 0);
+					break;
+				case "sources":
+					if (command.refresh) sources.discover();
+					if (command.pool !== undefined) sources.setPool(Number(command.pool));
+					if (command.results !== undefined) sources.setResults(Number(command.results));
+					if (command.file !== undefined) sources.setFile(String(command.file));
 					break;
 				case "round": {
 					const url = new URL(location.href);
@@ -53,8 +83,12 @@ export default class OverlayRemote {
 		onEvent((type) => type === "scene" && this.publish());
 		if (live) live.onUpdate = () => this.publish();
 		oro.onFeatured = () => this.publish();
+		qualifiers.onUpdate = () => this.publish();
+		sources.onUpdate = () => this.publish();
 		link.onStatus = (connected) => connected && this.publish();
-		setInterval(() => this.publish(), HEARTBEAT_MS);
+		heartbeat(() => this.publish());
+		// back in front: say so right away rather than at the next beat
+		document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && this.publish());
 	}
 
 	private publish() {
@@ -72,6 +106,8 @@ export default class OverlayRemote {
 			showcase: oro.featured(),
 			poolStatus: this.live?.poolStatus ?? { ok: true, text: "" },
 			twitch: this.live?.twitch ?? { channels: [], channel: "", status: "off" },
+			sources: this.sources.state,
+			qualifiers: { players: this.qualifiers.players.map(({ name, seed }) => ({ name, seed })), index: this.qualifiers.index },
 		});
 	}
 }

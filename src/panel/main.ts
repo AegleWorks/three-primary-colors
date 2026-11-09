@@ -1,17 +1,25 @@
-import ZEngine from "@fukutotojido/z-engine";
-import ControlLink, { type Command, type DraftEdit, type OverlayState } from "../control/ControlLink";
-import OBSHandler from "../handler/OBSHandler";
-import SceneSync from "../handler/SceneSync";
+import ControlLink, { type Command, type DraftEdit, type DraftSnapshot, type OverlayState } from "../control/ControlLink";
 import { channels as twitchChannels, type TwitchUser } from "../handler/TwitchUsers";
 import { ROUNDS } from "../config/rounds";
 import type { SceneName, Side } from "../oro/stage.js";
+import { askForRoom, refused, REMOTE } from "./remote";
 
 // The control panel. Everything it does is a command to the overlay; what it
 // shows (scene, series, map, pool, draft) is the state the overlay publishes
-// back, so the panel never guesses.
+// back, so the panel never guesses about what is on screen.
+//
+// It is built so that whoever runs it doesn't have to keep the match in their
+// head: the status bar says whether everything is working (and, when not,
+// what to do about it), the "Ahora" card reads the match and says what comes
+// next with a button for it, the map sheet puts the likely action first and
+// greys out the ones that make no sense, and every draft change can be undone
+// for a few seconds instead of asking "¿seguro?" first.
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector<T>(s)!;
-const link = new ControlLink();
+// ?panel tells the bridge a panel is open, so it doesn't open another
+if (REMOTE) document.body.dataset.remote = "";
+const link = new ControlLink(REMOTE ? await askForRoom() : "ws://127.0.0.1:24052/?panel");
+link.onRefused = refused;
 const send = (command: Command) => link.send(command);
 let state: OverlayState | null = null;
 // Every overlay that has spoken lately, by id, in the order they were first
@@ -29,14 +37,15 @@ const SCENES: [SceneName, string][] = [
 	["gameplay", "Gameplay"],
 	["result", "Resultado"],
 	["champion", "Campeón"],
+	["qualifiers", "Qualifiers"],
 ];
 const sceneName = (scene: string) => SCENES.find(([s]) => s === scene)?.[1] ?? "—";
-const KEYS: [string, string][] = [
-	["t", "Tiebreaker"],
-	["g", "Chat lobby o Twitch"],
-	["m", "Sonido"],
+const KEYS: [string, string, string][] = [
+	["t", "Tiebreaker", "Activa o quita el modo tiebreaker"],
+	["g", "Chat: lobby ↔ Twitch", "Cambia el chat en pantalla entre el del lobby y el de Twitch"],
+	["m", "Sonido", "Silencia o activa el sonido del overlay"],
 	// the meter, like the demo, exists only in development builds
-	...(import.meta.env.DEV ? [["p", "Medidor de rendimiento"] as [string, string]] : []),
+	...(import.meta.env.DEV ? [["p", "Medidor", "Medidor de rendimiento"] as [string, string, string]] : []),
 ];
 const SIM_KEYS: [string, string][] = [
 	["a", "Demo automática"],
@@ -61,91 +70,653 @@ function button(label: string, onClick: () => void, className = "btn") {
 
 const name = (side: Side) => state?.names[side] || (side === "l" ? "Izquierda" : "Derecha");
 const other = (side: Side): Side => (side === "l" ? "r" : "l");
-const esc = (text: string) => text.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
-
-// ---------- links ----------
-link.onStatus = (connected) => {
-	$("#linkDot").dataset.on = String(connected);
-	if (!connected) renderOnAir();
+const esc = (text: string) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+const modOf = (id: string) => id.replace(/\d+$/, "");
+const typing = () => {
+	const el = document.activeElement as HTMLElement | null;
+	return Boolean(el && (el.matches("input, select, textarea") || el.isContentEditable));
 };
 
-// ---------- scenes ----------
-for (const [scene, label] of SCENES) {
-	const b = button(label, () => send({ action: "scene", scene }));
-	b.dataset.scene = scene;
-	$("#scenes").append(b);
-}
-const obs = new OBSHandler(new ZEngine("ws://127.0.0.1:24050/ws"));
-// A browser source the setup creates opens the overlay next to this page,
-// in the round the overlay is showing.
-obs.overlayUrl = () => new URL(`./?round=${encodeURIComponent(state?.round || "f")}`, location.href).href;
-new SceneSync(obs, (scene) => send({ action: "scene", scene }));
-
-// ---------- timer ----------
-const secondsInput = $<HTMLInputElement>("#timerSeconds");
-const seconds = () => Math.max(5, Number(secondsInput.value) || 120);
-function markPreset() {
-	for (const b of $("#timerPresets").children) b.setAttribute("aria-pressed", String(Number((b as HTMLElement).dataset.seconds) === seconds()));
-}
-for (const s of PRESETS) {
-	const b = button(`${s}s`, () => {
-		secondsInput.value = String(s);
-		markPreset();
-	});
-	b.dataset.seconds = String(s);
-	$("#timerPresets").append(b);
-}
-secondsInput.addEventListener("input", markPreset);
-markPreset();
-$("#timerStart").addEventListener("click", () => send({ action: "timer", seconds: seconds() }));
-$("#timerStop").addEventListener("click", () => send({ action: "timer", seconds: null }));
-
-// ---------- tools ----------
-const round = $<HTMLSelectElement>("#round");
-for (const [key, r] of Object.entries(ROUNDS)) round.add(new Option(`${r.name} (BO${r.bestOf})`, key));
-round.addEventListener("change", () => send({ action: "round", round: round.value }));
-for (const [key, label] of KEYS) $("#keys").append(button(label, () => send({ action: "key", key })));
-if (import.meta.env.DEV) for (const [key, label] of SIM_KEYS) $("#simKeys").append(button(label, () => send({ action: "key", key })));
-else $("#simBlock").remove();
-
-// ---------- draft ----------
-$("#poolReload").addEventListener("click", () => {
-	$("#poolStatus").textContent = "Recargando el pool";
-	delete $("#poolStatus").dataset.ok;
-	send({ action: "poolReload" });
-});
-$("#draftReset").addEventListener("click", () => {
-	if (confirmReset()) send({ action: "draftReset" });
-});
-// A second press within three seconds confirms; no browser dialog in a dock.
-let resetArmed = 0;
-function confirmReset() {
-	const b = $("#draftReset");
-	if (Date.now() - resetArmed < 3000) {
-		b.textContent = "Reiniciar draft";
-		return true;
+function stored(key: string, value?: string) {
+	try {
+		if (value !== undefined) localStorage.setItem(key, value);
+		return localStorage.getItem(key);
+	} catch {
+		return null;
 	}
-	resetArmed = Date.now();
-	b.textContent = "¿Seguro? Toca otra vez";
-	setTimeout(() => (b.textContent = "Reiniciar draft"), 3000);
-	return false;
+}
+
+// ======================================================================
+// The match, read from the overlay's state
+// ======================================================================
+
+interface Match {
+	firstTo: number;
+	bestOf: number;
+	bansLeft: number;
+	// who should ban next, when it can be told from the bans so far
+	banner: Side | null;
+	phase: "bans" | "picks";
+	next: Side;
+	winner: Side | null;
+	tiebreaker: boolean;
+}
+
+function readMatch(s: OverlayState): Match {
+	const round = ROUNDS[s.round];
+	const bestOf = round?.bestOf ?? 13;
+	const firstTo = Math.ceil(bestOf / 2);
+	const perSide = round?.bans ?? 0;
+	// bans keep the order they were made in (object keys are slot names)
+	const bans = Object.values(s.draft.bans);
+	const count = (side: Side) => bans.filter((b) => b === side).length;
+	const bansLeft = Math.max(0, 2 * perSide - bans.length);
+	let banner: Side | null = null;
+	if (bansLeft) {
+		const last = bans.at(-1);
+		if (last && count(other(last)) < perSide) banner = other(last);
+		else if (count("l") < perSide && count("r") >= perSide) banner = "l";
+		else if (count("r") < perSide && count("l") >= perSide) banner = "r";
+	}
+	const last = s.draft.picks.at(-1);
+	const winner: Side | null = s.stars.l >= firstTo ? "l" : s.stars.r >= firstTo ? "r" : (s.draft.tbWon ?? null);
+	return {
+		firstTo,
+		bestOf,
+		bansLeft,
+		banner,
+		phase: bansLeft && !s.draft.picks.length ? "bans" : "picks",
+		// the same rule the overlay uses for a map nobody marked
+		next: s.draft.next ?? (last ? other(last.by) : "l"),
+		winner,
+		tiebreaker: !winner && s.stars.l === firstTo - 1 && s.stars.r === firstTo - 1,
+	};
 }
 
 function mapState(id: string) {
 	const draft = state!.draft;
 	const pick = draft.picks.find((p) => p.id === id);
-	return { pick, ban: draft.bans[id], won: id === "TB" ? draft.tbWon : pick?.won, current: draft.current === id };
+	return {
+		pick,
+		order: pick ? draft.picks.indexOf(pick) + 1 : 0,
+		ban: draft.bans[id],
+		won: id === "TB" ? draft.tbWon : (pick?.won ?? undefined),
+		current: draft.current === id,
+	};
 }
 
-function stateText(id: string, short = false) {
+function stateText(id: string) {
 	const { pick, ban, won, current } = mapState(id);
-	if (ban) return short ? "Ban" : `Baneado por ${name(ban)}`;
-	if (won) return short ? `Ganó ${name(won)}` : `${pick ? `Pick de ${name(pick.by)}, ` : ""}lo ganó ${name(won)}`;
-	if (current) return short ? "En juego" : `En juego${pick ? `, pick de ${name(pick.by)}` : ""}`;
-	if (pick) return short ? "Pick" : `Pick de ${name(pick.by)}`;
-	return short ? "" : "Libre";
+	if (ban) return `Baneado por ${name(ban)}`;
+	if (won) return `${pick ? `Pick de ${name(pick.by)}, ` : ""}lo ganó ${name(won)}`;
+	if (current) return `Se está jugando${pick ? `, pick de ${name(pick.by)}` : ""}. El ganador se marca solo al terminar.`;
+	if (pick) return `Pick de ${name(pick.by)}, todavía sin ganador`;
+	return "Libre: nadie lo ha pickeado ni baneado";
 }
 
+// ======================================================================
+// 1. Is everything working?
+// ======================================================================
+
+type Level = "ok" | "wait" | "warn" | "bad" | "off";
+interface Check {
+	id: string;
+	label: string;
+	level: Level;
+	text: string;
+	// what to do about it, in plain words
+	fix?: string;
+	action?: { label: string; run: () => void };
+}
+const ICON: Record<Level, string> = { ok: "✓", wait: "…", warn: "!", bad: "✕", off: "–" };
+
+let quiet = false;
+let overlayCountNote = "";
+
+function checks(): Check[] {
+	const list: Check[] = [];
+	const connected = link.connected;
+	list.push(
+		connected
+			? { id: "bridge", label: REMOTE ? "Conexión" : "Bridge", level: "ok", text: "Conectado" }
+			: {
+					id: "bridge",
+					label: REMOTE ? "Conexión" : "Bridge",
+					level: "bad",
+					text: "Sin conexión",
+					fix: REMOTE ? "Reconectando con quien transmite. Si no vuelve, pídele que revise su internet." : "Abre rempalago-bridge.exe y déjalo abierto. El panel se conecta solo.",
+				},
+	);
+	if (!connected) list.push({ id: "overlay", label: "Overlay", level: "off", text: "Sin bridge" });
+	else if (!state)
+		list.push({
+			id: "overlay",
+			label: "Overlay",
+			level: "bad",
+			text: "No aparece",
+			fix: "Abre OBS con el Browser Source del overlay (con tosu abierto). Si ya está, clic derecho en el source → Actualizar.",
+		});
+	else if (quiet)
+		list.push({
+			id: "overlay",
+			label: "Overlay",
+			level: "warn",
+			text: "No responde",
+			fix: "Si el overlay está en una pestaña del navegador, tráela al frente. En OBS: clic derecho en el source → Actualizar.",
+		});
+	else list.push({ id: "overlay", label: "Overlay", level: "ok", text: state.live ? "Respondiendo" : "Demo (?sim)" });
+
+	if (state?.live) {
+		const pool = state.poolStatus;
+		if (!state.pool.length) list.push({ id: "pool", label: "Pool", level: "wait", text: "Cargando" });
+		else if (!pool.ok)
+			list.push({
+				id: "pool",
+				label: "Pool",
+				level: "warn",
+				text: "Con problemas",
+				fix: `${pool.text}. Revisa la sheet (compartida con "cualquiera con el enlace") y recarga.`,
+				action: { label: "Recargar pool", run: reloadPool },
+			});
+		else list.push({ id: "pool", label: "Pool", level: "ok", text: `${state.pool.length} mapas` });
+
+		const tw = state.twitch;
+		if (!tw.channels.length) list.push({ id: "chat", label: "Chat", level: "off", text: "Sin canales", fix: 'Agrega los canales en data.json: "twitch": ["canal"].' });
+		else if (tw.status === "joined") list.push({ id: "chat", label: "Chat", level: "ok", text: `#${tw.channel}` });
+		else list.push({ id: "chat", label: "Chat", level: "wait", text: "Conectando" });
+	}
+
+	if (!REMOTE) {
+		const obsOn = document.querySelector<HTMLElement>("#obsStatusDot")?.dataset.on === "true";
+		list.push(
+			obsOn
+				? { id: "obs", label: "OBS", level: "ok", text: "Conectado" }
+				: {
+						id: "obs",
+						label: "OBS",
+						level: "warn",
+						text: "Sin conectar",
+						fix: "Sin OBS, el panel no sigue tus escenas ni arma las de gameplay y showcase.",
+						action: { label: "Conectar OBS", run: () => openSetup("#obsBlock") },
+					},
+		);
+	}
+	return list;
+}
+
+// The one thing that most needs doing, if any.
+function topIssue(list: Check[]): Check | null {
+	const version = $("#versionWarning").textContent;
+	const order = ["bridge", "overlay"];
+	for (const id of order) {
+		const c = list.find((x) => x.id === id && (x.level === "bad" || x.level === "warn"));
+		if (c) return c;
+	}
+	if (version) return { id: "version", label: "Versión", level: "warn", text: "Bridge y panel no coinciden", fix: version };
+	const pool = list.find((x) => x.id === "pool" && x.level === "warn");
+	if (pool) return pool;
+	if (overlayCountNote) return { id: "overlays", label: "Overlays", level: "wait", text: "Hay más de un overlay abierto", fix: overlayCountNote };
+	return null;
+}
+
+let healthDrawn = "";
+function renderHealth() {
+	const list = checks();
+	const issue = topIssue(list);
+	// heartbeats that change nothing leave the DOM (and the focus) alone
+	const key = JSON.stringify([list, issue]);
+	if (key === healthDrawn) return;
+	healthDrawn = key;
+	const box = $("#health");
+	box.innerHTML = "";
+	for (const c of list) {
+		const li = document.createElement("li");
+		const b = button("", () => (c.action ? c.action.run() : openSetup("#checkTitle")), "chip");
+		b.dataset.level = c.level;
+		b.title = `${c.label}: ${c.text}${c.fix ? `. ${c.fix}` : ""}`;
+		b.innerHTML = `<i aria-hidden="true">${ICON[c.level]}</i><span class="chip-label">${esc(c.label)}</span><span class="chip-text">${esc(c.text)}</span>`;
+		li.append(b);
+		box.append(li);
+	}
+
+	const alert = $("#alert");
+	alert.hidden = !issue;
+	if (issue) {
+		alert.dataset.level = issue.level;
+		$("#alertIcon").textContent = ICON[issue.level];
+		$("#alertTitle").textContent = `${issue.label}: ${issue.text}. `;
+		$("#alertFix").textContent = issue.fix ?? "";
+		const action = $<HTMLButtonElement>("#alertAction");
+		action.hidden = !issue.action;
+		if (issue.action) {
+			action.textContent = issue.action.label;
+			action.onclick = issue.action.run;
+		}
+	}
+
+	// the same checks, as the list in Ajustes
+	const checklist = $("#checklist");
+	checklist.innerHTML = "";
+	for (const c of list) {
+		const li = document.createElement("li");
+		li.dataset.level = c.level;
+		li.innerHTML = `<i aria-hidden="true">${ICON[c.level]}</i><span><b>${esc(c.label)}</b> · ${esc(c.text)}${c.fix && c.level !== "ok" ? `<small>${esc(c.fix)}</small>` : ""}</span>`;
+		if (c.action && c.level !== "ok") li.append(button(c.action.label, c.action.run, "btn btn--small"));
+		checklist.append(li);
+	}
+	const problems = list.filter((c) => c.level === "bad" || c.level === "warn").length;
+	$("#tab-setup").dataset.badge = problems ? String(problems) : "";
+}
+
+function renderBar() {
+	const tally = $("#tally");
+	const live = Boolean(state && link.connected);
+	tally.dataset.state = !live ? "off" : quiet ? "warn" : state!.live ? "live" : "demo";
+	$("#tallyLabel").textContent = !link.connected ? (REMOTE ? "Reconectando" : "Sin bridge") : !state ? "Esperando al overlay" : quiet ? "No responde" : state.live ? "Al aire" : "Al aire · demo";
+	$("#tallyScene").textContent = state && link.connected ? sceneName(state.scene) : "—";
+
+	$("#series").hidden = !state;
+	if (!state) return;
+	const m = readMatch(state);
+	$("#seriesNameL").textContent = name("l");
+	$("#seriesNameR").textContent = name("r");
+	$("#seriesL").textContent = String(state.stars.l);
+	$("#seriesR").textContent = String(state.stars.r);
+	const round = ROUNDS[state.round];
+	$("#seriesFormat").textContent = `${round?.name ?? state.round} · BO${m.bestOf} · a ${m.firstTo}`;
+	$("#legendL").textContent = name("l");
+	$("#legendR").textContent = name("r");
+}
+
+// ======================================================================
+// 2. What happens now?
+// ======================================================================
+
+interface Moment {
+	tone: "idle" | "live" | "bans" | "picks" | "done" | "warn" | "tb";
+	kicker: string;
+	title: string;
+	detail: string;
+	// the scene this moment calls for
+	scene?: SceneName;
+	actions?: { label: string; run: () => void; primary?: boolean; disabled?: boolean }[];
+}
+
+const PRESHOW: SceneName[] = ["starting", "intro"];
+
+function moment(): Moment {
+	if (!link.connected)
+		return {
+			tone: "warn",
+			kicker: "Sin conexión",
+			title: REMOTE ? "Reconectando…" : "Abre el bridge",
+			detail: REMOTE ? "Se perdió la conexión con quien transmite. El panel vuelve solo." : "Abre rempalago-bridge.exe y déjalo abierto: el panel se conecta solo.",
+		};
+	if (!state)
+		return {
+			tone: "warn",
+			kicker: "Falta el overlay",
+			title: "Esperando al overlay",
+			detail: "Abre OBS con el Browser Source del overlay (y tosu abierto). Aparece aquí en cuanto cargue.",
+		};
+	const s = state;
+	if (s.scene === "showcase") {
+		const map = s.pool.find((m) => m.id === s.showcase);
+		return {
+			tone: "live",
+			kicker: "Showcase en pantalla",
+			title: map ? `${map.id} · ${map.title}` : "Elige un mapa",
+			detail: map ? `${map.artist} · [${map.diff}]. Pasa al siguiente cuando termine la replay.` : "Toca un mapa en la pestaña Showcase.",
+			actions: [
+				{ label: "◀ Anterior", run: () => stepShowcase(-1), disabled: !s.pool.length },
+				{ label: "Siguiente ▶", run: () => stepShowcase(1), primary: true, disabled: !s.pool.length },
+			],
+		};
+	}
+	if (s.scene === "qualifiers") {
+		const q = s.qualifiers;
+		const p = q?.players[q.index];
+		return {
+			tone: "live",
+			kicker: "Qualifiers en pantalla",
+			title: p ? `#${p.seed} · ${p.name}` : "Sin jugadores",
+			detail: p ? `Jugador ${q.index + 1} de ${q.players.length}. Siguiente se acerca al seed 1.` : "Elige la hoja de resultados en Ajustes → Hojas de la sheet.",
+			actions: p
+				? [
+						{ label: "◀ Anterior", run: () => stepQuals(-1), disabled: q.index <= 0 },
+						{ label: "Siguiente ▶", run: () => stepQuals(1), primary: true, disabled: q.index >= q.players.length - 1 },
+					]
+				: [{ label: "Elegir hoja", run: () => openSetup("#sourcesTitle"), primary: true }],
+		};
+	}
+	if (!s.live)
+		return { tone: "idle", kicker: "Demo", title: "Partido simulado", detail: "El overlay corre la demo (?sim): no hay draft que editar. Los controles de la demo están en Ajustes." };
+	if (!s.pool.length) return { tone: "idle", kicker: "Preparando", title: "Cargando el pool", detail: "El overlay está leyendo la sheet del mappool." };
+
+	const m = readMatch(s);
+	const toPool = { label: "Marcar en el pool", run: () => showTab("match", true) };
+
+	if (m.winner) {
+		const round = ROUNDS[s.round];
+		const scene: SceneName = round?.title ? "champion" : "result";
+		return {
+			tone: "done",
+			kicker: "Serie terminada",
+			title: `¡${name(m.winner)} gana la serie!`,
+			detail: `Queda ${s.stars.l}–${s.stars.r}. ${round?.title ? "Es momento de la escena Campeón." : "Muestra el resultado y cierra la transmisión."}`,
+			scene,
+		};
+	}
+
+	const cur = s.draft.current;
+	if (cur) {
+		const map = s.pool.find((x) => x.id === cur);
+		const { pick, ban, won } = mapState(cur);
+		if (cur === "TB" && !won)
+			return { tone: "tb", kicker: "Tiebreaker", title: `En juego: TB${map ? ` · ${map.title}` : ""}`, detail: "El mapa decisivo. El ganador de la serie se marca solo al terminar.", scene: "gameplay" };
+		if (won)
+			return {
+				tone: "picks",
+				kicker: "Mapa terminado",
+				title: `${name(won)} ganó ${cur}`,
+				detail: m.tiebreaker ? `Va ${s.stars.l}–${s.stars.r}: viene el tiebreaker.` : `Va ${s.stars.l}–${s.stars.r}. Ahora pickea ${name(m.next)}: cuando el referee cargue su mapa, se marca solo.`,
+				scene: "result",
+				actions: [toPool],
+			};
+		if (ban)
+			return {
+				tone: "warn",
+				kicker: "Ojo",
+				title: `osu! cargó ${cur}, que está baneado`,
+				detail: `Si fue un error del referee, no hagas nada. Si el ban estaba mal marcado, abre el mapa y quítalo.`,
+				actions: [{ label: `Abrir ${cur}`, run: () => select(cur), primary: true }],
+			};
+		return {
+			tone: "live",
+			kicker: `En juego · mapa ${pick ? mapState(cur).order : "?"}`,
+			title: `${cur}${map ? ` · ${map.title}` : ""}`,
+			detail: pick ? `Pick de ${name(pick.by)}. El ganador se marca solo cuando termina. ¿El pick es del otro? Toca el mapa y cámbialo.` : "Se está jugando.",
+			scene: "gameplay",
+			actions: [{ label: `Abrir ${cur}`, run: () => select(cur) }],
+		};
+	}
+
+	if (m.tiebreaker) return { tone: "tb", kicker: "Tiebreaker", title: `Empate ${s.stars.l}–${s.stars.r}: viene el TB`, detail: "Cuando el referee cargue el TB, el overlay activa el modo tiebreaker solo.", scene: "gameplay" };
+
+	const fresh = !s.draft.picks.length && !Object.keys(s.draft.bans).length && !s.stars.l && !s.stars.r;
+	if (fresh && (PRESHOW.includes(s.scene as SceneName) || !s.scene)) {
+		const problems = checks().filter((c) => c.level === "bad" || c.level === "warn");
+		const next: SceneName = s.scene === "starting" ? "intro" : "mappool";
+		return {
+			tone: "idle",
+			kicker: "Antes del partido",
+			title: `${name("l")} vs ${name("r")}`,
+			detail: problems.length
+				? `Antes de empezar, revisa ${problems.length === 1 ? "1 cosa" : `${problems.length} cosas`} arriba (${problems.map((p) => p.label).join(", ")}).`
+				: `Todo listo. Cuando arranque, pasa a ${sceneName(next)}.`,
+			scene: next,
+		};
+	}
+
+	if (m.phase === "bans") {
+		const done = 2 * (ROUNDS[s.round]?.bans ?? 0) - m.bansLeft;
+		return {
+			tone: "bans",
+			kicker: `Bans · ${done} de ${done + m.bansLeft}`,
+			title: m.banner ? `Le toca banear a ${name(m.banner)}` : "Fase de bans",
+			detail: "Toca en el pool el mapa que banearon y elige quién lo baneó.",
+			scene: "mappool",
+			actions: [{ ...toPool, primary: true }],
+		};
+	}
+
+	const first = !s.draft.picks.length;
+	return {
+		tone: "picks",
+		kicker: `Picks · mapa ${s.draft.picks.length + 1}`,
+		title: `Le toca pickear a ${name(m.next)}`,
+		detail: first
+			? `Cuando el referee cargue el mapa, se marca solo como pick de ${name(m.next)}. Si pickeó ${name(other(m.next))}, márcalo tú antes.`
+			: `Cuando el referee cargue el mapa, se marca solo. Arranca el timer si hace falta.`,
+		scene: "mappool",
+		actions: [toPool],
+	};
+}
+
+let current: Moment | null = null;
+let nowDrawn = "";
+function renderNow() {
+	const mo = moment();
+	current = mo;
+	renderScenes();
+	const key = JSON.stringify([mo, state?.scene]);
+	if (key === nowDrawn) return;
+	nowDrawn = key;
+	const box = $("#now");
+	box.dataset.tone = mo.tone;
+	$("#nowKicker").textContent = mo.kicker;
+	$("#nowTitle").textContent = mo.title;
+	$("#nowDetail").textContent = mo.detail;
+	const actions = $("#nowActions");
+	actions.innerHTML = "";
+	if (mo.scene && state && state.scene !== mo.scene) {
+		const go = mo.scene;
+		actions.append(button(`Pasar a ${sceneName(go)}`, () => goScene(go), "btn btn--gold"));
+	}
+	for (const a of mo.actions ?? []) {
+		const b = button(a.label, a.run, `btn${a.primary && !actions.querySelector(".btn--gold") ? " btn--gold" : ""}`);
+		b.disabled = Boolean(a.disabled);
+		actions.append(b);
+	}
+	actions.hidden = !actions.children.length;
+}
+
+// ======================================================================
+// Scenes
+// ======================================================================
+
+let scenePending: SceneName | null = null;
+let sceneTimer = 0;
+function goScene(scene: SceneName) {
+	if (!link.connected) return toast("Sin conexión: no se pudo cambiar la escena", { tone: "warn" });
+	send({ action: "scene", scene });
+	scenePending = scene;
+	clearTimeout(sceneTimer);
+	sceneTimer = window.setTimeout(() => {
+		if (scenePending !== scene) return;
+		scenePending = null;
+		renderScenes();
+		toast(`El overlay no pasó a ${sceneName(scene)}. ¿Está abierto?`, { tone: "warn" });
+	}, 5000);
+	renderScenes();
+}
+
+SCENES.forEach(([scene, label], i) => {
+	const b = button("", () => goScene(scene), "scene");
+	b.dataset.scene = scene;
+	b.innerHTML = `<kbd>${i + 1}</kbd><span class="scene-name">${label}</span><em class="scene-tag"></em>`;
+	b.setAttribute("aria-keyshortcuts", String(i + 1));
+	$("#scenes").append(b);
+});
+
+function renderScenes() {
+	if (scenePending && state?.scene === scenePending) scenePending = null;
+	const suggest = current?.scene;
+	for (const b of document.querySelectorAll<HTMLElement>("#scenes [data-scene]")) {
+		const scene = b.dataset.scene;
+		const on = scene === state?.scene && link.connected;
+		const tag = on ? "Al aire" : scene === scenePending ? "Cambiando…" : scene === suggest ? "Sugerida" : "";
+		b.dataset.mode = on ? "on" : scene === scenePending ? "pending" : scene === suggest ? "suggest" : "";
+		b.setAttribute("aria-current", String(on));
+		b.querySelector(".scene-tag")!.textContent = tag;
+	}
+}
+
+// ======================================================================
+// Tabs
+// ======================================================================
+
+type Tab = "match" | "showcase" | "quals" | "chat" | "setup";
+const TABS: Tab[] = ["match", "showcase", "quals", "chat", "setup"];
+let tab: Tab = (TABS as string[]).includes(stored("rempalago-tab") ?? "") ? (stored("rempalago-tab") as Tab) : "match";
+
+function showTab(next: Tab, focusContent = false) {
+	tab = next;
+	stored("rempalago-tab", next);
+	for (const t of TABS) {
+		const on = t === next;
+		const b = $(`#tab-${t}`);
+		b.setAttribute("aria-selected", String(on));
+		b.tabIndex = on ? 0 : -1;
+		$(`#pane-${t}`).hidden = !on;
+	}
+	if (focusContent) $(`#pane-${next}`).scrollIntoView({ behavior: "smooth", block: "start" });
+}
+for (const t of TABS) {
+	const b = $(`#tab-${t}`);
+	b.addEventListener("click", () => showTab(t));
+	b.addEventListener("keydown", (e) => {
+		const i = TABS.indexOf(t);
+		const to = e.key === "ArrowRight" ? TABS[(i + 1) % TABS.length] : e.key === "ArrowLeft" ? TABS[(i - 1 + TABS.length) % TABS.length] : null;
+		if (!to) return;
+		e.preventDefault();
+		showTab(to);
+		$(`#tab-${to}`).focus();
+	});
+}
+showTab(tab);
+
+function openSetup(target: string) {
+	showTab("setup");
+	const el = $(target);
+	if (el instanceof HTMLDetailsElement) el.open = true;
+	requestAnimationFrame(() => el.scrollIntoView({ behavior: "smooth", block: "start" }));
+}
+
+// When the scene on air changes, the tab for it comes forward, unless the
+// operator is busy in Chat or Ajustes.
+const SCENE_TAB: Partial<Record<SceneName, Tab>> = {
+	intro: "match",
+	mappool: "match",
+	gameplay: "match",
+	result: "match",
+	champion: "match",
+	showcase: "showcase",
+	qualifiers: "quals",
+};
+let lastScene = "";
+function followScene() {
+	if (!state || state.scene === lastScene) return;
+	lastScene = state.scene;
+	const to = SCENE_TAB[state.scene as SceneName];
+	if (to && to !== tab && (tab === "match" || tab === "showcase" || tab === "quals")) showTab(to);
+	$("#tab-showcase").dataset.live = String(state.scene === "showcase");
+	$("#tab-quals").dataset.live = String(state.scene === "qualifiers");
+}
+
+// ======================================================================
+// Toast, with undo
+// ======================================================================
+
+let toastTimer = 0;
+let undo: (() => void) | null = null;
+function toast(text: string, opts: { undo?: () => void; tone?: "ok" | "warn" } = {}) {
+	const box = $("#toast");
+	const ms = opts.undo ? 8000 : 3500;
+	undo = opts.undo ?? null;
+	$("#toastText").textContent = text;
+	$("#toastUndo").hidden = !undo;
+	box.dataset.tone = opts.tone ?? "ok";
+	box.hidden = false;
+	// restart the countdown bar
+	const clock = $("#toastClock");
+	clock.style.animation = "none";
+	void clock.offsetWidth;
+	clock.style.animation = `toast-clock ${ms}ms linear forwards`;
+	clearTimeout(toastTimer);
+	toastTimer = window.setTimeout(() => {
+		box.hidden = true;
+		undo = null;
+	}, ms);
+}
+$("#toastUndo").addEventListener("click", () => runUndo());
+function runUndo() {
+	if (!undo) return;
+	const fn = undo;
+	undo = null;
+	fn();
+	toast("Deshecho");
+}
+
+// ======================================================================
+// Draft
+// ======================================================================
+
+function snapshot(): DraftSnapshot {
+	const d = state!.draft;
+	return structuredClone({ bans: d.bans, picks: d.picks, ...(d.tbWon ? { tbWon: d.tbWon } : {}) });
+}
+
+function reloadPool() {
+	$("#poolStatus").textContent = "Recargando el pool…";
+	delete $("#poolStatus").dataset.ok;
+	send({ action: "poolReload" });
+	toast("Recargando el pool. El draft se mantiene.");
+}
+$("#poolReload").addEventListener("click", reloadPool);
+
+// Borrar todo: a second tap within four seconds does it, and it can still be undone.
+let resetArmed = 0;
+$("#draftReset").addEventListener("click", () => {
+	const b = $("#draftReset");
+	if (!state?.live) return;
+	if (Date.now() - resetArmed > 4000) {
+		resetArmed = Date.now();
+		b.textContent = "¿Borrar todo? Toca otra vez";
+		b.dataset.armed = "";
+		setTimeout(() => {
+			b.textContent = "Borrar todo el draft";
+			delete b.dataset.armed;
+		}, 4000);
+		return;
+	}
+	resetArmed = 0;
+	b.textContent = "Borrar todo el draft";
+	delete b.dataset.armed;
+	const before = snapshot();
+	send({ action: "draftReset" });
+	toast("Draft borrado", { undo: () => send({ action: "draftRestore", draft: before }) });
+});
+
+function edit(id: string, side: Side, kind: DraftEdit) {
+	if (!state?.live) return;
+	const before = snapshot();
+	send({ action: "draft", id, side, edit: kind });
+	const text = {
+		pick: `${id}: pick de ${name(side)}`,
+		ban: `${id}: ban de ${name(side)}`,
+		win: `${id}: lo ganó ${name(side)}`,
+		clear: `${id} quedó libre`,
+	}[kind];
+	toast(text, { undo: () => send({ action: "draftRestore", draft: before }) });
+	select(null);
+}
+
+function select(id: string | null) {
+	selected = id;
+	if (id) showTab("match");
+	renderDraft();
+	renderSheet();
+	if (id) {
+		requestAnimationFrame(() => {
+			$("#sheet").scrollIntoView({ behavior: "smooth", block: "nearest" });
+			// put the keyboard on the action the sheet suggests
+			($("#sheet").querySelector<HTMLElement>(".act[data-suggest]:not(:disabled)") ?? $("#sheetClose")).focus({ preventScroll: true });
+		});
+	}
+}
+
+let draftDrawn = "";
 function renderDraft() {
 	const status = $("#poolStatus");
 	status.hidden = !state?.live || !state.poolStatus?.text;
@@ -153,88 +724,207 @@ function renderDraft() {
 		status.textContent = state.poolStatus.text;
 		status.dataset.ok = String(state.poolStatus.ok);
 	}
+	const key = JSON.stringify([Boolean(state), state?.live, state?.pool, state?.draft, state?.names, selected]);
+	if (key === draftDrawn) return;
+	draftDrawn = key;
+	const focused = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>("#draft [data-id]")?.dataset.id;
 	const box = $("#draft");
 	box.innerHTML = "";
+	$("#draftReset").toggleAttribute("disabled", !state?.live);
 	if (!state) {
-		box.innerHTML = `<p class="note">Esperando al overlay. Ábrelo (en OBS o en una pestaña) con el bridge corriendo.</p>`;
+		box.innerHTML = `<div class="empty"><b>Esperando al overlay</b><span>Ábrelo en OBS (o en una pestaña) con tosu y el bridge abiertos. El pool aparece aquí solo.</span></div>`;
 		return;
 	}
 	if (!state.live) {
-		box.innerHTML = `<p class="note">La demo no tiene draft. Abre el overlay sin <code>?sim</code> para editarlo.</p>`;
+		box.innerHTML = `<div class="empty"><b>La demo no tiene draft</b><span>Abre el overlay sin <code>?sim</code> para editarlo.</span></div>`;
 		return;
 	}
 	if (!state.pool.length) {
-		box.innerHTML = `<p class="note">Cargando el pool desde data.json.</p>`;
+		box.innerHTML = `<div class="empty"><b>Cargando el pool…</b><span>Si tarda, revisa la sheet en Ajustes.</span></div>`;
 		return;
 	}
-	const mods = [...new Set(state.pool.map((m) => m.id.replace(/\d+$/, "")))];
-	for (const mod of mods) {
+	for (const mod of [...new Set(state.pool.map((m) => modOf(m.id)))]) {
 		const row = document.createElement("div");
 		row.className = "mod";
 		row.dataset.mod = mod.toLowerCase();
-		row.innerHTML = `<b class="mod-name">${mod}</b><div class="mod-cards"></div>`;
-		for (const map of state.pool.filter((m) => m.id.replace(/\d+$/, "") === mod)) {
-			const { pick, ban, won, current } = mapState(map.id);
+		row.innerHTML = `<b class="mod-name">${esc(mod)}</b><div class="mod-maps"></div>`;
+		for (const map of state.pool.filter((m) => modOf(m.id) === mod)) {
+			const { pick, order, ban, won, current } = mapState(map.id);
 			const card = document.createElement("button");
 			card.type = "button";
-			card.className = "card";
+			card.className = "map";
+			card.dataset.id = map.id;
+			const kind = ban ? "ban" : won ? "won" : current ? "play" : pick ? "pick" : "free";
+			card.dataset.state = kind;
+			const side = ban ?? won ?? pick?.by;
+			if (side) card.dataset.side = side;
 			if (pick) card.dataset.by = pick.by;
-			if (won) card.dataset.won = won;
-			if (ban) card.dataset.ban = ban;
-			if (current) card.dataset.current = "";
 			card.setAttribute("aria-pressed", String(selected === map.id));
-			card.title = `${map.artist} - ${map.title} [${map.diff}]`;
-			const badge = stateText(map.id, true);
-			const tone = ban ?? won ?? pick?.by ?? "";
+			const badge = {
+				ban: `Ban · ${name(ban!)}`,
+				won: `Ganó ${name(won!)}`,
+				play: "En juego",
+				pick: `Pick · ${name(pick?.by ?? "l")}`,
+				free: "",
+			}[kind];
+			card.setAttribute("aria-label", `${map.id}, ${map.title}. ${stateText(map.id)}`);
 			card.innerHTML = `
-				<i class="card-art" style="background-image:url('https://assets.ppy.sh/beatmaps/${map.set}/covers/card.jpg')"></i>
-				<span class="card-top"><b class="card-slot">${map.id}</b>${badge ? `<span class="card-state" data-tone="${tone}">${esc(badge)}</span>` : ""}</span>
-				<span class="card-title">${esc(map.title)}</span>
-				<span class="card-artist">${esc(map.artist)}</span>
-				<span class="card-diff">[${esc(map.diff)}] · ${esc(map.mapper)}</span>
-				<span class="card-stats"><b>${map.sr.toFixed(2)}★</b><span>${Math.round(map.bpm)} BPM</span><span>${map.len}</span></span>`;
-			card.addEventListener("click", () => {
-				selected = selected === map.id ? null : map.id;
-				renderDraft();
-				renderSelected();
-			});
+				<i class="map-art" style="background-image:url('https://assets.ppy.sh/beatmaps/${Number(map.set)}/covers/card.jpg')"></i>
+				<span class="map-top"><b class="map-slot">${esc(map.id)}</b>${order ? `<span class="map-order" title="Orden de pick">#${order}</span>` : ""}${badge ? `<span class="map-badge">${esc(badge)}</span>` : ""}</span>
+				<span class="map-title">${esc(map.title)}</span>
+				<span class="map-sub">${esc(map.artist)} · [${esc(map.diff)}]</span>
+				<span class="map-stats"><b>${map.sr.toFixed(2)}★</b><span>${Math.round(map.bpm)} BPM</span><span>${esc(map.len)}</span></span>`;
+			card.addEventListener("click", () => select(selected === map.id ? null : map.id));
 			row.lastElementChild!.append(card);
 		}
 		box.append(row);
 	}
+	if (focused) box.querySelector<HTMLElement>(`[data-id="${CSS.escape(focused)}"]`)?.focus({ preventScroll: true });
 }
 
-function renderSelected() {
+// The likely action for a map: the one the sheet lights up.
+function suggestion(id: string): { edit: DraftEdit; side: Side } | null {
+	if (!state?.live || id === "TB") return null;
+	const { pick, ban, won } = mapState(id);
+	if (ban || won || pick) return null;
+	const m = readMatch(state);
+	if (m.phase === "bans") return m.banner ? { edit: "ban", side: m.banner } : null;
+	return { edit: "pick", side: m.next };
+}
+
+function renderSheet() {
 	const map = state?.live ? state.pool.find((m) => m.id === selected) : undefined;
-	$("#selectedEmpty").hidden = Boolean(map);
-	$("#selectedBody").hidden = !map;
+	const sheet = $("#sheet");
+	sheet.hidden = !map;
 	if (!map) return;
 	const { pick, ban, won } = mapState(map.id);
-	const art = $("#selectedArt");
-	art.style.backgroundImage = `linear-gradient(90deg, rgba(12, 10, 7, 0.92) 30%, rgba(12, 10, 7, 0.45)), url('https://assets.ppy.sh/beatmaps/${map.set}/covers/cover.jpg')`;
-	art.dataset.mod = map.id.replace(/\d+$/, "").toLowerCase();
-	$("#selectedSlot").textContent = map.id;
-	$("#selectedTitle").textContent = map.title;
-	$("#selectedMeta").textContent = `${map.artist} · [${map.diff}] · ${map.sr.toFixed(2)}★ · ${Math.round(map.bpm)} BPM · ${map.len}`;
-	$("#selectedState").textContent = stateText(map.id);
-	$("#selNameL").textContent = name("l");
-	$("#selNameR").textContent = name("r");
-	for (const b of document.querySelectorAll<HTMLElement>("#selected [data-side]")) {
+	const art = $("#sheetArt");
+	art.style.backgroundImage = `linear-gradient(90deg, rgba(12, 10, 7, 0.94) 35%, rgba(12, 10, 7, 0.5)), url('https://assets.ppy.sh/beatmaps/${Number(map.set)}/covers/cover.jpg')`;
+	art.dataset.mod = modOf(map.id).toLowerCase();
+	$("#sheetSlot").textContent = map.id;
+	$("#sheetTitle").textContent = map.title;
+	$("#sheetMeta").textContent = `${map.artist} · [${map.diff}] · ${map.sr.toFixed(2)}★ · ${Math.round(map.bpm)} BPM · ${map.len}`;
+	$("#sheetState").textContent = stateText(map.id);
+	$("#sheetNameL").textContent = name("l");
+	$("#sheetNameR").textContent = name("r");
+	const tip = suggestion(map.id);
+	const tb = map.id === "TB";
+	for (const b of document.querySelectorAll<HTMLButtonElement>("#sheet .act")) {
 		const side = b.dataset.side as Side;
-		const on = { pick: pick?.by === side, ban: ban === side, win: won === side }[b.dataset.edit as "pick" | "ban" | "win"];
+		const kind = b.dataset.edit as "pick" | "ban" | "win";
+		const on = { pick: pick?.by === side, ban: ban === side, win: won === side }[kind];
 		b.setAttribute("aria-pressed", String(on));
+		// The TB isn't picked or banned, and a map nobody picked can't be won.
+		b.hidden = tb && kind !== "win";
+		b.disabled = on || (kind === "win" && !pick && !tb);
+		b.title = kind === "win" && !pick && !tb ? "Primero márcalo como pick de alguien" : "";
+		b.textContent = on ? `✓ ${{ pick: "Pick", ban: "Ban", win: "Ganó" }[kind]}` : { pick: "Pick", ban: "Ban", win: "Ganó" }[kind];
+		b.toggleAttribute("data-suggest", tip?.edit === kind && tip.side === side);
 	}
+	$("#sheetClear").hidden = !pick && !ban && !won;
 }
 
-for (const b of document.querySelectorAll<HTMLElement>("#selected [data-edit]")) {
+for (const b of document.querySelectorAll<HTMLElement>("#sheet [data-edit]")) {
 	b.addEventListener("click", () => {
 		if (!selected) return;
-		send({ action: "draft", id: selected, side: (b.dataset.side as Side) ?? "l", edit: b.dataset.edit as DraftEdit });
+		edit(selected, (b.dataset.side as Side) ?? "l", b.dataset.edit as DraftEdit);
 	});
 }
+$("#sheetClose").addEventListener("click", () => select(null));
 
-// ---------- showcase ----------
-const modOf = (id: string) => id.replace(/\d+$/, "");
+// ======================================================================
+// Timer
+// ======================================================================
+
+const secondsInput = $<HTMLInputElement>("#timerSeconds");
+secondsInput.value = stored("rempalago-timer") ?? secondsInput.value;
+let timerEnd = 0;
+let timerTick = 0;
+function startTimer(seconds: number) {
+	seconds = Math.min(600, Math.max(5, Math.round(seconds) || 120));
+	send({ action: "timer", seconds });
+	timerEnd = Date.now() + seconds * 1000;
+	clearInterval(timerTick);
+	timerTick = window.setInterval(renderTimer, 250);
+	renderTimer();
+	toast(`Timer de ${seconds} s en pantalla`);
+}
+function renderTimer() {
+	const el = $("#timerRun");
+	if (!timerEnd) {
+		el.textContent = "";
+		return;
+	}
+	const left = Math.max(0, Math.ceil((timerEnd - Date.now()) / 1000));
+	el.textContent = left ? `▶ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` : "Terminó";
+	el.dataset.ending = String(left <= 10);
+	if (!left) {
+		clearInterval(timerTick);
+		setTimeout(() => {
+			if (timerEnd && Date.now() > timerEnd) {
+				timerEnd = 0;
+				renderTimer();
+			}
+		}, 4000);
+	}
+}
+for (const s of PRESETS) {
+	const b = button(`▶ ${s} s`, () => startTimer(s), "btn btn--preset");
+	b.setAttribute("aria-label", `Iniciar timer de ${s} segundos`);
+	$("#timerStop").before(b);
+}
+$("#timerStart").addEventListener("click", () => {
+	stored("rempalago-timer", secondsInput.value);
+	startTimer(Number(secondsInput.value));
+});
+$("#timerStop").addEventListener("click", () => {
+	send({ action: "timer", seconds: null });
+	timerEnd = 0;
+	clearInterval(timerTick);
+	renderTimer();
+	toast("Timer detenido");
+});
+
+// ======================================================================
+// Overlay shortcuts, round, demo
+// ======================================================================
+
+for (const [key, label, title] of KEYS) {
+	const b = button(label, () => {
+		send({ action: "key", key });
+		toast(`${label}: listo`);
+	});
+	b.title = `${title} (tecla ${key.toUpperCase()} en el overlay)`;
+	$("#keys").append(b);
+}
+if (import.meta.env.DEV) for (const [key, label] of SIM_KEYS) $("#simKeys").append(button(label, () => send({ action: "key", key })));
+else $("#simBlock").remove();
+
+const round = $<HTMLSelectElement>("#round");
+for (const [key, r] of Object.entries(ROUNDS)) round.add(new Option(`${r.name} · BO${r.bestOf}`, key));
+// Changing the round reloads the overlay: picking one only offers it, the
+// button does it.
+function renderRound() {
+	const changing = Boolean(state && round.value !== state.round);
+	const apply = $<HTMLButtonElement>("#roundApply");
+	apply.hidden = !changing;
+	apply.textContent = `Cambiar a ${ROUNDS[round.value]?.name ?? round.value}`;
+	$("#roundHint").dataset.warn = String(changing);
+	$("#roundHint").innerHTML = changing
+		? "Al cambiar, el overlay se recarga (el draft de cada ronda se guarda aparte). Si fue sin querer, vuelve a elegir la ronda actual."
+		: "Cambiar la ronda recarga el overlay. Para dejarla fija, ponla en la URL del source: <code>?round=sf</code>.";
+}
+round.addEventListener("change", renderRound);
+$("#roundApply").addEventListener("click", () => {
+	send({ action: "round", round: round.value });
+	toast(`Cambiando a ${ROUNDS[round.value]?.name}: el overlay se recarga`);
+	$("#roundApply").hidden = true;
+});
+
+// ======================================================================
+// Showcase
+// ======================================================================
+
 function stepShowcase(by: number) {
 	if (!state?.pool.length) return;
 	const ids = state.pool.map((m) => m.id);
@@ -244,29 +934,152 @@ function stepShowcase(by: number) {
 $("#showcasePrev").addEventListener("click", () => stepShowcase(-1));
 $("#showcaseNext").addEventListener("click", () => stepShowcase(1));
 
+let showcaseDrawn = "";
 function renderShowcase() {
+	const pool = state?.pool ?? [];
+	const key = JSON.stringify([pool.map((m) => m.id), state?.showcase]);
+	if (key === showcaseDrawn) return;
+	showcaseDrawn = key;
+	const focused = (document.activeElement as HTMLElement | null)?.dataset.slot;
 	const box = $("#showcaseLine");
 	box.innerHTML = "";
-	const pool = state?.pool ?? [];
 	for (const b of [$("#showcasePrev"), $("#showcaseNext")]) (b as HTMLButtonElement).disabled = !pool.length;
-	if (!pool.length) return;
+	const now = pool.find((m) => m.id === state?.showcase);
+	$("#showcaseNow").innerHTML = now
+		? `<i class="feature-art" style="background-image:url('https://assets.ppy.sh/beatmaps/${Number(now.set)}/covers/cover.jpg')"></i>
+			<span class="feature-kicker">En el showcase</span>
+			<b class="feature-title"><span class="map-slot" data-mod="${esc(modOf(now.id).toLowerCase())}">${esc(now.id)}</span> ${esc(now.title)}</b>
+			<span class="feature-sub">${esc(now.artist)} · [${esc(now.diff)}] · ${esc(now.mapper)}</span>`
+		: `<span class="feature-kicker">En el showcase</span><b class="feature-title">${pool.length ? "Ningún mapa todavía" : "Sin pool"}</b><span class="feature-sub">${pool.length ? "Toca uno de abajo." : "Esperando el pool del overlay."}</span>`;
 	for (const mod of [...new Set(pool.map((m) => modOf(m.id)))]) {
 		const row = document.createElement("div");
 		row.className = "mod showcase-mod";
 		row.dataset.mod = mod.toLowerCase();
-		row.innerHTML = `<b class="mod-name">${mod}</b><div class="showcase-slots"></div>`;
+		row.innerHTML = `<b class="mod-name">${esc(mod)}</b><div class="showcase-slots"></div>`;
 		for (const map of pool.filter((m) => modOf(m.id) === mod)) {
-			const b = button(map.id === mod ? mod : map.id.slice(mod.length), () => send({ action: "showcase", id: map.id }), "btn showcase-slot");
+			const b = button("", () => send({ action: "showcase", id: map.id }), "showcase-slot");
+			b.dataset.slot = map.id;
+			b.innerHTML = `<b>${esc(map.id)}</b><span>${esc(map.title)}</span>`;
 			b.title = `${map.id}: ${map.artist} - ${map.title} [${map.diff}]`;
-			b.setAttribute("aria-label", b.title);
 			b.setAttribute("aria-pressed", String(state!.showcase === map.id));
 			row.lastElementChild!.append(b);
 		}
 		box.append(row);
 	}
+	if (focused) box.querySelector<HTMLElement>(`[data-slot="${CSS.escape(focused)}"]`)?.focus({ preventScroll: true });
 }
 
-// ---------- Twitch: which channel's chat is on screen ----------
+// ======================================================================
+// Qualifiers
+// ======================================================================
+
+function stepQuals(by: number) {
+	const q = state?.qualifiers;
+	if (!q?.players.length) return;
+	const index = Math.min(q.players.length - 1, Math.max(0, q.index + by));
+	if (index !== q.index) send({ action: "qualifier", index });
+}
+$("#qualsPrev").addEventListener("click", () => stepQuals(-1));
+$("#qualsNext").addEventListener("click", () => stepQuals(1));
+const qualsSearch = $<HTMLInputElement>("#qualsSearch");
+qualsSearch.addEventListener("input", () => {
+	qualsDrawn = "";
+	renderQualifiers();
+});
+qualsSearch.addEventListener("keydown", (e) => {
+	// Enter shows the first match
+	if (e.key !== "Enter") return;
+	$("#qualsList").querySelector<HTMLElement>("[data-index]")?.click();
+});
+let qualsDrawn = "";
+
+function renderQualifiers() {
+	const q = state?.qualifiers;
+	const players = q?.players ?? [];
+	$<HTMLButtonElement>("#qualsPrev").disabled = !players.length || q!.index <= 0;
+	$<HTMLButtonElement>("#qualsNext").disabled = !players.length || q!.index >= players.length - 1;
+	qualsSearch.disabled = !players.length;
+	const key = JSON.stringify([players, q?.index, qualsSearch.value]);
+	if (key === qualsDrawn) return;
+	qualsDrawn = key;
+	const p = q ? players[q.index] : undefined;
+	$("#qualsNow").innerHTML = p
+		? `<span class="feature-kicker">En la escena Qualifiers · ${q!.index + 1} de ${players.length}</span><b class="feature-title">#${p.seed} · ${esc(p.name)}</b><span class="feature-sub">Siguiente se acerca al seed 1.</span>`
+		: `<span class="feature-kicker">Qualifiers</span><b class="feature-title">Sin jugadores</b><span class="feature-sub">Elige la hoja de resultados en Ajustes → Hojas de la sheet.</span>`;
+	const focused = (document.activeElement as HTMLElement | null)?.dataset.index;
+	const box = $("#qualsList");
+	box.innerHTML = "";
+	const find = qualsSearch.value.trim().toLowerCase().replace(/^#/, "");
+	players.forEach((pl, i) => {
+		if (find && !pl.name.toLowerCase().includes(find) && String(pl.seed) !== find) return;
+		const b = button("", () => send({ action: "qualifier", index: i }), "player");
+		b.dataset.index = String(i);
+		b.setAttribute("role", "option");
+		b.setAttribute("aria-selected", String(i === q!.index));
+		b.innerHTML = `<b>#${pl.seed}</b><span>${esc(pl.name)}</span>`;
+		box.append(b);
+	});
+	if (players.length && !box.children.length) box.innerHTML = `<p class="hint">Nadie coincide con “${esc(qualsSearch.value)}”.</p>`;
+	if (focused) box.querySelector<HTMLElement>(`[data-index="${focused}"]`)?.focus({ preventScroll: true });
+}
+
+// ======================================================================
+// Sources: which sheet tab each part reads
+// ======================================================================
+
+const sourcesFile = $<HTMLSelectElement>("#sourcesFile");
+$("#sourcesRefresh").addEventListener("click", () => {
+	$("#sourcesStatus").textContent = "Buscando hojas…";
+	delete $("#sourcesStatus").dataset.ok;
+	// redraw on the answer even if nothing changed
+	sourcesDrawn = "";
+	send({ action: "sources", refresh: true });
+});
+sourcesFile.addEventListener("change", () => send({ action: "sources", file: sourcesFile.value }));
+let sourcesDrawn = "";
+
+function renderSources() {
+	const src = state?.sources;
+	const key = JSON.stringify(src ?? null);
+	if (key === sourcesDrawn) return;
+	sourcesDrawn = key;
+	const status = $("#sourcesStatus");
+	status.textContent = src?.status.text ?? "";
+	status.hidden = !src?.status.text;
+	if (src) status.dataset.ok = String(src.status.ok);
+	const box = $("#sourcesTable");
+	if (!src) {
+		box.innerHTML = `<p class="hint">Esperando al overlay.</p>`;
+		sourcesFile.innerHTML = "";
+		return;
+	}
+	box.innerHTML = src.tabs.length
+		? `<table><thead><tr><th>Hoja</th><th>Partido</th><th>Resultados</th></tr></thead><tbody>${src.tabs
+				.map(
+					(t) => `<tr${t.gid === src.pool || t.gid === src.results ? ' class="is-used"' : ""}>
+						<td>${esc(t.name)}</td>
+						<td><label class="radio"><input type="radio" name="sourcePool" value="${t.gid}" aria-label="${esc(t.name)} para el partido"${t.gid === src.pool ? " checked" : ""}><i></i></label></td>
+						<td><label class="radio"><input type="radio" name="sourceResults" value="${t.gid}" aria-label="${esc(t.name)} para resultados"${t.gid === src.results ? " checked" : ""}><i></i></label></td>
+					</tr>`,
+				)
+				.join("")}</tbody></table>`
+		: "";
+	for (const input of box.querySelectorAll<HTMLInputElement>("input[name=sourcePool]"))
+		input.addEventListener("change", () => {
+			send({ action: "sources", pool: Number(input.value) });
+			toast("Cargando el pool de esa hoja. El draft se mantiene.");
+		});
+	for (const input of box.querySelectorAll<HTMLInputElement>("input[name=sourceResults]")) input.addEventListener("change", () => send({ action: "sources", results: Number(input.value) }));
+	sourcesFile.innerHTML = "";
+	if (!src.files.length) sourcesFile.add(new Option("No hay archivos en tourney-results/", ""));
+	for (const f of src.files) sourcesFile.add(new Option(f, f, false, f === src.file));
+	sourcesFile.disabled = !src.files.length;
+}
+
+// ======================================================================
+// Twitch: which channel's chat is on screen
+// ======================================================================
+
 // Names, pictures and live status come from IVR, refreshed every minute; the
 // channel list and the one in use come from the overlay.
 const TWITCH_REFRESH_MS = 60000;
@@ -310,17 +1123,20 @@ function renderTwitch() {
 	box.innerHTML = "";
 	status.textContent = "";
 	delete status.dataset.state;
-	if (!state) return;
+	if (!state) {
+		box.innerHTML = `<div class="empty"><b>Esperando al overlay</b></div>`;
+		return;
+	}
 	if (!state.live) {
-		box.innerHTML = `<p class="note">La demo no lee Twitch.</p>`;
+		box.innerHTML = `<div class="empty"><b>La demo no lee Twitch</b></div>`;
 		return;
 	}
 	if (!logins.length) {
-		box.innerHTML = `<p class="note">No hay canales. Agrégalos en <code>data.json</code>: <code>"twitch": ["canal_a", "canal_b"]</code>.</p>`;
+		box.innerHTML = `<div class="empty"><b>No hay canales</b><span>Agrégalos en <code>data.json</code>: <code>"twitch": ["canal_a", "canal_b"]</code>.</span></div>`;
 		return;
 	}
 	const joined = !pending && tw?.status === "joined";
-	status.dataset.state = joined ? "on" : "wait";
+	status.dataset.state = joined ? "ok" : "wait";
 	status.textContent = joined ? `Leyendo #${tw!.channel}` : "Conectando…";
 	for (const login of logins) {
 		const info = channelInfo.get(login);
@@ -334,7 +1150,8 @@ function renderTwitch() {
 				<b>${esc(info?.displayName ?? login)}</b>
 				<span>twitch.tv/${esc(login)}</span>
 			</span>
-			<span class="channel-live" data-live="${info?.live ?? false}">${info ? (info.live ? "En vivo" : "Offline") : ""}</span>`;
+			<span class="channel-live" data-live="${info?.live ?? false}">${info ? (info.live ? "● En vivo" : "Offline") : ""}</span>
+			<span class="channel-on">${on ? "En pantalla" : ""}</span>`;
 		const input = label.querySelector("input")!;
 		input.addEventListener("change", () => {
 			pending = login;
@@ -343,6 +1160,7 @@ function renderTwitch() {
 			pendingTimer = window.setTimeout(() => {
 				pending = null;
 				renderTwitch();
+				toast("El overlay no cambió de canal. ¿Está abierto?", { tone: "warn" });
 			}, 8000);
 			send({ action: "twitch", channel: login });
 			renderTwitch();
@@ -352,51 +1170,82 @@ function renderTwitch() {
 	}
 }
 
-// ---------- on air ----------
-function renderOnAir() {
-	const onAir = $("#onair");
-	onAir.dataset.live = String(Boolean(state && link.connected));
-	if (!state || !link.connected) {
-		$("#onairLabel").textContent = link.connected ? "Esperando al overlay" : "Sin bridge: corre bun dev";
-		$("#onairScene").textContent = "—";
+// ======================================================================
+// Keyboard
+// ======================================================================
+
+document.addEventListener("keydown", (e) => {
+	if (document.body.hasAttribute("data-gate")) return;
+	if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !typing()) {
+		if (undo) {
+			e.preventDefault();
+			runUndo();
+		}
 		return;
 	}
-	$("#onairLabel").textContent = state.live ? "Al aire" : "Al aire, demo";
-	$("#onairScene").textContent = sceneName(state.scene);
-	$("#seriesNameL").textContent = name("l");
-	$("#seriesNameR").textContent = name("r");
-	$("#seriesL").textContent = String(state.stars.l);
-	$("#seriesR").textContent = String(state.stars.r);
-	$("#onairMap").textContent = state.map.title ? `${state.map.id ? `${state.map.id}: ` : ""}${state.map.title}` : "Sin mapa cargado";
-	const last = state.draft.picks.at(-1)?.by;
-	const next = state.draft.next ?? (last ? other(last) : "l");
-	$("#onairTurn").innerHTML = state.live ? `Pickea <b class="who--${next}">${esc(name(next))}</b>` : "";
-	$("#roundBadge").textContent = ROUNDS[state.round]?.name ?? state.round;
-	for (const b of document.querySelectorAll<HTMLElement>("#scenes [data-scene]")) b.setAttribute("aria-current", String(b.dataset.scene === state.scene));
-}
+	if (e.key === "Escape" && selected) {
+		select(null);
+		return;
+	}
+	if (typing() || e.ctrlKey || e.metaKey || e.altKey) return;
+	const n = Number(e.key);
+	if (n >= 1 && n <= SCENES.length) {
+		e.preventDefault();
+		goScene(SCENES[n - 1][0]);
+		return;
+	}
+	if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !(document.activeElement as HTMLElement | null)?.closest("[role=tablist]")) {
+		const by = e.key === "ArrowLeft" ? -1 : 1;
+		if (tab === "showcase") stepShowcase(by);
+		else if (tab === "quals") stepQuals(by);
+		else return;
+		e.preventDefault();
+	}
+});
 
+// ======================================================================
+// Following the overlay
+// ======================================================================
+
+// An overlay that goes quiet (a browser tab in the background, frozen to
+// save memory) is dropped only while another one is talking. When none is,
+// the panel keeps the last one heard, says it's not answering, and goes on
+// working: commands still go out and the overlay catches up when it wakes.
 function follow() {
 	const now = Date.now();
-	for (const [id, o] of overlays) if (now - o.at > GONE_MS) overlays.delete(id);
+	const fresh = (o: { at: number }) => now - o.at <= GONE_MS;
+	if ([...overlays.values()].some(fresh)) for (const [id, o] of overlays) if (!fresh(o)) overlays.delete(id);
 	const all = [...overlays.values()];
-	const chosen = all.find((o) => o.state.obs) ?? all[0];
-	const count = overlays.size;
-	$("#overlayCount").textContent =
-		count > 1 ? `${count} overlays abiertos: sigo ${chosen.state.obs ? "el de OBS" : "el primero que se abrió"}. Todos reciben los comandos.` : "";
+	const live = all.filter(fresh);
+	quiet = all.length > 0 && !live.length;
+	const chosen = live.find((o) => o.state.obs) ?? live[0] ?? all.sort((a, b) => b.at - a.at)[0];
+	const count = live.length;
+	overlayCountNote =
+		count > 1 ? `Hay ${count} overlays abiertos; el panel sigue ${chosen.state.obs ? "el de OBS" : "el primero que se abrió"} y todos reciben los comandos. Cierra los que sobren (por ejemplo, una pestaña del navegador).` : "";
 	return chosen?.state ?? null;
 }
+
+function renderAll() {
+	renderHealth();
+	renderBar();
+	renderNow();
+	followScene();
+	renderDraft();
+	renderSheet();
+	renderShowcase();
+	renderQualifiers();
+	renderSources();
+	renderTwitch();
+}
+
 setInterval(() => {
-	const had = overlays.size;
+	const was = quiet;
+	const note = overlayCountNote;
 	follow();
-	if (had && !overlays.size) {
-		state = null;
-		renderOnAir();
-		renderDraft();
-		renderSelected();
-		renderShowcase();
-		renderTwitch();
-	}
+	if (quiet !== was || note !== overlayCountNote) renderAll();
 }, 2000);
+
+link.onStatus = () => renderAll();
 
 link.onState((incoming) => {
 	const known = overlays.get(incoming.id);
@@ -404,16 +1253,18 @@ link.onState((incoming) => {
 	else overlays.set(incoming.id, { state: incoming, at: Date.now() });
 	const next = follow();
 	if (!next) return;
+	const firstState = !state;
 	state = next;
-	round.value = next.round;
+	// the round picker shows the overlay's round unless someone is choosing
+	if (firstState || ($("#roundApply").hidden && document.activeElement !== round)) round.value = next.round;
+	renderRound();
 	if (import.meta.env.DEV) $("#simBlock").hidden = next.live;
-	renderOnAir();
-	renderDraft();
-	renderSelected();
-	renderShowcase();
-	renderTwitch();
+	// a map that left the pool can't stay selected
+	if (selected && !next.pool.some((m) => m.id === selected)) selected = null;
+	renderAll();
 });
-renderOnAir();
-renderDraft();
-renderShowcase();
-renderTwitch();
+
+// spelled out so the build drops OBS from the remote panel altogether
+if (import.meta.env.MODE !== "remote") import("./local").then(({ startLocal }) => startLocal(link, send, () => state, renderAll));
+
+renderAll();

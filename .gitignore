@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+dist-remote
 *.local
 .discord_token.json
 
@@ -27,3 +28,7 @@ dist-ssr
 
 # bun run release
 release
+
+# wrangler dev
+.wrangler
+.dev.vars

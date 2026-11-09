@@ -452,6 +452,32 @@
 			</div>
 		</section>
 
+		<!-- QUALIFIERS: one player's qualifier results. qualifiers.ts fills
+		     .quals-body from tourney-results/; the panel picks the player. -->
+		<section data-scene="qualifiers" class="quals">
+			<canvas class="dust" data-dust="rise" width="1920" height="1080" aria-hidden="true"></canvas>
+			<header class="quals-head">
+				<span class="label label--lg">Rempalago 3</span>
+				<h2 class="quals-heading">Qualifiers</h2>
+			</header>
+			<div class="quals-body"></div>
+			<aside class="show-side quals-side">
+				<section class="show-casters glass" data-count="2">
+					<span class="chat-head"><b>Casters</b></span>
+					<div class="seats">
+					<div class="seat" data-caster="0"><span class="pfp" data-pfp="c0"></span><b data-name="c0">hxovc</b><i class="wave"><i></i><i></i><i></i></i></div>
+					<div class="seat" data-caster="1"><span class="pfp" data-pfp="c1"></span><b data-name="c1">Kuervo</b><i class="wave"><i></i><i></i><i></i></i></div>
+					<div class="seat" data-caster="2" hidden><span class="pfp" data-pfp="c2"></span><b data-name="c2"></b><i class="wave"><i></i><i></i><i></i></i></div>
+					<div class="seat" data-caster="3" hidden><span class="pfp" data-pfp="c3"></span><b data-name="c3"></b><i class="wave"><i></i><i></i><i></i></i></div>
+					</div>
+				</section>
+				<section class="show-chat glass">
+					<span class="chat-head"><b>Twitch</b><span data-twitch-channel>chat en vivo</span></span>
+					<div class="feed" data-twitch></div>
+				</section>
+			</aside>
+		</section>
+
 		<!-- Scene stinger: the bolt. Charge, strike, crackle, zoom to cover,
 		     shrink away and shoot off. Bolt layers are full-screen and clipped
 		     to the bolt polygon (oro.js animates the clip); the canvas carries

@@ -1,8 +1,32 @@
 // Read-only Twitch chat over the IRC WebSocket, joined as an anonymous viewer
 // (a "justinfan" nick), so the overlay needs no token. One socket; switching
 // channels parts the old one and joins the new. Reconnects on drop.
-export type TwitchMessage = { who: string; color: string; msg: string; userId: string };
+export type TwitchEmote = { id: string; start: number; end: number };
+export type TwitchMessage = {
+	channel: string;
+	who: string;
+	color: string;
+	msg: string;
+	userId: string;
+	badges: string[];
+	emotes: TwitchEmote[];
+};
 export type TwitchStatus = "connecting" | "joined";
+
+// emotes=25:0-4,12-16/1902:6-10 is each emote and the characters it replaces;
+// back in the order they appear in the message.
+const parseEmotes = (tag = ""): TwitchEmote[] =>
+	tag
+		.split("/")
+		.filter(Boolean)
+		.flatMap((emote) => {
+			const [id, spots] = emote.split(":");
+			return spots.split(",").map((spot) => {
+				const [start, end] = spot.split("-").map(Number);
+				return { id, start, end };
+			});
+		})
+		.sort((a, b) => a.start - b.start);
 
 export default class TwitchChat {
 	private ws: WebSocket | null = null;
@@ -67,8 +91,18 @@ export default class TwitchChat {
 		const match = line.match(/^@(\S+) :([^!]+)!\S+ PRIVMSG #(\S+) :(.*)$/);
 		// lines from the channel just left can still arrive after a switch
 		if (!match || match[3] !== this.channel) return;
-		const [, rawTags, nick, , msg] = match;
+		const [, rawTags, nick, , raw] = match;
 		const tags = Object.fromEntries(rawTags.split(";").map((pair) => pair.split("=") as [string, string]));
-		this.onMessage({ who: tags["display-name"] || nick, color: tags.color || "", msg, userId: tags["user-id"] || "" });
+		// a /me line is wrapped in \x01ACTION ...\x01; emote positions skip the wrapper
+		const msg = raw.match(/^\x01ACTION (.*)\x01$/)?.[1] ?? raw;
+		this.onMessage({
+			channel: this.channel,
+			who: tags["display-name"] || nick,
+			color: tags.color || "",
+			msg,
+			userId: tags["user-id"] || "",
+			badges: tags.badges?.split(",").filter(Boolean) ?? [],
+			emotes: parseEmotes(tags.emotes),
+		});
 	}
 }

@@ -2,7 +2,7 @@ import path from "node:path";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "vite";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
 	plugins: [tailwindcss()],
 	base: "./",
 	build: {
@@ -10,7 +10,8 @@ export default defineConfig({
 		rolldownOptions: {
 			// The overlay (OBS browser source) and the control panel (tab or dock).
 			input: {
-				index: path.resolve(import.meta.dirname, "index.html"),
+				// the remote panel is published on its own, without the overlay
+				...(mode === "remote" ? {} : { index: path.resolve(import.meta.dirname, "index.html") }),
 				panel: path.resolve(import.meta.dirname, "panel.html"),
 			},
 			output: {
@@ -46,4 +47,4 @@ export default defineConfig({
 		cssCodeSplit: true,
 		minify: false,
 	},
-});
+}));
