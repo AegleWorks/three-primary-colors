@@ -1051,6 +1051,8 @@ function renderSources() {
 	if (!src) {
 		box.innerHTML = `<p class="hint">Esperando al overlay.</p>`;
 		sourcesFile.innerHTML = "";
+		sourcesFile.add(new Option("Sin overlay: abre el overlay para ver los archivos", ""));
+		sourcesFile.disabled = true;
 		return;
 	}
 	box.innerHTML = src.tabs.length
@@ -1071,7 +1073,7 @@ function renderSources() {
 		});
 	for (const input of box.querySelectorAll<HTMLInputElement>("input[name=sourceResults]")) input.addEventListener("change", () => send({ action: "sources", results: Number(input.value) }));
 	sourcesFile.innerHTML = "";
-	if (!src.files.length) sourcesFile.add(new Option("No hay archivos en tourney-results/", ""));
+	if (!src.files.length) sourcesFile.add(new Option("El overlay no ve ningún CSV de tourney-results/: actualiza la fuente en OBS (caché) y confirma que es la 1.0.9", ""));
 	for (const f of src.files) sourcesFile.add(new Option(f, f, false, f === src.file));
 	sourcesFile.disabled = !src.files.length;
 }
