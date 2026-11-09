@@ -92,8 +92,10 @@ export async function update(root: string): Promise<boolean> {
 	if (!fs.existsSync(path.join(root, "tosu.exe"))) console.warn("  Ojo: este bridge no está junto a tosu.exe. Lo que actualice aquí no llega al overlay ni al panel.\n");
 	try {
 		const release = await latestRelease();
-		if (!isNewer(release.tag_name)) return false;
-		console.log(`  Hay una versión nueva (${release.tag_name}; tienes v${version}). Actualizando…`);
+		// a fresh folder has no overlay yet, whatever version the exe is
+		const fresh = !fs.existsSync(path.join(root, "static", "vcl-overlay", "index.html"));
+		if (!isNewer(release.tag_name) && !fresh) return false;
+		console.log(fresh ? `  Instalando el overlay (${release.tag_name})…` : `  Hay una versión nueva (${release.tag_name}; tienes v${version}). Actualizando…`);
 		fs.rmSync(staged, { recursive: true, force: true });
 		fs.mkdirSync(staged);
 		const zip = path.join(staged, ZIP);
