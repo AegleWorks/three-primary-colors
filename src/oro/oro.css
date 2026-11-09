@@ -6572,13 +6572,36 @@ body[data-scene="qualifiers"] .backdrop-grade {
 /* ---------- the player ---------- */
 
 .quals-id {
+	position: relative;
 	display: flex;
 	align-items: center;
-	gap: 24px;
+	gap: 20px;
+	padding: 18px;
+	border: 1px solid var(--gold-line);
+	border-radius: 24px;
+	background: rgba(12, 10, 6, 0.55);
+	overflow: hidden;
+	isolation: isolate;
+}
+
+/* The player's osu! profile banner, half see-through and sharp (no blur);
+   qualifiers.ts sets --banner once osu! answers. */
+.quals-id::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background: var(--banner, none) center / cover no-repeat;
+	opacity: 0;
+	transition: opacity 0.6s ease-out;
+}
+
+.quals-id.has-banner::before {
+	opacity: 0.5;
 }
 
 .quals-pfp {
-	--pfp: 150px;
+	--pfp: 132px;
 	border-radius: 18px;
 	box-shadow: 0 0 0 2px var(--gold), 0 0 60px rgba(226, 184, 102, 0.25), 0 20px 50px rgba(0, 0, 0, 0.6);
 }
@@ -6592,22 +6615,29 @@ body[data-scene="qualifiers"] .backdrop-grade {
 
 .quals-name {
 	margin: 0;
-	font: 900 46px/1 var(--display);
+	font: 900 46px/1.1 var(--display);
 	color: var(--text);
+	white-space: nowrap;
+	text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+}
+
+/* only when even the smallest size doesn't fit */
+.quals-name.is-wrapped {
+	white-space: normal;
 	overflow-wrap: anywhere;
 }
 
 .quals-stats {
-	margin: 56px 0 0;
+	margin: 30px 0 0;
 	display: grid;
-	gap: 18px;
+	gap: 12px;
 }
 
 .quals-stats div {
 	display: flex;
 	align-items: baseline;
 	justify-content: space-between;
-	padding-bottom: 14px;
+	padding-bottom: 10px;
 	border-bottom: 1px solid var(--hair);
 }
 
@@ -6620,14 +6650,224 @@ body[data-scene="qualifiers"] .backdrop-grade {
 
 .quals-stats dd {
 	margin: 0;
-	font: 900 40px/1 var(--display);
+	font: 900 36px/1 var(--display);
 	color: var(--gold-hi);
+}
+
+/* seeds past 48 don't make the bracket: gray instead of gold */
+.quals-stats dd.quals-seed.is-out {
+	color: var(--dim);
 }
 
 .quals-stats small {
 	font-size: 18px;
 	font-weight: 600;
 	color: var(--faint);
+}
+
+/* Playcount and play time: secondary, side by side and smaller. */
+.quals-mini {
+	margin: 16px 0 0;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+}
+
+.quals-mini div {
+	padding: 10px 14px;
+	border: 1px solid var(--hair);
+	border-radius: 12px;
+	background: rgba(255, 240, 210, 0.03);
+}
+
+.quals-mini dt {
+	font: 700 11px/1 var(--label);
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--dim);
+}
+
+.quals-mini dd {
+	margin: 8px 0 0;
+	font: 900 24px/1 var(--display);
+	color: var(--text);
+}
+
+/* Playcount by month; qualifiers.ts draws the SVG and the peak's tag. */
+.quals-chart {
+	margin-top: 18px;
+}
+
+.quals-chart header {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	margin-bottom: 6px;
+	font: 700 11px/1 var(--label);
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--dim);
+}
+
+.quals-chart header span + span {
+	letter-spacing: 0.08em;
+	color: var(--faint);
+}
+
+.quals-chart-plot {
+	position: relative;
+	height: 76px;
+	border-bottom: 1px solid var(--gold-line);
+}
+
+.quals-chart-plot svg {
+	display: block;
+	overflow: visible;
+}
+
+.quals-chart-empty {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	font: 700 13px/1 var(--label);
+	color: var(--faint);
+}
+
+.quals-peak {
+	position: absolute;
+	top: 0;
+	transform: translateX(-50%);
+	padding: 4px 9px;
+	border-radius: 999px;
+	background: var(--gold-hi);
+	color: #1a1408;
+	font: 700 12px/1 var(--label);
+	letter-spacing: 0.04em;
+	white-space: nowrap;
+	box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+}
+
+.quals-peak b {
+	font: 900 14px/1 var(--display);
+}
+
+/* The top three plays: small rows, the map's cover behind each, every row
+   fainter than the one above. */
+.quals-top {
+	margin-top: 16px;
+	display: grid;
+	gap: 6px;
+}
+
+.quals-top[hidden] {
+	display: none;
+}
+
+.quals-top header {
+	font: 700 11px/1 var(--label);
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--dim);
+}
+
+.quals-top-row {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	height: 44px;
+	padding: 0 12px;
+	border: 1px solid var(--gold-line);
+	border-radius: 12px;
+	background:
+		linear-gradient(90deg, rgba(10, 8, 5, 0.9) 0%, rgba(10, 8, 5, 0.65) 55%, rgba(10, 8, 5, 0.9) 100%),
+		var(--cover, none) center / cover no-repeat,
+		#0c0a06;
+	/* 1st full, 2nd and 3rd fading out */
+	opacity: calc(1 - var(--i, 0) * 0.28);
+}
+
+.quals-top-main {
+	flex: 1;
+	min-width: 0;
+	display: grid;
+	gap: 3px;
+}
+
+.quals-top-title,
+.quals-top-diff {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.quals-top-title {
+	font: 900 15px/1.1 var(--display);
+	color: var(--text);
+}
+
+.quals-top-diff {
+	font: 600 11px/1.1 var(--body);
+	color: var(--dim);
+}
+
+.quals-top-diff i {
+	font-style: normal;
+	color: var(--gold-hi);
+}
+
+.quals-top-score {
+	display: grid;
+	justify-items: end;
+	gap: 3px;
+}
+
+.quals-top-pp {
+	font: 900 18px/1 var(--display);
+	color: var(--gold-hi);
+}
+
+.quals-top-pp small {
+	margin-left: 1px;
+	font-size: 11px;
+	color: var(--gold);
+}
+
+.quals-top-acc {
+	font: 700 11px/1 var(--body);
+	color: var(--text);
+	white-space: nowrap;
+}
+
+.quals-top-grade {
+	font: 900 12px/1 var(--display);
+	color: var(--gold);
+}
+
+.quals-top-grade.grade--x,
+.quals-top-grade.grade--s {
+	color: #ffd94a;
+}
+
+.quals-top-grade.grade--xh,
+.quals-top-grade.grade--sh {
+	color: #e8eef7;
+}
+
+.quals-top-grade.grade--a {
+	color: #7fe08a;
+}
+
+.quals-top-grade.grade--b {
+	color: #6fb6ff;
+}
+
+.quals-top-grade.grade--c {
+	color: #e58cff;
+}
+
+.quals-top-grade.grade--d {
+	color: #ff6a6a;
 }
 
 .quals[data-active] .quals-pfp {
@@ -6653,6 +6893,28 @@ body[data-scene="qualifiers"] .backdrop-grade {
 
 .quals[data-active] .quals-stats div:nth-child(3) {
 	animation-delay: 0.69s;
+}
+
+.quals[data-active] .quals-mini div,
+.quals[data-active] .quals-chart,
+.quals[data-active] .quals-top {
+	animation: rise 0.6s var(--out) both;
+}
+
+.quals[data-active] .quals-mini div:nth-child(1) {
+	animation-delay: 0.76s;
+}
+
+.quals[data-active] .quals-mini div:nth-child(2) {
+	animation-delay: 0.82s;
+}
+
+.quals[data-active] .quals-chart {
+	animation-delay: 0.9s;
+}
+
+.quals[data-active] .quals-top {
+	animation-delay: 1s;
 }
 
 /* ---------- the maps ---------- */

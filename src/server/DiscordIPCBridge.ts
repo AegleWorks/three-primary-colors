@@ -4,6 +4,7 @@ import * as net from "node:net";
 import * as path from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
 import RemoteLink from "./RemoteLink";
+import { handleOsuTop } from "./osuTop";
 
 export const BRIDGE_PORT = 24052;
 const LOCAL_ORIGIN =/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/;
@@ -758,7 +759,12 @@ export class DiscordIPCBridge {
 	}
 
 	private initWebSocketServer(retries = 10) {
-		const server = http.createServer();
+		// Besides the sockets, one plain HTTP route: a player's top play from
+		// osu! for the qualifiers scene (see osuTop.ts).
+		const server = http.createServer((req, res) => {
+			if (handleOsuTop(req, res)) return;
+			res.writeHead(404).end();
+		});
 		this.httpServer = server;
 
 		server.on("error", (err: any) => {
