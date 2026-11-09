@@ -66,12 +66,6 @@ export function parseQualifiers(text: string): QualifierPlayer[] {
 		.sort((a, b) => b.seed - a.seed);
 }
 
-// osu!'s flag art is named by the flag emoji's code points.
-const flagUrl = (iso: string) =>
-	iso.length === 2
-		? `https://osu.ppy.sh/assets/images/flags/${[...iso].map((c) => (0x1f1e6 + c.charCodeAt(0) - 65).toString(16)).join("-")}.svg`
-		: "";
-
 export default class Qualifiers {
 	players: QualifierPlayer[] = [];
 	index = 0;
@@ -185,13 +179,11 @@ export default class Qualifiers {
 			return;
 		}
 		const mods = [...new Set(p.maps.map((m) => modOf(m.slot)))];
-		const flag = flagUrl(p.country);
 		body.innerHTML = `
 			<aside class="quals-player">
 				<div class="quals-id">
 					<span class="pfp quals-pfp">${p.osuId ? `<img src="https://a.ppy.sh/${p.osuId}" alt="">` : esc(p.name[0] ?? "")}</span>
 					<div class="quals-who">
-						${flag ? `<img class="quals-flag" src="${flag}" alt="${esc(p.country)}">` : ""}
 						<h1 class="quals-name">${esc(p.name)}</h1>
 					</div>
 				</div>

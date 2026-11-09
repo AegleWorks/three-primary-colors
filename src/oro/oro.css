@@ -6590,13 +6590,6 @@ body[data-scene="qualifiers"] .backdrop-grade {
 	min-width: 0;
 }
 
-.quals-flag {
-	width: 84px;
-	height: auto;
-	border-radius: 6px;
-	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
-}
-
 .quals-name {
 	margin: 0;
 	font: 900 46px/1 var(--display);
