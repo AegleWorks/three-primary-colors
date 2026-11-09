@@ -1073,7 +1073,7 @@ function renderSources() {
 		});
 	for (const input of box.querySelectorAll<HTMLInputElement>("input[name=sourceResults]")) input.addEventListener("change", () => send({ action: "sources", results: Number(input.value) }));
 	sourcesFile.innerHTML = "";
-	if (!src.files.length) sourcesFile.add(new Option("El overlay no ve ningún CSV de tourney-results/: actualiza la fuente en OBS (caché) y confirma que es la 1.0.9", ""));
+	if (!src.files.length) sourcesFile.add(new Option("El overlay no ve ningún CSV de tourney-results/: actualiza la fuente en OBS (caché) y confirma que es la versión nueva", ""));
 	for (const f of src.files) sourcesFile.add(new Option(f, f, false, f === src.file));
 	sourcesFile.disabled = !src.files.length;
 }
