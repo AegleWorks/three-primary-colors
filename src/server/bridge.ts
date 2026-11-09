@@ -3,6 +3,7 @@ import * as path from "node:path";
 import { version } from "../../package.json";
 import { BRIDGE_PORT, DiscordIPCBridge } from "./DiscordIPCBridge";
 import { stopOldBridges } from "./singleton";
+import { ensureTosu } from "./tosu";
 import { runUpdated, update } from "./updater";
 
 // Entry point of rempalago-bridge.exe (bun run release), the bridge for people
@@ -42,6 +43,7 @@ console.log(`
 
 // Before updating: an older copy still open would keep the old files in use.
 if (compiled && stopOldBridges(BRIDGE_PORT).length) await wait(1_000);
+if (compiled) await ensureTosu(process.cwd());
 if (compiled && (await update(process.cwd()))) runUpdated();
 
 const bridge = new DiscordIPCBridge();

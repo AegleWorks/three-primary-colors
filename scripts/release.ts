@@ -32,6 +32,9 @@ fs.cpSync(path.join(root, "dist"), path.join(stage, "static", "vcl-overlay"), { 
 run("bun", ["build", "--compile", "--minify", "--target=bun-windows-x64", "src/server/bridge.ts", "--outfile", path.join(stage, "rempalago-bridge.exe")]);
 fs.copyFileSync(path.join(root, "README.md"), path.join(stage, "LEEME.md"));
 
+// The bridge alone too: run it in an empty folder and it installs tosu and the rest.
+fs.copyFileSync(path.join(stage, "rempalago-bridge.exe"), path.join(out, "rempalago-bridge.exe"));
+
 // Windows 10+ ships bsdtar as tar.exe, which writes zips; elsewhere, zip.
 const entries = ["rempalago-bridge.exe", "LEEME.md", "static"];
 if (process.platform === "win32") run("tar", ["-a", "-c", "-f", zip, ...entries], stage);
