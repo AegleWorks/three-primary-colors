@@ -58,6 +58,28 @@ export async function fetchSheetPool({ id, gid = 0 }: SheetRef): Promise<SheetRo
 	});
 }
 
+export interface SheetTab {
+	name: string;
+	gid: number;
+}
+
+// The sheet's tabs, in their order, from its public HTML view (the CSV export
+// only serves one tab at a time and doesn't list them). Each tab shows up there
+// as {name: "Pool 1", pageUrl: "...", gid: "0"}, with JavaScript escapes.
+export async function fetchSheetTabs(id: string): Promise<SheetTab[]> {
+	const url = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/htmlview`;
+	const html: string = (await axios.get(url, { responseType: "text", params: { t: Date.now() } })).data;
+	const unescape = (s: string) =>
+		s.replace(/\\x([0-9a-f]{2})|\\u([0-9a-f]{4})|\\(.)/gi, (_, x, u, c) => (x || u ? String.fromCharCode(Number.parseInt(x || u, 16)) : c));
+	const tabs: SheetTab[] = [];
+	for (const m of html.matchAll(/\{name:\s*"((?:[^"\\]|\\.)*)"[^{}]*?gid:\s*"(\d+)"/g)) {
+		const gid = Number(m[2]);
+		if (!tabs.some((t) => t.gid === gid)) tabs.push({ name: unescape(m[1]).trim(), gid });
+	}
+	if (!tabs.length) throw new Error("no tabs found (is the sheet shared?)");
+	return tabs;
+}
+
 // "00:45" or "1:05:30" as the overlay writes lengths: "0:45", "65:30".
 function length(text: string) {
 	const parts = text.split(":").map((p) => Number.parseInt(p, 10));
@@ -67,7 +89,7 @@ function length(text: string) {
 }
 
 // RFC 4180: quoted fields may hold commas, newlines and doubled quotes.
-function parseCsv(text: string) {
+export function parseCsv(text: string) {
 	const rows: string[][] = [];
 	let row: string[] = [];
 	let field = "";

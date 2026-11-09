@@ -1,6 +1,6 @@
 // Types for the parts of the Oro runtime (stage.js) used from TypeScript.
 
-export type SceneName = "starting" | "intro" | "showcase" | "mappool" | "gameplay" | "result" | "champion";
+export type SceneName = "starting" | "intro" | "showcase" | "mappool" | "gameplay" | "result" | "champion" | "qualifiers";
 export type Side = "l" | "r";
 
 export interface Pick {

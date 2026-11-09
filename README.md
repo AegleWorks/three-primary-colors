@@ -1,6 +1,6 @@
 # Overlay de Rempalago 3
 
-El overlay de transmisión del torneo Rempalago 3 de osu!: siete escenas (Ya empezamos, Intro, Showcase, Mappool, Gameplay, Resultado, Campeón) que leen el partido en vivo desde osu!, más un panel de control para quien maneja la transmisión. Funciona en **Windows** con tosu y OBS.
+El overlay de transmisión del torneo Rempalago 3 de osu!: ocho escenas (Ya empezamos, Intro, Showcase, Mappool, Gameplay, Resultado, Campeón, Qualifiers) que leen el partido en vivo desde osu!, más un panel de control para quien maneja la transmisión. Funciona en **Windows** con tosu y OBS.
 
 ## Descargar
 
@@ -39,7 +39,7 @@ No necesitas cuenta de GitHub ni instalar nada más que lo de la tabla de abajo.
    - La primera vez Discord muestra una ventana para autorizar la conexión: dale **Autorizar**.
    - Deja abierta la ventana del bridge durante toda la transmisión.
 5. **En OBS, agrega el overlay** (ver [OBS](#obs)).
-6. **El panel se abre solo** en tu navegador cuando el bridge y tosu están corriendo, salvo que ya lo tengas abierto (por ejemplo, como dock en OBS). Su dirección es `http://127.0.0.1:24050/vcl-overlay/panel.html`. Arriba debe aparecer **Bridge** en verde y **Al aire**.
+6. **El panel se abre solo** en tu navegador cuando el bridge y tosu están corriendo, salvo que ya lo tengas abierto (por ejemplo, como dock en OBS). Su dirección es `http://127.0.0.1:24050/vcl-overlay/panel.html`. Arriba debe aparecer **Al aire** y las conexiones (Bridge, Overlay, Pool, Chat, OBS) con ✓ verde. Si algo falla, una franja debajo dice qué es y qué hacer.
 
 Si todo eso se ve bien, ya puedes transmitir.
 
@@ -55,7 +55,7 @@ El bridge se actualiza solo. Cada vez que lo abres, revisa si hay una versión n
 
 Otra persona puede manejar el panel desde su navegador, sin instalar nada y sin que abras puertos.
 
-1. En tu panel, abre **Panel remoto** y toca **Activar acceso remoto**.
+1. En tu panel, ve a **Ajustes** → **Panel remoto** y toca **Activar acceso remoto**.
 2. Pásale el enlace o el código a quien vaya a operar. Entra por `https://panel.aegleworks.com`.
 3. Para terminar, toca **Cortar acceso**: el código deja de servir al instante y la próxima vez sale otro.
 
@@ -80,6 +80,9 @@ Otra persona puede manejar el panel desde su navegador, sin instalar nada y sin 
 | `sheet.gid` | La pestaña de la sheet: el número después de `gid=` en la URL (la primera suele ser `0`) |
 | `players` | Seed y rank de país por nombre de osu! (tosu no los tiene). Opcional |
 | `twitch` | Los canales de Twitch cuyo chat puede salir en pantalla. El primero es el de arranque; el panel cambia entre ellos. Opcional |
+| `qualifiersSheet` | La hoja que muestra la escena Qualifiers mientras nadie elija otra en el panel (`{ "id": "...", "gid": 642473965 }`). Si falta, se usa la hoja cuyo nombre diga "quali". Opcional |
+
+**Las hojas de la sheet.** El overlay lee qué hojas tiene la sheet (Qualifiers, Pool 1, Pool 2...). En el panel, **Ajustes** → **Hojas de la sheet** las muestra en una tabla: en la columna **Partido** eliges el pool que se juega (draft, mappool, showcase, gameplay) y en **Resultados** el de la escena Qualifiers. Cuando la sheet tenga una hoja nueva, toca **Buscar hojas**. La elección se recuerda aunque se recargue el overlay; nada cambia solo por fecha. `sheet.gid` solo decide el pool del partido hasta que eliges uno.
 
 **La sheet del mappool:**
 
@@ -122,10 +125,11 @@ Si cambias cualquier otra cosa de `data.json`, actualiza el source del overlay e
 | Gameplay | `gameplay`, `rempalago` u `osu` |
 | Resultado | `result` |
 | Campeón | `champ`, `campe` o `ganador` |
+| Qualifiers | `qualif` |
 
-Para que el panel vea las escenas, conecta OBS: Herramientas → **Configuración del servidor WebSocket** → activa el servidor y copia la contraseña. En el panel, abre **OBS**, pega la contraseña y toca **Conectar a OBS**.
+Para que el panel vea las escenas, conecta OBS: Herramientas → **Configuración del servidor WebSocket** → activa el servidor y copia la contraseña. En el panel, ve a **Ajustes** → **OBS** (o toca **OBS** arriba), pega la contraseña y toca **Conectar a OBS**. El panel la recuerda y la próxima vez se conecta solo; si tocas **Desconectar de OBS**, la olvida.
 
-**Las escenas de gameplay y showcase se arman solas.** Con OBS conectado, en el panel → **OBS** → **Armar escenas**:
+**Las escenas de gameplay y showcase se arman solas.** Con OBS conectado, en el panel → **Ajustes** → **OBS** → **Armar escenas**:
 
 | Botón | Qué hace | Antes de tocarlo, abre |
 |-------|----------|------------------------|
@@ -142,14 +146,24 @@ Para que el panel vea las escenas, conecta OBS: Herramientas → **Configuració
 
 ## Durante el partido
 
+El panel se lee de arriba abajo:
+
+1. **Arriba, el estado.** La escena al aire, la serie y cada conexión con ✓, ! o ✕. Si algo falla, una franja dice qué hacer; toca una conexión para ir a arreglarla.
+2. **Ahora.** Lee el partido y dice qué toca: "Le toca banear a…", "Le toca pickear a…", "En juego: NM2", "Ganó…", "Viene el tiebreaker", "¡… gana la serie!". Si el momento pide otra escena, ofrece el botón para pasar a ella, y esa escena aparece marcada como **Sugerida**.
+3. **Las pestañas.** Partido, Showcase, Qualifiers, Chat y Ajustes. Cuando la escena al aire es Showcase o Qualifiers, su pestaña se abre sola.
+
 | Quieres | En el panel |
 |---------|-------------|
-| Cambiar de escena | Los botones de escena, o deja que siga a OBS |
-| Marcar picks, bans y quién ganó | Toca un mapa del draft y usa Pick / Ban / Ganó |
-| Arrancar el timer de pick | **Iniciar timer**, o deja que lo arranque el `!mp timer` del referee |
-| Elegir el mapa del showcase | Los botones del bloque **Showcase**, o carga el mapa en osu! y se destaca solo |
-| Releer la sheet | **Recargar pool** |
-| Cambiar el chat de Twitch que sale en pantalla | **Chat de Twitch**: toca el canal. Cada canal dice si está en vivo |
+| Cambiar de escena | Los botones de escena o las teclas `1` a `8`, o deja que siga a OBS |
+| Marcar picks, bans y quién ganó | Toca un mapa en **Partido**. El botón que más probablemente quieres (el ban o el pick de quien le toca) viene marcado como **sugerido**; **Ganó** solo se activa en un mapa pickeado |
+| Corregir un error | Cada cambio del draft muestra **Deshacer** unos segundos (o `Ctrl` + `Z`). **Borrar todo el draft** pide un segundo toque y también se puede deshacer |
+| Arrancar el timer de pick | Un toque en **▶ 60 s**, **▶ 90 s** o **▶ 120 s** (u **Otro tiempo**), o deja que lo arranque el `!mp timer` del referee |
+| Elegir el mapa del showcase | Pestaña **Showcase**: toca el mapa o usa Anterior / Siguiente (o las flechas ← →). O carga el mapa en osu! y se destaca solo |
+| Releer la sheet | **↻ Recargar pool** |
+| Cambiar el chat de Twitch que sale en pantalla | Pestaña **Chat**: toca el canal. Cada canal dice si está en vivo |
+| Mostrar los qualifiers de un jugador | Pestaña **Qualifiers**: búscalo por nombre o seed, o usa Anterior / Siguiente. Van del último seed al primero: Siguiente se acerca al seed 1 |
+| Pasar al pool siguiente, o mostrar sus resultados | **Ajustes** → **Hojas de la sheet**: marca la hoja en **Partido** o en **Resultados** |
+| Cambiar la ronda | **Ajustes** → **Ronda**: elígela y confirma con **Cambiar a…** (recarga el overlay) |
 
 ## Lo que el overlay hace solo
 
@@ -167,7 +181,7 @@ Estas son las reglas con las que el overlay lleva el partido. Conviene que el re
 | Cambias el canal de Twitch en el panel | Vacía el chat en pantalla y lo llena con el del canal nuevo. Recuerda el canal aunque se recargue el source |
 | Alguien escribe en el chat | Sale con su foto de Twitch (mientras carga, con su inicial en su color), sus emblemas y sus emotes |
 
-Todo lo automático se corrige a mano desde el panel: tocas el mapa y usas Pick, Ban, Ganó o **Quitar pick o ban**.
+Todo lo automático se corrige a mano desde el panel: tocas el mapa y usas Pick, Ban, Ganó o **Dejar el mapa libre**. Si te equivocas, **Deshacer**.
 
 ## Si algo falla
 
@@ -185,10 +199,10 @@ Todo lo automático se corrige a mano desde el panel: tocas el mapa y usas Pick,
 ## Checklist antes de salir al aire
 
 - [ ] tosu, osu! torneo, Discord y el bridge abiertos
-- [ ] El panel muestra **Bridge** y **OBS** en verde y **Al aire**
+- [ ] El panel muestra **Al aire** y, en **Ajustes** → **Antes de salir al aire**, todo con ✓ verde (se revisa solo)
 - [ ] El draft muestra el pool completo, con la línea "N mapas de la sheet"
 - [ ] Los casters aparecen en "Ya empezamos" y se iluminan al hablar
-- [ ] **Chat de Twitch** en el panel dice "Leyendo #" con el canal correcto, y el chat se mueve
+- [ ] La pestaña **Chat** del panel dice "Leyendo #" con el canal correcto, y el chat se mueve
 - [ ] Los clientes se ven en los huecos de Gameplay y Showcase
 
 ## Para desarrolladores
@@ -197,7 +211,8 @@ Todo lo de arriba es para quien transmite. Para modificar el overlay:
 
 - Instala [Bun](https://bun.sh/docs/installation), clona el repo y corre `bun install` y `bun dev`. Esto levanta el overlay en `http://localhost:5173`, el panel en `/panel.html` y el bridge.
 - `?sim` (solo en `bun dev`) corre un partido simulado en lugar del real; `P` muestra un medidor de rendimiento.
-- El diseño es **Oro** (`src/oro`, a partir de `propuestas/oro`). El panel está en `src/panel`; el bridge, en `src/server`.
+- El diseño es **Oro** (`src/oro`, a partir de `propuestas/oro`).
+- La escena Qualifiers lee los puntajes de los `.csv` de `tourney-results/` al compilar (`src/oro/sources.ts` y `src/oro/qualifiers.ts`): un archivo nuevo, o uno cambiado, necesita compilar y publicar un release. Al elegir una hoja de resultados se toma el archivo cuyo nombre contiene el de la hoja ("Pool 1" → `... POOL 1 - scores.csv`); en el panel se puede elegir otro. El global y country rank los pide a osu! al mostrar a cada jugador. El panel está en `src/panel`; el bridge, en `src/server`.
 - El panel remoto tiene dos piezas: el relay (`relay/`, un Cloudflare Worker con Durable Objects; se publica con `wrangler deploy` y su URL va en `RELAY_URL`, en `src/config/remote.ts`) y la página (`bun run build:remote`, en Vercel con `vercel.json`). Con `RELAY_URL` vacío, el panel no ofrece el acceso remoto. El bridge filtra los comandos remotos en `src/server/RemoteLink.ts`: un comando nuevo no llega de afuera hasta agregarlo ahí.
 - `bun run build` genera `dist/`. `bun run release` genera `release/Rempalago.zip`, con el overlay en `static/vcl-overlay/`, `rempalago-bridge.exe` compilado para Windows x64 y este README como `LEEME.md`. Ese zip es el que se sube al release de GitHub, con ese mismo nombre, para que el enlace de descarga siga funcionando. El bridge instalado compara `package.json` con el tag del último release: sube siempre la versión antes de `bun run release`, y el tag debe coincidir. Un release que no sea prerelease le llega a todos al abrir el bridge.
 

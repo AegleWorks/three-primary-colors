@@ -6,6 +6,7 @@ import type { SceneName } from "../oro/stage.js";
 // the matching overlay scene. Names are matched by keyword, first rule wins;
 // scenes that match nothing (cameras, a break screen) leave the overlay alone.
 const RULES: [RegExp, SceneName][] = [
+	[/qualif/i, "qualifiers"],
 	[/empez|starting|start/i, "starting"],
 	[/showcase/i, "showcase"],
 	[/intro|versus|\bvs\b/i, "intro"],

@@ -13,6 +13,9 @@ export interface Data {
     // a Google Sheet with the pool, shared as "anyone with the link can view";
     // when it can be read it replaces mappool
     sheet?: { id: string, gid?: number },
+    // the qualifiers pool, for the map names on the qualifiers scene; when
+    // missing that scene reads `sheet`
+    qualifiersSheet?: { id: string, gid?: number },
     mappool?: Modpool[],
     // seeds and country ranks by player name (tosu has neither)
     players?: Record<string, { seed?: number, countryRank?: number }>,

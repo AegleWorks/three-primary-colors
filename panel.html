@@ -13,7 +13,12 @@
 </head>
 
 <!-- The control panel: a browser tab or an OBS custom browser dock. It drives
-     the overlay (index.html) through the bridge server that bun dev starts. -->
+     the overlay (index.html) through the bridge server that bun dev starts.
+
+     Laid out around three questions, in this order:
+       1. Is everything working?      the status bar and its one alert
+       2. What happens now?           the "Ahora" card: the moment of the match and the next step
+       3. What do I want to change?   scenes, then one tab per part of the show -->
 <body>
 	<form class="remote-gate" id="remoteGate">
 		<h1>Panel remoto</h1>
@@ -23,195 +28,309 @@
 		<button type="submit" class="btn btn--gold">Entrar</button>
 	</form>
 
-	<header class="onair" id="onair">
-		<div class="onair-scene">
-			<span class="onair-tag"><i class="dot" id="onairDot"></i><span id="onairLabel">Sin overlay</span></span>
-			<b class="onair-name" id="onairScene">—</b>
+	<!-- 1. Is everything working? -->
+	<header class="bar" id="bar">
+		<div class="tally" id="tally" data-state="off">
+			<i class="tally-light" aria-hidden="true"></i>
+			<span class="tally-text">
+				<span class="tally-label" id="tallyLabel">Sin overlay</span>
+				<b class="tally-scene" id="tallyScene">—</b>
+			</span>
 		</div>
-		<div class="onair-series" id="onairSeries">
+		<div class="series" id="series" hidden>
 			<span class="who who--l" id="seriesNameL">Izquierda</span>
 			<b class="score"><span id="seriesL">0</span><i>–</i><span id="seriesR">0</span></b>
 			<span class="who who--r" id="seriesNameR">Derecha</span>
+			<span class="series-format" id="seriesFormat"></span>
 		</div>
-		<div class="onair-map">
-			<span id="onairMap">Sin mapa</span>
-			<span class="onair-turn" id="onairTurn"></span>
-		</div>
-		<div class="links">
-			<span class="link" title="El bridge conecta el panel con el overlay"><i class="dot" id="linkDot"></i>Bridge</span>
-			<span class="link" data-local><i class="dot" id="obsStatusDot"></i>OBS</span>
-			<span class="link" id="roundBadge"></span>
-			<span class="link link--warn" id="overlayCount"></span>
-			<span class="link link--warn" id="versionWarning" data-local></span>
-		</div>
+		<ul class="health" id="health" aria-label="Estado de las conexiones"></ul>
 	</header>
 
-	<nav class="rail" aria-label="Escenas">
-		<div class="rail-scenes" id="scenes"></div>
-		<label class="toggle" data-local>
-			<input type="checkbox" id="sceneFollowObs" checked>
-			<span>Seguir a OBS</span>
-		</label>
-		<span class="rail-note" id="sceneObsStatus" data-local></span>
-	</nav>
+	<div class="alert" id="alert" role="status" aria-live="polite" hidden>
+		<span class="alert-icon" id="alertIcon" aria-hidden="true">!</span>
+		<span class="alert-text"><b id="alertTitle"></b><span id="alertFix"></span></span>
+		<button type="button" class="btn btn--small" id="alertAction" hidden></button>
+	</div>
+	<!-- filled by local.ts; the alert reads them -->
+	<span id="versionWarning" hidden></span>
 
-	<main class="desk">
-		<section class="draft" aria-labelledby="draftTitle">
-			<div class="head">
-				<h2 id="draftTitle">Draft</h2>
-				<div class="row">
-					<button type="button" class="btn btn--quiet" id="poolReload" title="Vuelve a leer data.json y la sheet del mappool; el draft se mantiene">Recargar pool</button>
-					<button type="button" class="btn btn--quiet" id="draftReset">Reiniciar draft</button>
+	<div class="layout">
+		<div class="cockpit">
+			<!-- 2. What happens now? -->
+			<section class="now" id="now" data-tone="idle" aria-labelledby="nowTitle" aria-live="polite">
+				<span class="now-kicker" id="nowKicker">Ahora</span>
+				<h2 class="now-title" id="nowTitle">Conectando…</h2>
+				<p class="now-detail" id="nowDetail"></p>
+				<div class="now-actions" id="nowActions"></div>
+			</section>
+
+			<section class="timer" aria-labelledby="timerTitle">
+				<div class="timer-head">
+					<h3 id="timerTitle">Timer de pick</h3>
+					<span class="timer-run" id="timerRun" aria-live="polite"></span>
 				</div>
-			</div>
-			<p class="note pool-status" id="poolStatus" aria-live="polite"></p>
-			<div class="pool" id="draft"></div>
-			<p class="note">El mapa que carga tosu sin pick cuenta como pick del que sigue. El ganador se marca solo cuando termina el mapa.</p>
-		</section>
+				<div class="timer-row" id="timerPresets">
+					<button type="button" class="btn btn--stop" id="timerStop" aria-label="Parar el timer">■ Parar</button>
+				</div>
+				<details class="timer-more">
+					<summary>Otro tiempo</summary>
+					<div class="timer-custom">
+						<label class="seconds"><input type="number" id="timerSeconds" value="150" min="5" max="600" step="5" aria-label="Segundos"> s</label>
+						<button type="button" class="btn" id="timerStart">Iniciar</button>
+					</div>
+				</details>
+				<p class="hint">Un toque y arranca. También arranca solo con el <code>!mp timer</code> del referee.</p>
+			</section>
 
-		<aside class="side">
-			<section class="block selected" id="selected" aria-live="polite">
-				<p class="note" id="selectedEmpty">Toca un mapa del pool para pickearlo, banearlo o marcar quién lo ganó.</p>
-				<div id="selectedBody" hidden>
-					<div class="selected-art" id="selectedArt">
-						<div class="selected-head">
-							<b id="selectedSlot"></b>
-							<span id="selectedTitle"></span>
-						</div>
-						<span class="selected-meta" id="selectedMeta"></span>
+			<!-- 3. What do I want to change? -->
+			<nav class="scenes" aria-labelledby="scenesTitle">
+				<div class="scenes-head">
+					<h3 id="scenesTitle">Escena en pantalla</h3>
+					<label class="switch" data-local title="Cuando cambias de escena en OBS, el overlay cambia a la que corresponde">
+						<input type="checkbox" id="sceneFollowObs" checked>
+						<i aria-hidden="true"></i>
+						<span>Seguir a OBS</span>
+					</label>
+				</div>
+				<div class="scene-grid" id="scenes"></div>
+				<p class="hint" id="sceneObsStatus" data-local></p>
+			</nav>
+		</div>
+
+		<main class="work">
+			<div class="tabs" role="tablist" aria-label="Partes del show">
+				<button type="button" role="tab" id="tab-match" aria-controls="pane-match" aria-selected="true">Partido</button>
+				<button type="button" role="tab" id="tab-showcase" aria-controls="pane-showcase" aria-selected="false" tabindex="-1">Showcase</button>
+				<button type="button" role="tab" id="tab-quals" aria-controls="pane-quals" aria-selected="false" tabindex="-1">Qualifiers</button>
+				<button type="button" role="tab" id="tab-chat" aria-controls="pane-chat" aria-selected="false" tabindex="-1">Chat</button>
+				<button type="button" role="tab" id="tab-setup" aria-controls="pane-setup" aria-selected="false" tabindex="-1">Ajustes</button>
+			</div>
+
+			<!-- ---------- Partido: the draft ---------- -->
+			<section class="pane" role="tabpanel" id="pane-match" aria-labelledby="tab-match">
+				<div class="pane-head">
+					<div>
+						<h2>Draft</h2>
+						<p class="status-line" id="poolStatus" aria-live="polite"></p>
 					</div>
-					<span class="selected-state" id="selectedState"></span>
-					<div class="sides">
-						<div class="side-col side-col--l">
-							<span class="who who--l" id="selNameL">Izquierda</span>
-							<button type="button" class="btn" data-edit="pick" data-side="l">Pick</button>
-							<button type="button" class="btn" data-edit="ban" data-side="l">Ban</button>
-							<button type="button" class="btn" data-edit="win" data-side="l">Ganó</button>
+					<button type="button" class="btn btn--quiet" id="poolReload" title="Vuelve a leer data.json y la sheet del mappool; el draft se mantiene">↻ Recargar pool</button>
+				</div>
+				<p class="legend" aria-hidden="true">
+					<span><i class="sw sw--l"></i><span id="legendL">Izquierda</span></span>
+					<span><i class="sw sw--r"></i><span id="legendR">Derecha</span></span>
+					<span><i class="sw sw--ban"></i>Ban</span>
+					<span><i class="sw sw--play"></i>En juego</span>
+				</p>
+				<div class="pool" id="draft"></div>
+
+				<!-- The map sheet: what to do with the map just tapped. -->
+				<section class="sheet" id="sheet" hidden aria-labelledby="sheetTitle">
+					<div class="sheet-art" id="sheetArt">
+						<div class="sheet-head">
+							<b class="sheet-slot" id="sheetSlot"></b>
+							<span class="sheet-title" id="sheetTitle"></span>
+							<button type="button" class="sheet-close" id="sheetClose" aria-label="Cerrar (Esc)">✕</button>
 						</div>
-						<div class="side-col side-col--r">
-							<span class="who who--r" id="selNameR">Derecha</span>
-							<button type="button" class="btn" data-edit="pick" data-side="r">Pick</button>
-							<button type="button" class="btn" data-edit="ban" data-side="r">Ban</button>
-							<button type="button" class="btn" data-edit="win" data-side="r">Ganó</button>
+						<span class="sheet-meta" id="sheetMeta"></span>
+					</div>
+					<p class="sheet-state" id="sheetState"></p>
+					<div class="sheet-sides">
+						<div class="sheet-side" data-side="l">
+							<span class="who who--l" id="sheetNameL">Izquierda</span>
+							<button type="button" class="btn act" data-edit="pick" data-side="l">Pick</button>
+							<button type="button" class="btn act" data-edit="ban" data-side="l">Ban</button>
+							<button type="button" class="btn act" data-edit="win" data-side="l">Ganó</button>
+						</div>
+						<div class="sheet-side" data-side="r">
+							<span class="who who--r" id="sheetNameR">Derecha</span>
+							<button type="button" class="btn act" data-edit="pick" data-side="r">Pick</button>
+							<button type="button" class="btn act" data-edit="ban" data-side="r">Ban</button>
+							<button type="button" class="btn act" data-edit="win" data-side="r">Ganó</button>
 						</div>
 					</div>
-					<button type="button" class="btn btn--quiet btn--wide" data-edit="clear">Quitar pick o ban</button>
+					<button type="button" class="btn btn--quiet btn--wide" id="sheetClear" data-edit="clear">Dejar el mapa libre</button>
+				</section>
+
+				<div class="overlay-keys">
+					<h3>Atajos del overlay</h3>
+					<div class="key-row" id="keys"></div>
+				</div>
+
+				<div class="danger">
+					<button type="button" class="btn btn--quiet btn--danger-text" id="draftReset">Borrar todo el draft</button>
+					<span class="hint">Se puede deshacer.</span>
 				</div>
 			</section>
 
-			<section class="block showcase" aria-labelledby="showcaseTitle">
-				<div class="head">
-					<h2 id="showcaseTitle">Showcase</h2>
-					<div class="row">
-						<button type="button" class="btn" id="showcasePrev" aria-label="Mapa anterior">Anterior</button>
-						<button type="button" class="btn" id="showcaseNext" aria-label="Mapa siguiente">Siguiente</button>
+			<!-- ---------- Showcase ---------- -->
+			<section class="pane" role="tabpanel" id="pane-showcase" aria-labelledby="tab-showcase" hidden>
+				<div class="pane-head">
+					<div>
+						<h2>Showcase</h2>
+						<p class="hint">Toca un mapa para destacarlo. Si osu! carga un mapa del pool durante el showcase, se destaca solo y no cuenta como pick.</p>
 					</div>
+				</div>
+				<div class="feature" id="showcaseNow"></div>
+				<div class="stepper">
+					<button type="button" class="btn btn--big" id="showcasePrev">◀ Anterior</button>
+					<button type="button" class="btn btn--big btn--gold" id="showcaseNext">Siguiente ▶</button>
 				</div>
 				<div class="showcase-line" id="showcaseLine"></div>
-				<p class="note" id="showcaseNote">Toca un mapa para destacarlo en el showcase. Si osu! carga un mapa del pool durante el showcase, se destaca solo y no cuenta como pick.</p>
 			</section>
 
-			<section class="block" aria-labelledby="timerTitle">
-				<h2 id="timerTitle">Timer de pick</h2>
-				<div class="timer">
-					<div class="presets" id="timerPresets"></div>
-					<label class="seconds"><input type="number" id="timerSeconds" value="120" min="5" max="600" step="5"> s</label>
-				</div>
-				<div class="row">
-					<button type="button" class="btn btn--gold" id="timerStart">Iniciar timer</button>
-					<button type="button" class="btn" id="timerStop">Parar</button>
-				</div>
-				<p class="note">También arranca solo con el <code>!mp timer</code> del referee.</p>
-			</section>
-
-			<section class="block twitch" aria-labelledby="twitchTitle">
-				<div class="head">
-					<h2 id="twitchTitle">Chat de Twitch</h2>
-					<span class="twitch-state" id="twitchState" aria-live="polite"></span>
-				</div>
-				<div class="channels" id="twitchChannels" role="radiogroup" aria-labelledby="twitchTitle"></div>
-				<p class="note" id="twitchNote">El chat que sale en pantalla. Al cambiar de canal se vacía y se llena con el del canal nuevo.</p>
-			</section>
-
-			<section class="block" aria-labelledby="toolsTitle">
-				<h2 id="toolsTitle">Herramientas</h2>
-				<div class="grid2" id="keys"></div>
-				<label class="field">
-					<span>Ronda</span>
-					<select id="round"></select>
-				</label>
-				<p class="note">Cambiar la ronda recarga el overlay. Para dejarla fija, ponla en la URL del source: <code>?round=sf</code>.</p>
-			</section>
-
-			<section class="block block--sim" id="simBlock" hidden aria-labelledby="simTitle">
-				<h2 id="simTitle">Demo</h2>
-				<p class="note">El overlay está corriendo el partido simulado (<code>?sim</code>).</p>
-				<div class="grid2" id="simKeys"></div>
-			</section>
-
-			<section class="block remote" id="remoteBlock" data-local hidden aria-labelledby="remoteTitle">
-				<div class="head">
-					<h2 id="remoteTitle">Panel remoto</h2>
-					<span class="twitch-state" id="remoteState" aria-live="polite"></span>
-				</div>
-				<p class="note">Deja que otra persona maneje este panel desde su navegador. No puede tocar OBS ni tu PC, solo lo que ves aquí arriba.</p>
-				<div id="remoteOn" hidden>
-					<b class="remote-code" id="remoteCodeShown"></b>
-					<div class="row">
-						<button type="button" class="btn" id="remoteCopyCode">Copiar código</button>
-						<button type="button" class="btn" id="remoteCopyLink">Copiar enlace</button>
+			<!-- ---------- Qualifiers ---------- -->
+			<section class="pane" role="tabpanel" id="pane-quals" aria-labelledby="tab-quals" hidden>
+				<div class="pane-head">
+					<div>
+						<h2>Qualifiers</h2>
+						<p class="hint">El jugador cuyos resultados muestra la escena Qualifiers. Van del último seed al primero.</p>
 					</div>
-					<p class="note">Compártelo solo con quien vaya a operar: quien lo tenga controla lo que sale al aire.</p>
 				</div>
-				<button type="button" class="btn btn--gold btn--wide" id="remoteToggle">Activar acceso remoto</button>
+				<div class="feature" id="qualsNow"></div>
+				<div class="stepper">
+					<button type="button" class="btn btn--big" id="qualsPrev">◀ Anterior</button>
+					<button type="button" class="btn btn--big btn--gold" id="qualsNext">Siguiente ▶</button>
+				</div>
+				<label class="search"><span class="visually-hidden">Buscar jugador</span><input type="search" id="qualsSearch" placeholder="Buscar jugador o seed…" autocomplete="off"></label>
+				<div class="players" id="qualsList" role="listbox" aria-label="Jugadores"></div>
 			</section>
 
-			<details class="block obs" data-local>
-				<summary><h2>OBS</h2></summary>
-
-				<fieldset class="obs-part">
-					<legend>Conexión</legend>
-					<p class="note">En OBS: Herramientas → Configuración del servidor WebSocket → activa el servidor y copia la contraseña.</p>
-					<label class="field"><span>WebSocket</span><input type="text" id="obsUrl" value="ws://127.0.0.1:4455"></label>
-					<label class="field"><span>Contraseña</span><input type="password" id="obsPassword" placeholder="Opcional" autocomplete="off"></label>
-					<button type="button" class="btn btn--gold" id="obsConnectBtn">Conectar a OBS</button>
-				</fieldset>
-
-				<fieldset class="obs-part">
-					<legend>Armar escenas</legend>
-					<p class="note">Crea la escena si no existe, captura las ventanas de osu! que estén abiertas y pone el overlay encima. No cambia la escena que está al aire. Después se mantiene sola: si abres o cierras un osu!, la escena se actualiza.</p>
-					<div class="obs-scene">
-						<label class="field"><span>Escena de gameplay</span><input type="text" id="obsSceneName" value="osu! rempalago"></label>
-						<button type="button" class="btn" id="obsAutoSetupBtn">Armar gameplay</button>
+			<!-- ---------- Chat de Twitch ---------- -->
+			<section class="pane" role="tabpanel" id="pane-chat" aria-labelledby="tab-chat" hidden>
+				<div class="pane-head">
+					<div>
+						<h2>Chat de Twitch</h2>
+						<p class="hint">El chat que sale en pantalla. Al cambiar de canal se vacía y se llena con el del canal nuevo.</p>
 					</div>
-					<p class="note obs-hint">Las ventanas del cliente de torneo, acomodadas en la franja del juego.</p>
-					<div class="obs-scene">
-						<label class="field"><span>Escena del showcase</span><input type="text" id="obsShowcaseName" value="Showcase"></label>
-						<button type="button" class="btn" id="obsShowcaseBtn">Armar showcase</button>
-					</div>
-					<p class="note obs-hint">El osu! que reproduce la replay (no el de torneo), en el hueco de la replay.</p>
-					<p class="note obs-status" id="obsSetupStatus" aria-live="polite"></p>
-				</fieldset>
+					<span class="pill" id="twitchState" aria-live="polite"></span>
+				</div>
+				<div class="channels" id="twitchChannels" role="radiogroup" aria-label="Canal de Twitch"></div>
+			</section>
 
-				<fieldset class="obs-part">
-					<legend>Acomodo de clientes</legend>
-					<label class="field"><span>Distribución</span>
-						<select id="obsLayoutMode">
-							<option value="dwindle">Dwindle (Hyprland)</option>
-							<option value="grid">Cuadrícula</option>
-							<option value="master-stack">Principal y pila</option>
-							<option value="team-split">Por equipo (izquierda / derecha)</option>
-						</select>
+			<!-- ---------- Ajustes: setup, before going live ---------- -->
+			<section class="pane" role="tabpanel" id="pane-setup" aria-labelledby="tab-setup" hidden>
+				<section class="card-block" aria-labelledby="checkTitle">
+					<h2 id="checkTitle">Antes de salir al aire</h2>
+					<p class="hint">Se revisa solo. Cuando todo esté en verde, puedes transmitir.</p>
+					<ul class="checklist" id="checklist"></ul>
+				</section>
+
+				<section class="card-block" aria-labelledby="roundTitle">
+					<h2 id="roundTitle">Ronda</h2>
+					<div class="round-row">
+						<label class="field"><span>Ronda del partido</span><select id="round"></select></label>
+						<button type="button" class="btn btn--gold" id="roundApply" hidden>Cambiar</button>
+					</div>
+					<p class="hint" id="roundHint">Cambiar la ronda recarga el overlay. Para dejarla fija, ponla en la URL del source: <code>?round=sf</code>.</p>
+				</section>
+
+				<section class="card-block" aria-labelledby="sourcesTitle">
+					<div class="pane-head">
+						<div>
+							<h2 id="sourcesTitle">Hojas de la sheet</h2>
+							<p class="status-line" id="sourcesStatus"></p>
+						</div>
+						<button type="button" class="btn btn--quiet" id="sourcesRefresh">↻ Buscar hojas</button>
+					</div>
+					<div class="sources-table" id="sourcesTable"></div>
+					<label class="field">
+						<span>Archivo de puntajes de la escena Qualifiers</span>
+						<select id="sourcesFile"></select>
 					</label>
-					<div class="row">
-						<label class="field field--inline"><span>Espacio</span><input type="number" id="obsGap" value="8" min="0" max="64"></label>
-						<label class="toggle"><input type="checkbox" id="obsAutoTile" checked><span>Acomodar al cambiar clientes</span></label>
+					<p class="hint"><b>Partido</b>: el pool del draft, el mappool, el showcase y el gameplay. <b>Resultados</b>: el pool de la escena Qualifiers; el archivo de puntajes se elige solo por el nombre de la hoja.</p>
+				</section>
+
+				<details class="card-block obs" id="obsBlock" data-local>
+					<summary><h2>OBS</h2><span class="pill" id="obsPill"><i class="dot" id="obsStatusDot"></i><span id="obsPillText">Sin conectar</span></span></summary>
+
+					<fieldset class="obs-part">
+						<legend>1 · Conectar</legend>
+						<p class="hint">En OBS: Herramientas → Configuración del servidor WebSocket → activa el servidor y copia la contraseña. El panel la recuerda y se conecta solo la próxima vez.</p>
+						<label class="field"><span>Contraseña</span><input type="password" id="obsPassword" placeholder="La de OBS (opcional)" autocomplete="off"></label>
+						<details class="more">
+							<summary>Dirección</summary>
+							<label class="field"><span>WebSocket</span><input type="text" id="obsUrl" value="ws://127.0.0.1:4455"></label>
+						</details>
+						<button type="button" class="btn btn--gold" id="obsConnectBtn">Conectar a OBS</button>
+						<p class="status-line" id="obsConnectNote" aria-live="polite"></p>
+					</fieldset>
+
+					<fieldset class="obs-part">
+						<legend>2 · Armar escenas</legend>
+						<p class="hint">Crea la escena si no existe, captura las ventanas de osu! abiertas y pone el overlay encima. No cambia la escena al aire y se puede tocar las veces que quieras.</p>
+						<div class="obs-scene">
+							<label class="field"><span>Escena de gameplay</span><input type="text" id="obsSceneName" value="osu! rempalago"></label>
+							<button type="button" class="btn" id="obsAutoSetupBtn">Armar gameplay</button>
+						</div>
+						<p class="hint">Antes, abre el cliente de torneo.</p>
+						<div class="obs-scene">
+							<label class="field"><span>Escena del showcase</span><input type="text" id="obsShowcaseName" value="Showcase"></label>
+							<button type="button" class="btn" id="obsShowcaseBtn">Armar showcase</button>
+						</div>
+						<p class="hint">Antes, abre el osu! que reproduce la replay (no el de torneo).</p>
+						<p class="status-line obs-status" id="obsSetupStatus" aria-live="polite"></p>
+					</fieldset>
+
+					<details class="obs-part more">
+						<summary>Acomodo de clientes (avanzado)</summary>
+						<label class="field"><span>Distribución</span>
+							<select id="obsLayoutMode">
+								<option value="dwindle">Dwindle (Hyprland)</option>
+								<option value="grid">Cuadrícula</option>
+								<option value="master-stack">Principal y pila</option>
+								<option value="team-split">Por equipo (izquierda / derecha)</option>
+							</select>
+						</label>
+						<div class="row">
+							<label class="field field--inline"><span>Espacio</span><input type="number" id="obsGap" value="8" min="0" max="64"></label>
+							<label class="switch"><input type="checkbox" id="obsAutoTile" checked><i aria-hidden="true"></i><span>Acomodar al abrir o cerrar clientes</span></label>
+						</div>
+						<button type="button" class="btn" id="obsApplyBtn">Acomodar ahora</button>
+					</details>
+				</details>
+
+				<section class="card-block remote" id="remoteBlock" data-local hidden aria-labelledby="remoteTitle">
+					<div class="pane-head">
+						<h2 id="remoteTitle">Panel remoto</h2>
+						<span class="pill" id="remoteState" aria-live="polite"></span>
 					</div>
-					<button type="button" class="btn" id="obsApplyBtn">Acomodar ahora</button>
-				</fieldset>
-			</details>
-		</aside>
-	</main>
+					<p class="hint">Deja que otra persona maneje este panel desde su navegador. No puede tocar OBS ni tu PC.</p>
+					<div id="remoteOn" hidden>
+						<b class="remote-code" id="remoteCodeShown"></b>
+						<div class="row">
+							<button type="button" class="btn" id="remoteCopyCode">Copiar código</button>
+							<button type="button" class="btn" id="remoteCopyLink">Copiar enlace</button>
+						</div>
+						<p class="hint">Pásalo solo a quien vaya a operar: quien lo tenga controla lo que sale al aire.</p>
+					</div>
+					<button type="button" class="btn btn--gold btn--wide" id="remoteToggle">Activar acceso remoto</button>
+				</section>
+
+				<section class="card-block card-block--sim" id="simBlock" hidden aria-labelledby="simTitle">
+					<h2 id="simTitle">Demo</h2>
+					<p class="hint">El overlay está corriendo el partido simulado (<code>?sim</code>).</p>
+					<div class="key-row" id="simKeys"></div>
+				</section>
+
+				<section class="card-block" aria-labelledby="keysTitle">
+					<h2 id="keysTitle">Atajos de teclado</h2>
+					<dl class="shortcuts">
+						<dt><kbd>1</kbd>…<kbd>8</kbd></dt><dd>Cambiar de escena</dd>
+						<dt><kbd>Ctrl</kbd> + <kbd>Z</kbd></dt><dd>Deshacer el último cambio del draft</dd>
+						<dt><kbd>Esc</kbd></dt><dd>Cerrar el mapa elegido</dd>
+						<dt><kbd>←</kbd> <kbd>→</kbd></dt><dd>Anterior / siguiente en Showcase y Qualifiers</dd>
+					</dl>
+				</section>
+			</section>
+		</main>
+	</div>
+
+	<div class="toast" id="toast" role="status" aria-live="polite" hidden>
+		<span class="toast-text" id="toastText"></span>
+		<button type="button" class="toast-undo" id="toastUndo" hidden>Deshacer</button>
+		<i class="toast-clock" id="toastClock" aria-hidden="true"></i>
+	</div>
+
 	<script type="module" src="/src/panel/main.ts"></script>
 </body>
 

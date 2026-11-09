@@ -460,7 +460,7 @@ function seatCasters() {
 	const left = Math.ceil(shown.length / 2);
 	shown.forEach((i, n) => casterSides[n < left ? "l" : "r"].append($(`.casters [data-caster="${i}"]`)));
 	for (const el of seats) el.hidden = !seatOn[Number(el.dataset.caster)];
-	for (const box of [$(".casters"), $(".start-casters"), $(".show-casters")]) box.dataset.count = shown.length;
+	for (const box of [$(".casters"), $(".start-casters"), ...$$(".show-casters")]) box.dataset.count = shown.length;
 	if (shot || calm.matches) return;
 	// rects are in screen px; the stage may be scaled (preview), transforms are not
 	const k = stage.getBoundingClientRect().width / 1920 || 1;
@@ -1140,6 +1140,7 @@ const STINGER_LABEL = {
 	gameplay: LIVE ? "Gameplay" : `Mapa 6 · ${current.id}`,
 	result: "Resultado del mapa",
 	champion: ROUND.short || "Ganador",
+	qualifiers: "Qualifiers",
 };
 function shake() {
 	stage.classList.remove("shake");
@@ -2630,8 +2631,8 @@ if (!SIM) {
 renderPfps();
 boot("gameplay", {
 	switcher: !LIVE,
-	scenes: ["starting", "intro", "showcase", "mappool", "gameplay", "result", "champion"],
-	labels: { starting: "Ya empezamos", showcase: "Showcase" },
+	scenes: ["starting", "intro", "showcase", "mappool", "gameplay", "result", "champion", "qualifiers"],
+	labels: { starting: "Ya empezamos", showcase: "Showcase", qualifiers: "Qualifiers" },
 	hint: "<kbd>T</kbd> TB · <kbd>Q</kbd><kbd>W</kbd> bancho · <kbd>G</kbd> chats · <kbd>R</kbd><kbd>E</kbd> timer · <kbd>F</kbd> ×4 · <kbd>C</kbd> choke · <kbd>A</kbd> demo · <kbd>M</kbd> sonido · <kbd>P</kbd> perf",
 });
 if ($('[data-goto="champion"]')) $('[data-goto="champion"]').lastChild.textContent = ROUND.short || "Ganador";
