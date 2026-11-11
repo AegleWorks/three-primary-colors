@@ -5,6 +5,7 @@ import type ControlLink from "../control/ControlLink";
 import type { Command, OverlayState } from "../control/ControlLink";
 import OBSHandler from "../handler/OBSHandler";
 import SceneSync from "../handler/SceneSync";
+import { t } from "./i18n";
 
 // What only the panel on the broadcasting machine can do: reach OBS, and let
 // remote operators in. A remote panel never loads this.
@@ -41,16 +42,16 @@ export function startLocal(link: ControlLink, send: (command: Command) => void, 
 	const connect = async (quiet = false) => {
 		const button = $<HTMLButtonElement>("#obsConnectBtn");
 		button.disabled = true;
-		button.textContent = "Conectando…";
+		button.textContent = t.obsConnecting;
 		note.textContent = "";
 		const ok = await obs.connect(url.value.trim() || "ws://127.0.0.1:4455", pass.value);
 		button.disabled = false;
 		if (ok) stored(OBS_SAVED, JSON.stringify({ url: url.value.trim(), password: pass.value }));
 		else {
-			button.textContent = "Conectar a OBS";
+			button.textContent = t.obsConnect;
 			if (!quiet) {
 				note.dataset.ok = "false";
-				note.textContent = "No se pudo conectar. Revisa que OBS esté abierto, que el servidor WebSocket esté activado y que la contraseña sea la de OBS.";
+				note.textContent = t.obsConnectFailed;
 			}
 		}
 		changed();
@@ -81,9 +82,9 @@ export function startLocal(link: ControlLink, send: (command: Command) => void, 
 		const label = button.textContent;
 		try {
 			await navigator.clipboard.writeText(text);
-			button.textContent = "¡Copiado!";
+			button.textContent = t.copied;
 		} catch {
-			button.textContent = "No se pudo copiar";
+			button.textContent = t.copyFailed;
 		}
 		setTimeout(() => (button.textContent = label), 1500);
 	};
@@ -111,12 +112,12 @@ export function startLocal(link: ControlLink, send: (command: Command) => void, 
 			location.reload();
 			return;
 		}
-		versionNote.textContent = `El panel es v${version} y el bridge v${bridge}. Revisa que rempalago-bridge.exe esté junto a tosu.exe.`;
+		versionNote.textContent = t.versionPanelBridge(version, bridge);
 	};
 	// a bridge from before versions were compared says nothing about its own
 	setTimeout(() => {
 		if (link.connected && !remote) {
-			versionNote.textContent = "Hay un bridge viejo abierto. Ciérralo y abre el que está en la carpeta de tosu.";
+			versionNote.textContent = t.versionOldBridge;
 			changed();
 		}
 	}, OLD_BRIDGE_MS);
@@ -126,17 +127,11 @@ export function startLocal(link: ControlLink, send: (command: Command) => void, 
 		checkVersion(status.version);
 		$("#remoteBlock").hidden = !status.available;
 		$("#remoteOn").hidden = !status.on;
-		$("#remoteToggle").textContent = status.on ? "Cortar acceso" : "Activar acceso remoto";
+		$("#remoteToggle").textContent = status.on ? t.remoteOff : t.remoteOn;
 		$("#remoteToggle").className = status.on ? "btn btn--danger btn--wide" : "btn btn--gold btn--wide";
 		$("#remoteCodeShown").textContent = status.code;
 		$("#remoteState").dataset.state = !status.on ? "off" : status.online ? "ok" : "wait";
-		$("#remoteState").textContent = !status.on
-			? "Apagado"
-			: !status.online
-				? "Conectando…"
-				: status.panels
-					? `${status.panels} ${status.panels === 1 ? "panel conectado" : "paneles conectados"}`
-					: "Esperando a alguien";
+		$("#remoteState").textContent = !status.on ? t.remoteStateOff : !status.online ? t.remoteStateConnecting : status.panels ? t.remotePanels(status.panels) : t.remoteWaiting;
 		changed();
 	});
 }

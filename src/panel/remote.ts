@@ -1,4 +1,5 @@
 import { normalizeCode, relayRoom, RELAY_URL } from "../config/remote";
+import { t } from "./i18n";
 
 // The panel as a remote operator gets it (vite --mode remote, published at
 // PANEL_URL): the same panel, reaching the overlay through the relay. It asks
@@ -10,9 +11,9 @@ const SAVED = "rempalago-remote-code";
 const REFUSED = "rempalago-remote-refused";
 
 const MESSAGES: Record<number, string> = {
-	4404: "Ese código no existe o ya no sirve. Pídele uno nuevo a quien transmite.",
-	4409: "Ya hay demasiados paneles conectados.",
-	4410: "Quien transmite cortó el acceso remoto.",
+	4404: t.refused4404,
+	4409: t.refused4409,
+	4410: t.refused4410,
 };
 
 async function roomOf(code: string) {

@@ -1,5 +1,6 @@
 import type OBSHandler from "./OBSHandler";
 import type { SceneName } from "../oro/stage.js";
+import { sceneLabel, t } from "../panel/i18n";
 
 // OBS scene name -> overlay scene. The overlay is one browser source shared by
 // every OBS scene, so switching scenes in OBS plays the stinger and lands on
@@ -35,9 +36,7 @@ export default class SceneSync {
 	private apply(obsScene: string) {
 		const scene = sceneFor(obsScene);
 		if (this.status) {
-			this.status.textContent = scene
-				? `OBS: "${obsScene}" → ${scene}`
-				: `OBS: "${obsScene}" (sin escena del overlay)`;
+			this.status.textContent = scene ? t.obsSceneMatch(obsScene, sceneLabel(scene)) : t.obsSceneNone(obsScene);
 		}
 		if (scene && this.follow?.checked !== false) this.goTo(scene);
 	}

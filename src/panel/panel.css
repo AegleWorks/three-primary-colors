@@ -524,6 +524,47 @@ select:hover {
 	flex: 1 1 100%;
 }
 
+.lang-switch {
+	display: inline-flex;
+	margin-left: auto;
+	padding: 2px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: var(--ink);
+}
+
+.lang-switch button {
+	min-width: 34px;
+	min-height: 26px;
+	padding: 0 8px;
+	border: 0;
+	border-radius: 999px;
+	background: none;
+	color: var(--dim);
+	font: 800 12px/1 "Nunito", sans-serif;
+	letter-spacing: 0.06em;
+	cursor: pointer;
+}
+
+.lang-switch button:hover {
+	color: var(--text);
+}
+
+.lang-switch button[aria-pressed="true"] {
+	background: var(--gold);
+	color: var(--ink);
+}
+
+.lang-switch button:focus-visible {
+	outline: 2px solid var(--gold-hi);
+	outline-offset: 1px;
+}
+
+/* on the remote code screen, top right of the form */
+.lang-switch--gate {
+	align-self: flex-end;
+}
+
 .chip {
 	display: inline-flex;
 	align-items: center;

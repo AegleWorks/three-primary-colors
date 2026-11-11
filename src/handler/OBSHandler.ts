@@ -5,6 +5,7 @@ import TilingEngine, {
 	type TilingLayoutMode,
 	type TilingOptions,
 } from "./TilingEngine";
+import { t } from "../panel/i18n";
 
 // OBS game capture (win-capture): it hooks the osu! process, one per tournament
 // client, so a covered window still shows. "priority" picks how a lost window
@@ -133,7 +134,7 @@ export default class OBSHandler {
 			const text = button.textContent;
 			button.textContent = label;
 			if (setupStatus) {
-				setupStatus.textContent = "Buscando ventanas de osu! y armando la escena…";
+				setupStatus.textContent = t.obsSearching;
 				setupStatus.dataset.busy = "";
 				delete setupStatus.dataset.ok;
 			}
@@ -148,10 +149,10 @@ export default class OBSHandler {
 		};
 		if (autoSetupBtn) {
 			autoSetupBtn.onclick = () =>
-				runSetup(autoSetupBtn, "Armando…", () => this.autoSetupScene(sceneInput?.value.trim() || this.config.sceneName || "osu! rempalago"));
+				runSetup(autoSetupBtn, t.obsBuilding, () => this.autoSetupScene(sceneInput?.value.trim() || this.config.sceneName || "osu! rempalago"));
 		}
 		if (showcaseBtn) {
-			showcaseBtn.onclick = () => runSetup(showcaseBtn, "Armando…", () => this.autoSetupShowcase(showcaseInput?.value.trim() || this.showcaseScene));
+			showcaseBtn.onclick = () => runSetup(showcaseBtn, t.obsBuilding, () => this.autoSetupShowcase(showcaseInput?.value.trim() || this.showcaseScene));
 		}
 		if (showcaseInput) {
 			showcaseInput.onchange = () => {
@@ -198,11 +199,11 @@ export default class OBSHandler {
 
 		if (dot) {
 			dot.dataset.on = String(this.connected);
-			dot.title = this.connected ? "Connected" : "Disconnected";
+			dot.title = this.connected ? t.obsDotOn : t.obsDotOff;
 		}
 
 		if (btn) {
-			btn.textContent = this.connected ? "Desconectar de OBS" : "Conectar a OBS";
+			btn.textContent = this.connected ? t.obsDisconnect : t.obsConnect;
 		}
 	}
 
@@ -730,10 +731,10 @@ export default class OBSHandler {
 	}
 
 	private async ready(): Promise<string | null> {
-		if (!this.connected && !(await this.connect())) return `No se pudo conectar a OBS en ${this.config.url}. Revisa que OBS esté abierto y el servidor WebSocket activo.`;
+		if (!this.connected && !(await this.connect())) return t.obsCantConnect(this.config.url);
 		const { inputKinds } = await this.obs.call("GetInputKindList");
-		if (!inputKinds.includes(CAPTURE_KIND)) return "Este OBS no tiene Captura de juego; el armado automático necesita OBS en Windows.";
-		if (!inputKinds.includes("browser_source")) return "Este OBS no tiene la fuente Navegador; reinstala OBS con el plugin de navegador.";
+		if (!inputKinds.includes(CAPTURE_KIND)) return t.obsNoCapture;
+		if (!inputKinds.includes("browser_source")) return t.obsNoBrowser;
 		return null;
 	}
 
@@ -753,12 +754,12 @@ export default class OBSHandler {
 			if (!count)
 				return {
 					success: false,
-					message: `La escena "${sceneName}" quedó con el overlay ("${overlay}"), pero no encontré clientes de torneo abiertos. Abre el cliente de torneo: sus ventanas se agregan solas.`,
+					message: t.obsNoClients(sceneName, overlay),
 				};
-			return { success: true, message: `Escena "${sceneName}": ${count} ${count === 1 ? "cliente" : "clientes"} de torneo acomodados y el overlay ("${overlay}") encima. Si abres o cierras clientes, se actualiza solo.` };
+			return { success: true, message: t.obsGameplayDone(sceneName, count, overlay) };
 		} catch (err) {
 			console.error("[OBSHandler] autoSetupScene error:", err);
-			return { success: false, message: `No se pudo armar la escena: ${(err as Error).message || err}` };
+			return { success: false, message: t.obsSetupFailed(String((err as Error).message || err)) };
 		}
 	}
 
@@ -777,12 +778,12 @@ export default class OBSHandler {
 			if (!win)
 				return {
 					success: false,
-					message: `La escena "${sceneName}" quedó con el overlay ("${overlay}"), pero no encontré un osu! abierto aparte del de torneo. Abre osu! (el que va a reproducir la replay): se acomoda solo.`,
+					message: t.obsNoReplayClient(sceneName, overlay),
 				};
-			return { success: true, message: `Escena "${sceneName}": "${win.title}" en el hueco de la replay y el overlay ("${overlay}") encima.` };
+			return { success: true, message: t.obsShowcaseDone(sceneName, win.title, overlay) };
 		} catch (err) {
 			console.error("[OBSHandler] autoSetupShowcase error:", err);
-			return { success: false, message: `No se pudo armar la escena: ${(err as Error).message || err}` };
+			return { success: false, message: t.obsSetupFailed(String((err as Error).message || err)) };
 		}
 	}
 

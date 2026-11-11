@@ -2,6 +2,7 @@ import ControlLink, { type Command, type DraftEdit, type DraftSnapshot, type Ove
 import { channels as twitchChannels, type TwitchUser } from "../handler/TwitchUsers";
 import { ROUNDS } from "../config/rounds";
 import type { SceneName, Side } from "../oro/stage.js";
+import { applyStatic, overlayText, roundLabel, sceneLabel, t } from "./i18n";
 import { askForRoom, refused, REMOTE } from "./remote";
 
 // The control panel. Everything it does is a command to the overlay; what it
@@ -16,6 +17,8 @@ import { askForRoom, refused, REMOTE } from "./remote";
 // for a few seconds instead of asking "¿seguro?" first.
 
 const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector<T>(s)!;
+// the fixed text in the panel's language, before anything shows (the remote code screen too)
+applyStatic();
 // ?panel tells the bridge a panel is open, so it doesn't open another
 if (REMOTE) document.body.dataset.remote = "";
 const link = new ControlLink(REMOTE ? await askForRoom() : "ws://127.0.0.1:24052/?panel");
@@ -29,34 +32,11 @@ const overlays = new Map<string, { state: OverlayState; at: number }>();
 const GONE_MS = 10000;
 let selected: string | null = null;
 
-const SCENES: [SceneName, string][] = [
-	["starting", "Ya empezamos"],
-	["intro", "Intro"],
-	["showcase", "Showcase"],
-	["mappool", "Mappool"],
-	["gameplay", "Gameplay"],
-	["result", "Resultado"],
-	["champion", "Campeón"],
-	["qualifiers", "Qualifiers"],
-];
-const sceneName = (scene: string) => SCENES.find(([s]) => s === scene)?.[1] ?? "—";
-const KEYS: [string, string, string][] = [
-	["t", "Tiebreaker", "Activa o quita el modo tiebreaker"],
-	["g", "Chat: lobby ↔ Twitch", "Cambia el chat en pantalla entre el del lobby y el de Twitch"],
-	["m", "Sonido", "Silencia o activa el sonido del overlay"],
-	// the meter, like the demo, exists only in development builds
-	...(import.meta.env.DEV ? [["p", "Medidor", "Medidor de rendimiento"] as [string, string, string]] : []),
-];
-const SIM_KEYS: [string, string][] = [
-	["a", "Demo automática"],
-	["f", "Velocidad ×4"],
-	["c", "Choke"],
-	[" ", "Pausar"],
-	["z", "Romper combo izq."],
-	["x", "Romper combo der."],
-	["q", "Miss de Bancho izq."],
-	["w", "Miss de Bancho der."],
-];
+const SCENES: SceneName[] = ["starting", "intro", "showcase", "mappool", "gameplay", "result", "champion", "qualifiers"];
+const sceneName = (scene: string) => sceneLabel(scene);
+// the meter, like the demo, exists only in development builds
+const KEYS = ["t", "g", "m", ...(import.meta.env.DEV ? ["p"] : [])].map((key) => [key, ...t.keys[key]] as [string, string, string]);
+const SIM_KEYS = ["a", "f", "c", " ", "z", "x", "q", "w"].map((key) => [key, t.simKeys[key]] as [string, string]);
 const PRESETS = [60, 90, 120];
 
 function button(label: string, onClick: () => void, className = "btn") {
@@ -68,7 +48,7 @@ function button(label: string, onClick: () => void, className = "btn") {
 	return b;
 }
 
-const name = (side: Side) => state?.names[side] || (side === "l" ? "Izquierda" : "Derecha");
+const name = (side: Side) => state?.names[side] || (side === "l" ? t.left : t.right);
 const other = (side: Side): Side => (side === "l" ? "r" : "l");
 const esc = (text: string) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const modOf = (id: string) => id.replace(/\d+$/, "");
@@ -147,11 +127,11 @@ function mapState(id: string) {
 
 function stateText(id: string) {
 	const { pick, ban, won, current } = mapState(id);
-	if (ban) return `Baneado por ${name(ban)}`;
-	if (won) return `${pick ? `Pick de ${name(pick.by)}, ` : ""}lo ganó ${name(won)}`;
-	if (current) return `Se está jugando${pick ? `, pick de ${name(pick.by)}` : ""}. El ganador se marca solo al terminar.`;
-	if (pick) return `Pick de ${name(pick.by)}, todavía sin ganador`;
-	return "Libre: nadie lo ha pickeado ni baneado";
+	if (ban) return t.stateBanned(name(ban));
+	if (won) return t.stateWon(pick ? name(pick.by) : null, name(won));
+	if (current) return t.statePlaying(pick ? name(pick.by) : null);
+	if (pick) return t.statePicked(name(pick.by));
+	return t.stateFree;
 }
 
 // ======================================================================
@@ -178,66 +158,66 @@ function checks(): Check[] {
 	const connected = link.connected;
 	list.push(
 		connected
-			? { id: "bridge", label: REMOTE ? "Conexión" : "Bridge", level: "ok", text: "Conectado" }
+			? { id: "bridge", label: REMOTE ? t.checkConnection : t.checkBridge, level: "ok", text: t.connected }
 			: {
 					id: "bridge",
-					label: REMOTE ? "Conexión" : "Bridge",
+					label: REMOTE ? t.checkConnection : t.checkBridge,
 					level: "bad",
-					text: "Sin conexión",
-					fix: REMOTE ? "Reconectando con quien transmite. Si no vuelve, pídele que revise su internet." : "Abre rempalago-bridge.exe y déjalo abierto. El panel se conecta solo.",
+					text: t.noConnection,
+					fix: REMOTE ? t.fixRemoteLink : t.fixBridge,
 				},
 	);
-	if (!connected) list.push({ id: "overlay", label: "Overlay", level: "off", text: "Sin bridge" });
+	if (!connected) list.push({ id: "overlay", label: "Overlay", level: "off", text: t.noBridge });
 	else if (!state)
 		list.push({
 			id: "overlay",
 			label: "Overlay",
 			level: "bad",
-			text: "No aparece",
-			fix: "Abre OBS con el Browser Source del overlay (con tosu abierto). Si ya está, clic derecho en el source → Actualizar.",
+			text: t.overlayMissing,
+			fix: t.fixOverlayMissing,
 		});
 	else if (quiet)
 		list.push({
 			id: "overlay",
 			label: "Overlay",
 			level: "warn",
-			text: "No responde",
-			fix: "Si el overlay está en una pestaña del navegador, tráela al frente. En OBS: clic derecho en el source → Actualizar.",
+			text: t.overlayQuiet,
+			fix: t.fixOverlayQuiet,
 		});
-	else list.push({ id: "overlay", label: "Overlay", level: "ok", text: state.live ? "Respondiendo" : "Demo (?sim)" });
+	else list.push({ id: "overlay", label: "Overlay", level: "ok", text: state.live ? t.overlayAnswering : t.overlayDemo });
 
 	if (state?.live) {
 		const pool = state.poolStatus;
-		if (!state.pool.length) list.push({ id: "pool", label: "Pool", level: "wait", text: "Cargando" });
+		if (!state.pool.length) list.push({ id: "pool", label: "Pool", level: "wait", text: t.loading });
 		else if (!pool.ok)
 			list.push({
 				id: "pool",
 				label: "Pool",
 				level: "warn",
-				text: "Con problemas",
-				fix: `${pool.text}. Revisa la sheet (compartida con "cualquiera con el enlace") y recarga.`,
-				action: { label: "Recargar pool", run: reloadPool },
+				text: t.poolTrouble,
+				fix: t.fixPool(overlayText(pool.text)),
+				action: { label: t.reloadPool, run: reloadPool },
 			});
-		else list.push({ id: "pool", label: "Pool", level: "ok", text: `${state.pool.length} mapas` });
+		else list.push({ id: "pool", label: "Pool", level: "ok", text: t.maps(state.pool.length) });
 
 		const tw = state.twitch;
-		if (!tw.channels.length) list.push({ id: "chat", label: "Chat", level: "off", text: "Sin canales", fix: 'Agrega los canales en data.json: "twitch": ["canal"].' });
+		if (!tw.channels.length) list.push({ id: "chat", label: "Chat", level: "off", text: t.noChannels, fix: t.fixChannels });
 		else if (tw.status === "joined") list.push({ id: "chat", label: "Chat", level: "ok", text: `#${tw.channel}` });
-		else list.push({ id: "chat", label: "Chat", level: "wait", text: "Conectando" });
+		else list.push({ id: "chat", label: "Chat", level: "wait", text: t.connecting });
 	}
 
 	if (!REMOTE) {
 		const obsOn = document.querySelector<HTMLElement>("#obsStatusDot")?.dataset.on === "true";
 		list.push(
 			obsOn
-				? { id: "obs", label: "OBS", level: "ok", text: "Conectado" }
+				? { id: "obs", label: "OBS", level: "ok", text: t.connected }
 				: {
 						id: "obs",
 						label: "OBS",
 						level: "warn",
-						text: "Sin conectar",
-						fix: "Sin OBS, el panel no sigue tus escenas ni arma las de gameplay y showcase.",
-						action: { label: "Conectar OBS", run: () => openSetup("#obsBlock") },
+						text: t.notConnected,
+						fix: t.fixObs,
+						action: { label: t.connectObs, run: () => openSetup("#obsBlock") },
 					},
 		);
 	}
@@ -252,10 +232,10 @@ function topIssue(list: Check[]): Check | null {
 		const c = list.find((x) => x.id === id && (x.level === "bad" || x.level === "warn"));
 		if (c) return c;
 	}
-	if (version) return { id: "version", label: "Versión", level: "warn", text: "Bridge y panel no coinciden", fix: version };
+	if (version) return { id: "version", label: t.checkVersion, level: "warn", text: t.versionMismatch, fix: version };
 	const pool = list.find((x) => x.id === "pool" && x.level === "warn");
 	if (pool) return pool;
-	if (overlayCountNote) return { id: "overlays", label: "Overlays", level: "wait", text: "Hay más de un overlay abierto", fix: overlayCountNote };
+	if (overlayCountNote) return { id: "overlays", label: t.checkOverlays, level: "wait", text: t.manyOverlays, fix: overlayCountNote };
 	return null;
 }
 
@@ -312,7 +292,7 @@ function renderBar() {
 	const tally = $("#tally");
 	const live = Boolean(state && link.connected);
 	tally.dataset.state = !live ? "off" : quiet ? "warn" : state!.live ? "live" : "demo";
-	$("#tallyLabel").textContent = !link.connected ? (REMOTE ? "Reconectando" : "Sin bridge") : !state ? "Esperando al overlay" : quiet ? "No responde" : state.live ? "Al aire" : "Al aire · demo";
+	$("#tallyLabel").textContent = !link.connected ? (REMOTE ? t.tallyReconnecting : t.tallyNoBridge) : !state ? t.tallyWaiting : quiet ? t.tallyQuiet : state.live ? t.tallyLive : t.tallyDemo;
 	$("#tallyScene").textContent = state && link.connected ? sceneName(state.scene) : "—";
 
 	$("#series").hidden = !state;
@@ -323,7 +303,7 @@ function renderBar() {
 	$("#seriesL").textContent = String(state.stars.l);
 	$("#seriesR").textContent = String(state.stars.r);
 	const round = ROUNDS[state.round];
-	$("#seriesFormat").textContent = `${round?.name ?? state.round} · BO${m.bestOf} · a ${m.firstTo}`;
+	$("#seriesFormat").textContent = t.seriesFormat(roundLabel(state.round, round?.name), m.bestOf, m.firstTo);
 	$("#legendL").textContent = name("l");
 	$("#legendR").textContent = name("r");
 }
@@ -348,28 +328,28 @@ function moment(): Moment {
 	if (!link.connected)
 		return {
 			tone: "warn",
-			kicker: "Sin conexión",
-			title: REMOTE ? "Reconectando…" : "Abre el bridge",
-			detail: REMOTE ? "Se perdió la conexión con quien transmite. El panel vuelve solo." : "Abre rempalago-bridge.exe y déjalo abierto: el panel se conecta solo.",
+			kicker: t.nowNoLink,
+			title: REMOTE ? t.nowReconnecting : t.nowOpenBridge,
+			detail: REMOTE ? t.nowLostRemote : t.nowOpenBridgeDetail,
 		};
 	if (!state)
 		return {
 			tone: "warn",
-			kicker: "Falta el overlay",
-			title: "Esperando al overlay",
-			detail: "Abre OBS con el Browser Source del overlay (y tosu abierto). Aparece aquí en cuanto cargue.",
+			kicker: t.nowNoOverlay,
+			title: t.nowWaitingOverlay,
+			detail: t.nowWaitingOverlayDetail,
 		};
 	const s = state;
 	if (s.scene === "showcase") {
 		const map = s.pool.find((m) => m.id === s.showcase);
 		return {
 			tone: "live",
-			kicker: "Showcase en pantalla",
-			title: map ? `${map.id} · ${map.title}` : "Elige un mapa",
-			detail: map ? `${map.artist} · [${map.diff}]. Pasa al siguiente cuando termine la replay.` : "Toca un mapa en la pestaña Showcase.",
+			kicker: t.nowShowcase,
+			title: map ? `${map.id} · ${map.title}` : t.nowPickMap,
+			detail: map ? t.nowShowcaseDetail(map.artist, map.diff) : t.nowShowcaseEmpty,
 			actions: [
-				{ label: "◀ Anterior", run: () => stepShowcase(-1), disabled: !s.pool.length },
-				{ label: "Siguiente ▶", run: () => stepShowcase(1), primary: true, disabled: !s.pool.length },
+				{ label: t.prev, run: () => stepShowcase(-1), disabled: !s.pool.length },
+				{ label: t.next, run: () => stepShowcase(1), primary: true, disabled: !s.pool.length },
 			],
 		};
 	}
@@ -378,32 +358,32 @@ function moment(): Moment {
 		const p = q?.players[q.index];
 		return {
 			tone: "live",
-			kicker: "Qualifiers en pantalla",
-			title: p ? `#${p.seed} · ${p.name}` : "Sin jugadores",
-			detail: p ? `Jugador ${q.index + 1} de ${q.players.length}. Siguiente se acerca al seed 1.` : "Elige la hoja de resultados en Ajustes → Hojas de la sheet.",
+			kicker: t.nowQuals,
+			title: p ? `#${p.seed} · ${p.name}` : t.noPlayers,
+			detail: p ? t.nowQualsDetail(q.index + 1, q.players.length) : t.pickResultsSheet,
 			actions: p
 				? [
-						{ label: "◀ Anterior", run: () => stepQuals(-1), disabled: q.index <= 0 },
-						{ label: "Siguiente ▶", run: () => stepQuals(1), primary: true, disabled: q.index >= q.players.length - 1 },
+						{ label: t.prev, run: () => stepQuals(-1), disabled: q.index <= 0 },
+						{ label: t.next, run: () => stepQuals(1), primary: true, disabled: q.index >= q.players.length - 1 },
 					]
-				: [{ label: "Elegir hoja", run: () => openSetup("#sourcesTitle"), primary: true }],
+				: [{ label: t.chooseSheet, run: () => openSetup("#sourcesTitle"), primary: true }],
 		};
 	}
 	if (!s.live)
-		return { tone: "idle", kicker: "Demo", title: "Partido simulado", detail: "El overlay corre la demo (?sim): no hay draft que editar. Los controles de la demo están en Ajustes." };
-	if (!s.pool.length) return { tone: "idle", kicker: "Preparando", title: "Cargando el pool", detail: "El overlay está leyendo la sheet del mappool." };
+		return { tone: "idle", kicker: t.nowDemo, title: t.nowDemoTitle, detail: t.nowDemoDetail };
+	if (!s.pool.length) return { tone: "idle", kicker: t.nowPreparing, title: t.nowLoadingPool, detail: t.nowLoadingPoolDetail };
 
 	const m = readMatch(s);
-	const toPool = { label: "Marcar en el pool", run: () => showTab("match", true) };
+	const toPool = { label: t.markInPool, run: () => showTab("match", true) };
 
 	if (m.winner) {
 		const round = ROUNDS[s.round];
 		const scene: SceneName = round?.title ? "champion" : "result";
 		return {
 			tone: "done",
-			kicker: "Serie terminada",
-			title: `¡${name(m.winner)} gana la serie!`,
-			detail: `Queda ${s.stars.l}–${s.stars.r}. ${round?.title ? "Es momento de la escena Campeón." : "Muestra el resultado y cierra la transmisión."}`,
+			kicker: t.nowSeriesOver,
+			title: t.nowSeriesWinner(name(m.winner)),
+			detail: t.nowSeriesDetail(s.stars.l, s.stars.r, Boolean(round?.title)),
 			scene,
 		};
 	}
@@ -413,35 +393,35 @@ function moment(): Moment {
 		const map = s.pool.find((x) => x.id === cur);
 		const { pick, ban, won } = mapState(cur);
 		if (cur === "TB" && !won)
-			return { tone: "tb", kicker: "Tiebreaker", title: `En juego: TB${map ? ` · ${map.title}` : ""}`, detail: "El mapa decisivo. El ganador de la serie se marca solo al terminar.", scene: "gameplay" };
+			return { tone: "tb", kicker: t.tiebreaker, title: t.nowTbPlaying(map?.title ?? ""), detail: t.nowTbDetail, scene: "gameplay" };
 		if (won)
 			return {
 				tone: "picks",
-				kicker: "Mapa terminado",
-				title: `${name(won)} ganó ${cur}`,
-				detail: m.tiebreaker ? `Va ${s.stars.l}–${s.stars.r}: viene el tiebreaker.` : `Va ${s.stars.l}–${s.stars.r}. Ahora pickea ${name(m.next)}: cuando el referee cargue su mapa, se marca solo.`,
+				kicker: t.nowMapDone,
+				title: t.nowMapWon(name(won), cur),
+				detail: m.tiebreaker ? t.nowScoreTb(s.stars.l, s.stars.r) : t.nowScoreNext(s.stars.l, s.stars.r, name(m.next)),
 				scene: "result",
 				actions: [toPool],
 			};
 		if (ban)
 			return {
 				tone: "warn",
-				kicker: "Ojo",
-				title: `osu! cargó ${cur}, que está baneado`,
-				detail: `Si fue un error del referee, no hagas nada. Si el ban estaba mal marcado, abre el mapa y quítalo.`,
-				actions: [{ label: `Abrir ${cur}`, run: () => select(cur), primary: true }],
+				kicker: t.nowHeadsUp,
+				title: t.nowBannedLoaded(cur),
+				detail: t.nowBannedDetail,
+				actions: [{ label: t.openMap(cur), run: () => select(cur), primary: true }],
 			};
 		return {
 			tone: "live",
-			kicker: `En juego · mapa ${pick ? mapState(cur).order : "?"}`,
+			kicker: t.nowPlayingKicker(pick ? String(mapState(cur).order) : "?"),
 			title: `${cur}${map ? ` · ${map.title}` : ""}`,
-			detail: pick ? `Pick de ${name(pick.by)}. El ganador se marca solo cuando termina. ¿El pick es del otro? Toca el mapa y cámbialo.` : "Se está jugando.",
+			detail: pick ? t.nowPlayingPick(name(pick.by)) : t.nowPlaying,
 			scene: "gameplay",
-			actions: [{ label: `Abrir ${cur}`, run: () => select(cur) }],
+			actions: [{ label: t.openMap(cur), run: () => select(cur) }],
 		};
 	}
 
-	if (m.tiebreaker) return { tone: "tb", kicker: "Tiebreaker", title: `Empate ${s.stars.l}–${s.stars.r}: viene el TB`, detail: "Cuando el referee cargue el TB, el overlay activa el modo tiebreaker solo.", scene: "gameplay" };
+	if (m.tiebreaker) return { tone: "tb", kicker: t.tiebreaker, title: t.nowTie(s.stars.l, s.stars.r), detail: t.nowTieDetail, scene: "gameplay" };
 
 	const fresh = !s.draft.picks.length && !Object.keys(s.draft.bans).length && !s.stars.l && !s.stars.r;
 	if (fresh && (PRESHOW.includes(s.scene as SceneName) || !s.scene)) {
@@ -449,11 +429,9 @@ function moment(): Moment {
 		const next: SceneName = s.scene === "starting" ? "intro" : "mappool";
 		return {
 			tone: "idle",
-			kicker: "Antes del partido",
-			title: `${name("l")} vs ${name("r")}`,
-			detail: problems.length
-				? `Antes de empezar, revisa ${problems.length === 1 ? "1 cosa" : `${problems.length} cosas`} arriba (${problems.map((p) => p.label).join(", ")}).`
-				: `Todo listo. Cuando arranque, pasa a ${sceneName(next)}.`,
+			kicker: t.nowBeforeMatch,
+			title: t.vs(name("l"), name("r")),
+			detail: problems.length ? t.nowCheckFirst(problems.length, problems.map((p) => p.label).join(", ")) : t.nowAllSet(sceneName(next)),
 			scene: next,
 		};
 	}
@@ -462,9 +440,9 @@ function moment(): Moment {
 		const done = 2 * (ROUNDS[s.round]?.bans ?? 0) - m.bansLeft;
 		return {
 			tone: "bans",
-			kicker: `Bans · ${done} de ${done + m.bansLeft}`,
-			title: m.banner ? `Le toca banear a ${name(m.banner)}` : "Fase de bans",
-			detail: "Toca en el pool el mapa que banearon y elige quién lo baneó.",
+			kicker: t.nowBans(done, done + m.bansLeft),
+			title: m.banner ? t.nowBanTurn(name(m.banner)) : t.nowBanPhase,
+			detail: t.nowBanDetail,
 			scene: "mappool",
 			actions: [{ ...toPool, primary: true }],
 		};
@@ -473,11 +451,9 @@ function moment(): Moment {
 	const first = !s.draft.picks.length;
 	return {
 		tone: "picks",
-		kicker: `Picks · mapa ${s.draft.picks.length + 1}`,
-		title: `Le toca pickear a ${name(m.next)}`,
-		detail: first
-			? `Cuando el referee cargue el mapa, se marca solo como pick de ${name(m.next)}. Si pickeó ${name(other(m.next))}, márcalo tú antes.`
-			: `Cuando el referee cargue el mapa, se marca solo. Arranca el timer si hace falta.`,
+		kicker: t.nowPicks(s.draft.picks.length + 1),
+		title: t.nowPickTurn(name(m.next)),
+		detail: first ? t.nowFirstPick(name(m.next), name(other(m.next))) : t.nowNextPick,
 		scene: "mappool",
 		actions: [toPool],
 	};
@@ -501,7 +477,7 @@ function renderNow() {
 	actions.innerHTML = "";
 	if (mo.scene && state && state.scene !== mo.scene) {
 		const go = mo.scene;
-		actions.append(button(`Pasar a ${sceneName(go)}`, () => goScene(go), "btn btn--gold"));
+		actions.append(button(t.goToScene(sceneName(go)), () => goScene(go), "btn btn--gold"));
 	}
 	for (const a of mo.actions ?? []) {
 		const b = button(a.label, a.run, `btn${a.primary && !actions.querySelector(".btn--gold") ? " btn--gold" : ""}`);
@@ -518,7 +494,7 @@ function renderNow() {
 let scenePending: SceneName | null = null;
 let sceneTimer = 0;
 function goScene(scene: SceneName) {
-	if (!link.connected) return toast("Sin conexión: no se pudo cambiar la escena", { tone: "warn" });
+	if (!link.connected) return toast(t.sceneNoLink, { tone: "warn" });
 	send({ action: "scene", scene });
 	scenePending = scene;
 	clearTimeout(sceneTimer);
@@ -526,15 +502,15 @@ function goScene(scene: SceneName) {
 		if (scenePending !== scene) return;
 		scenePending = null;
 		renderScenes();
-		toast(`El overlay no pasó a ${sceneName(scene)}. ¿Está abierto?`, { tone: "warn" });
+		toast(t.sceneDidntChange(sceneName(scene)), { tone: "warn" });
 	}, 5000);
 	renderScenes();
 }
 
-SCENES.forEach(([scene, label], i) => {
+SCENES.forEach((scene, i) => {
 	const b = button("", () => goScene(scene), "scene");
 	b.dataset.scene = scene;
-	b.innerHTML = `<kbd>${i + 1}</kbd><span class="scene-name">${label}</span><em class="scene-tag"></em>`;
+	b.innerHTML = `<kbd>${i + 1}</kbd><span class="scene-name">${esc(sceneName(scene))}</span><em class="scene-tag"></em>`;
 	b.setAttribute("aria-keyshortcuts", String(i + 1));
 	$("#scenes").append(b);
 });
@@ -545,7 +521,7 @@ function renderScenes() {
 	for (const b of document.querySelectorAll<HTMLElement>("#scenes [data-scene]")) {
 		const scene = b.dataset.scene;
 		const on = scene === state?.scene && link.connected;
-		const tag = on ? "Al aire" : scene === scenePending ? "Cambiando…" : scene === suggest ? "Sugerida" : "";
+		const tag = on ? t.sceneOnAir : scene === scenePending ? t.sceneChanging : scene === suggest ? t.sceneSuggested : "";
 		b.dataset.mode = on ? "on" : scene === scenePending ? "pending" : scene === suggest ? "suggest" : "";
 		b.setAttribute("aria-current", String(on));
 		b.querySelector(".scene-tag")!.textContent = tag;
@@ -645,7 +621,7 @@ function runUndo() {
 	const fn = undo;
 	undo = null;
 	fn();
-	toast("Deshecho");
+	toast(t.undone);
 }
 
 // ======================================================================
@@ -658,10 +634,10 @@ function snapshot(): DraftSnapshot {
 }
 
 function reloadPool() {
-	$("#poolStatus").textContent = "Recargando el pool…";
+	$("#poolStatus").textContent = t.poolReloading;
 	delete $("#poolStatus").dataset.ok;
 	send({ action: "poolReload" });
-	toast("Recargando el pool. El draft se mantiene.");
+	toast(t.poolReloadToast);
 }
 $("#poolReload").addEventListener("click", reloadPool);
 
@@ -672,20 +648,20 @@ $("#draftReset").addEventListener("click", () => {
 	if (!state?.live) return;
 	if (Date.now() - resetArmed > 4000) {
 		resetArmed = Date.now();
-		b.textContent = "¿Borrar todo? Toca otra vez";
+		b.textContent = t.resetConfirm;
 		b.dataset.armed = "";
 		setTimeout(() => {
-			b.textContent = "Borrar todo el draft";
+			b.textContent = t.resetDraft;
 			delete b.dataset.armed;
 		}, 4000);
 		return;
 	}
 	resetArmed = 0;
-	b.textContent = "Borrar todo el draft";
+	b.textContent = t.resetDraft;
 	delete b.dataset.armed;
 	const before = snapshot();
 	send({ action: "draftReset" });
-	toast("Draft borrado", { undo: () => send({ action: "draftRestore", draft: before }) });
+	toast(t.draftCleared, { undo: () => send({ action: "draftRestore", draft: before }) });
 });
 
 function edit(id: string, side: Side, kind: DraftEdit) {
@@ -693,10 +669,10 @@ function edit(id: string, side: Side, kind: DraftEdit) {
 	const before = snapshot();
 	send({ action: "draft", id, side, edit: kind });
 	const text = {
-		pick: `${id}: pick de ${name(side)}`,
-		ban: `${id}: ban de ${name(side)}`,
-		win: `${id}: lo ganó ${name(side)}`,
-		clear: `${id} quedó libre`,
+		pick: t.editPick(id, name(side)),
+		ban: t.editBan(id, name(side)),
+		win: t.editWin(id, name(side)),
+		clear: t.editClear(id),
 	}[kind];
 	toast(text, { undo: () => send({ action: "draftRestore", draft: before }) });
 	select(null);
@@ -721,7 +697,7 @@ function renderDraft() {
 	const status = $("#poolStatus");
 	status.hidden = !state?.live || !state.poolStatus?.text;
 	if (state?.poolStatus) {
-		status.textContent = state.poolStatus.text;
+		status.textContent = overlayText(state.poolStatus.text);
 		status.dataset.ok = String(state.poolStatus.ok);
 	}
 	const key = JSON.stringify([Boolean(state), state?.live, state?.pool, state?.draft, state?.names, selected]);
@@ -732,15 +708,15 @@ function renderDraft() {
 	box.innerHTML = "";
 	$("#draftReset").toggleAttribute("disabled", !state?.live);
 	if (!state) {
-		box.innerHTML = `<div class="empty"><b>Esperando al overlay</b><span>Ábrelo en OBS (o en una pestaña) con tosu y el bridge abiertos. El pool aparece aquí solo.</span></div>`;
+		box.innerHTML = `<div class="empty"><b>${t.emptyWaiting}</b><span>${t.emptyWaitingDetail}</span></div>`;
 		return;
 	}
 	if (!state.live) {
-		box.innerHTML = `<div class="empty"><b>La demo no tiene draft</b><span>Abre el overlay sin <code>?sim</code> para editarlo.</span></div>`;
+		box.innerHTML = `<div class="empty"><b>${t.emptyDemo}</b><span>${t.emptyDemoDetail}</span></div>`;
 		return;
 	}
 	if (!state.pool.length) {
-		box.innerHTML = `<div class="empty"><b>Cargando el pool…</b><span>Si tarda, revisa la sheet en Ajustes.</span></div>`;
+		box.innerHTML = `<div class="empty"><b>${t.emptyLoading}</b><span>${t.emptyLoadingDetail}</span></div>`;
 		return;
 	}
 	for (const mod of [...new Set(state.pool.map((m) => modOf(m.id)))]) {
@@ -761,16 +737,16 @@ function renderDraft() {
 			if (pick) card.dataset.by = pick.by;
 			card.setAttribute("aria-pressed", String(selected === map.id));
 			const badge = {
-				ban: `Ban · ${name(ban!)}`,
-				won: `Ganó ${name(won!)}`,
-				play: "En juego",
-				pick: `Pick · ${name(pick?.by ?? "l")}`,
+				ban: t.badgeBan(name(ban!)),
+				won: t.badgeWon(name(won!)),
+				play: t.inPlay,
+				pick: t.badgePick(name(pick?.by ?? "l")),
 				free: "",
 			}[kind];
 			card.setAttribute("aria-label", `${map.id}, ${map.title}. ${stateText(map.id)}`);
 			card.innerHTML = `
 				<i class="map-art" style="background-image:url('https://assets.ppy.sh/beatmaps/${Number(map.set)}/covers/card.jpg')"></i>
-				<span class="map-top"><b class="map-slot">${esc(map.id)}</b>${order ? `<span class="map-order" title="Orden de pick">#${order}</span>` : ""}${badge ? `<span class="map-badge">${esc(badge)}</span>` : ""}</span>
+				<span class="map-top"><b class="map-slot">${esc(map.id)}</b>${order ? `<span class="map-order" title="${t.pickOrder}">#${order}</span>` : ""}${badge ? `<span class="map-badge">${esc(badge)}</span>` : ""}</span>
 				<span class="map-title">${esc(map.title)}</span>
 				<span class="map-sub">${esc(map.artist)} · [${esc(map.diff)}]</span>
 				<span class="map-stats"><b>${map.sr.toFixed(2)}★</b><span>${Math.round(map.bpm)} BPM</span><span>${esc(map.len)}</span></span>`;
@@ -817,8 +793,9 @@ function renderSheet() {
 		// The TB isn't picked or banned, and a map nobody picked can't be won.
 		b.hidden = tb && kind !== "win";
 		b.disabled = on || (kind === "win" && !pick && !tb);
-		b.title = kind === "win" && !pick && !tb ? "Primero márcalo como pick de alguien" : "";
-		b.textContent = on ? `✓ ${{ pick: "Pick", ban: "Ban", win: "Ganó" }[kind]}` : { pick: "Pick", ban: "Ban", win: "Ganó" }[kind];
+		b.title = kind === "win" && !pick && !tb ? t.pickFirst : "";
+		const label = { pick: t.pick, ban: t.ban, win: t.won }[kind];
+		b.textContent = on ? `✓ ${label}` : label;
 		b.toggleAttribute("data-suggest", tip?.edit === kind && tip.side === side);
 	}
 	$("#sheetClear").hidden = !pick && !ban && !won;
@@ -847,7 +824,7 @@ function startTimer(seconds: number) {
 	clearInterval(timerTick);
 	timerTick = window.setInterval(renderTimer, 250);
 	renderTimer();
-	toast(`Timer de ${seconds} s en pantalla`);
+	toast(t.timerOn(seconds));
 }
 function renderTimer() {
 	const el = $("#timerRun");
@@ -856,7 +833,7 @@ function renderTimer() {
 		return;
 	}
 	const left = Math.max(0, Math.ceil((timerEnd - Date.now()) / 1000));
-	el.textContent = left ? `▶ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` : "Terminó";
+	el.textContent = left ? `▶ ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}` : t.timerDone;
 	el.dataset.ending = String(left <= 10);
 	if (!left) {
 		clearInterval(timerTick);
@@ -870,7 +847,7 @@ function renderTimer() {
 }
 for (const s of PRESETS) {
 	const b = button(`▶ ${s} s`, () => startTimer(s), "btn btn--preset");
-	b.setAttribute("aria-label", `Iniciar timer de ${s} segundos`);
+	b.setAttribute("aria-label", t.timerPresetLabel(s));
 	$("#timerStop").before(b);
 }
 $("#timerStart").addEventListener("click", () => {
@@ -882,7 +859,7 @@ $("#timerStop").addEventListener("click", () => {
 	timerEnd = 0;
 	clearInterval(timerTick);
 	renderTimer();
-	toast("Timer detenido");
+	toast(t.timerStopped);
 });
 
 // ======================================================================
@@ -892,32 +869,30 @@ $("#timerStop").addEventListener("click", () => {
 for (const [key, label, title] of KEYS) {
 	const b = button(label, () => {
 		send({ action: "key", key });
-		toast(`${label}: listo`);
+		toast(t.keyDone(label));
 	});
-	b.title = `${title} (tecla ${key.toUpperCase()} en el overlay)`;
+	b.title = t.keyTitle(title, key.toUpperCase());
 	$("#keys").append(b);
 }
 if (import.meta.env.DEV) for (const [key, label] of SIM_KEYS) $("#simKeys").append(button(label, () => send({ action: "key", key })));
 else $("#simBlock").remove();
 
 const round = $<HTMLSelectElement>("#round");
-for (const [key, r] of Object.entries(ROUNDS)) round.add(new Option(`${r.name} · BO${r.bestOf}`, key));
+for (const [key, r] of Object.entries(ROUNDS)) round.add(new Option(`${roundLabel(key, r.name)} · BO${r.bestOf}`, key));
 // Changing the round reloads the overlay: picking one only offers it, the
 // button does it.
 function renderRound() {
 	const changing = Boolean(state && round.value !== state.round);
 	const apply = $<HTMLButtonElement>("#roundApply");
 	apply.hidden = !changing;
-	apply.textContent = `Cambiar a ${ROUNDS[round.value]?.name ?? round.value}`;
+	apply.textContent = t.roundApplyTo(roundLabel(round.value, ROUNDS[round.value]?.name));
 	$("#roundHint").dataset.warn = String(changing);
-	$("#roundHint").innerHTML = changing
-		? "Al cambiar, el overlay se recarga (el draft de cada ronda se guarda aparte). Si fue sin querer, vuelve a elegir la ronda actual."
-		: "Cambiar la ronda recarga el overlay. Para dejarla fija, ponla en la URL del source: <code>?round=sf</code>.";
+	$("#roundHint").innerHTML = changing ? t.roundHintChanging : t.roundHint;
 }
 round.addEventListener("change", renderRound);
 $("#roundApply").addEventListener("click", () => {
 	send({ action: "round", round: round.value });
-	toast(`Cambiando a ${ROUNDS[round.value]?.name}: el overlay se recarga`);
+	toast(t.roundChanging(roundLabel(round.value, ROUNDS[round.value]?.name)));
 	$("#roundApply").hidden = true;
 });
 
@@ -947,10 +922,10 @@ function renderShowcase() {
 	const now = pool.find((m) => m.id === state?.showcase);
 	$("#showcaseNow").innerHTML = now
 		? `<i class="feature-art" style="background-image:url('https://assets.ppy.sh/beatmaps/${Number(now.set)}/covers/cover.jpg')"></i>
-			<span class="feature-kicker">En el showcase</span>
+			<span class="feature-kicker">${t.inShowcase}</span>
 			<b class="feature-title"><span class="map-slot" data-mod="${esc(modOf(now.id).toLowerCase())}">${esc(now.id)}</span> ${esc(now.title)}</b>
 			<span class="feature-sub">${esc(now.artist)} · [${esc(now.diff)}] · ${esc(now.mapper)}</span>`
-		: `<span class="feature-kicker">En el showcase</span><b class="feature-title">${pool.length ? "Ningún mapa todavía" : "Sin pool"}</b><span class="feature-sub">${pool.length ? "Toca uno de abajo." : "Esperando el pool del overlay."}</span>`;
+		: `<span class="feature-kicker">${t.inShowcase}</span><b class="feature-title">${pool.length ? t.noMapYet : t.noPool}</b><span class="feature-sub">${pool.length ? t.tapOneBelow : t.waitingPool}</span>`;
 	for (const mod of [...new Set(pool.map((m) => modOf(m.id)))]) {
 		const row = document.createElement("div");
 		row.className = "mod showcase-mod";
@@ -1004,8 +979,8 @@ function renderQualifiers() {
 	qualsDrawn = key;
 	const p = q ? players[q.index] : undefined;
 	$("#qualsNow").innerHTML = p
-		? `<span class="feature-kicker">En la escena Qualifiers · ${q!.index + 1} de ${players.length}</span><b class="feature-title">#${p.seed} · ${esc(p.name)}</b><span class="feature-sub">Siguiente se acerca al seed 1.</span>`
-		: `<span class="feature-kicker">Qualifiers</span><b class="feature-title">Sin jugadores</b><span class="feature-sub">Elige la hoja de resultados en Ajustes → Hojas de la sheet.</span>`;
+		? `<span class="feature-kicker">${t.inQuals(q!.index + 1, players.length)}</span><b class="feature-title">#${p.seed} · ${esc(p.name)}</b><span class="feature-sub">${t.nextTowardSeed1}</span>`
+		: `<span class="feature-kicker">Qualifiers</span><b class="feature-title">${t.noPlayers}</b><span class="feature-sub">${t.pickResultsSheet}</span>`;
 	const focused = (document.activeElement as HTMLElement | null)?.dataset.index;
 	const box = $("#qualsList");
 	box.innerHTML = "";
@@ -1019,7 +994,7 @@ function renderQualifiers() {
 		b.innerHTML = `<b>#${pl.seed}</b><span>${esc(pl.name)}</span>`;
 		box.append(b);
 	});
-	if (players.length && !box.children.length) box.innerHTML = `<p class="hint">Nadie coincide con “${esc(qualsSearch.value)}”.</p>`;
+	if (players.length && !box.children.length) box.innerHTML = `<p class="hint">${esc(t.noMatch(qualsSearch.value))}</p>`;
 	if (focused) box.querySelector<HTMLElement>(`[data-index="${focused}"]`)?.focus({ preventScroll: true });
 }
 
@@ -1029,7 +1004,7 @@ function renderQualifiers() {
 
 const sourcesFile = $<HTMLSelectElement>("#sourcesFile");
 $("#sourcesRefresh").addEventListener("click", () => {
-	$("#sourcesStatus").textContent = "Buscando hojas…";
+	$("#sourcesStatus").textContent = t.sourcesSearching;
 	delete $("#sourcesStatus").dataset.ok;
 	// redraw on the answer even if nothing changed
 	sourcesDrawn = "";
@@ -1044,24 +1019,24 @@ function renderSources() {
 	if (key === sourcesDrawn) return;
 	sourcesDrawn = key;
 	const status = $("#sourcesStatus");
-	status.textContent = src?.status.text ?? "";
+	status.textContent = overlayText(src?.status.text ?? "");
 	status.hidden = !src?.status.text;
 	if (src) status.dataset.ok = String(src.status.ok);
 	const box = $("#sourcesTable");
 	if (!src) {
-		box.innerHTML = `<p class="hint">Esperando al overlay.</p>`;
+		box.innerHTML = `<p class="hint">${t.sourcesWaiting}</p>`;
 		sourcesFile.innerHTML = "";
-		sourcesFile.add(new Option("Sin overlay: abre el overlay para ver los archivos", ""));
+		sourcesFile.add(new Option(t.sourcesNoOverlay, ""));
 		sourcesFile.disabled = true;
 		return;
 	}
 	box.innerHTML = src.tabs.length
-		? `<table><thead><tr><th>Hoja</th><th>Partido</th><th>Resultados</th></tr></thead><tbody>${src.tabs
+		? `<table><thead><tr><th>${t.sheetTab}</th><th>${t.tabMatch}</th><th>${t.results}</th></tr></thead><tbody>${src.tabs
 				.map(
-					(t) => `<tr${t.gid === src.pool || t.gid === src.results ? ' class="is-used"' : ""}>
-						<td>${esc(t.name)}</td>
-						<td><label class="radio"><input type="radio" name="sourcePool" value="${t.gid}" aria-label="${esc(t.name)} para el partido"${t.gid === src.pool ? " checked" : ""}><i></i></label></td>
-						<td><label class="radio"><input type="radio" name="sourceResults" value="${t.gid}" aria-label="${esc(t.name)} para resultados"${t.gid === src.results ? " checked" : ""}><i></i></label></td>
+					(tab) => `<tr${tab.gid === src.pool || tab.gid === src.results ? ' class="is-used"' : ""}>
+						<td>${esc(tab.name)}</td>
+						<td><label class="radio"><input type="radio" name="sourcePool" value="${tab.gid}" aria-label="${esc(t.tabForMatch(tab.name))}"${tab.gid === src.pool ? " checked" : ""}><i></i></label></td>
+						<td><label class="radio"><input type="radio" name="sourceResults" value="${tab.gid}" aria-label="${esc(t.tabForResults(tab.name))}"${tab.gid === src.results ? " checked" : ""}><i></i></label></td>
 					</tr>`,
 				)
 				.join("")}</tbody></table>`
@@ -1069,11 +1044,11 @@ function renderSources() {
 	for (const input of box.querySelectorAll<HTMLInputElement>("input[name=sourcePool]"))
 		input.addEventListener("change", () => {
 			send({ action: "sources", pool: Number(input.value) });
-			toast("Cargando el pool de esa hoja. El draft se mantiene.");
+			toast(t.loadingTabPool);
 		});
 	for (const input of box.querySelectorAll<HTMLInputElement>("input[name=sourceResults]")) input.addEventListener("change", () => send({ action: "sources", results: Number(input.value) }));
 	sourcesFile.innerHTML = "";
-	if (!src.files.length) sourcesFile.add(new Option("El overlay no ve ningún CSV de tourney-results/: actualiza la fuente en OBS (caché) y confirma que es la versión nueva", ""));
+	if (!src.files.length) sourcesFile.add(new Option(t.sourcesNoFiles, ""));
 	for (const f of src.files) sourcesFile.add(new Option(f, f, false, f === src.file));
 	sourcesFile.disabled = !src.files.length;
 }
@@ -1126,20 +1101,20 @@ function renderTwitch() {
 	status.textContent = "";
 	delete status.dataset.state;
 	if (!state) {
-		box.innerHTML = `<div class="empty"><b>Esperando al overlay</b></div>`;
+		box.innerHTML = `<div class="empty"><b>${t.emptyWaiting}</b></div>`;
 		return;
 	}
 	if (!state.live) {
-		box.innerHTML = `<div class="empty"><b>La demo no lee Twitch</b></div>`;
+		box.innerHTML = `<div class="empty"><b>${t.chatDemo}</b></div>`;
 		return;
 	}
 	if (!logins.length) {
-		box.innerHTML = `<div class="empty"><b>No hay canales</b><span>Agrégalos en <code>data.json</code>: <code>"twitch": ["canal_a", "canal_b"]</code>.</span></div>`;
+		box.innerHTML = `<div class="empty"><b>${t.chatNone}</b><span>${t.chatNoneDetail}</span></div>`;
 		return;
 	}
 	const joined = !pending && tw?.status === "joined";
 	status.dataset.state = joined ? "ok" : "wait";
-	status.textContent = joined ? `Leyendo #${tw!.channel}` : "Conectando…";
+	status.textContent = joined ? t.chatReading(tw!.channel) : t.chatConnecting;
 	for (const login of logins) {
 		const info = channelInfo.get(login);
 		const label = document.createElement("label");
@@ -1152,8 +1127,8 @@ function renderTwitch() {
 				<b>${esc(info?.displayName ?? login)}</b>
 				<span>twitch.tv/${esc(login)}</span>
 			</span>
-			<span class="channel-live" data-live="${info?.live ?? false}">${info ? (info.live ? "● En vivo" : "Offline") : ""}</span>
-			<span class="channel-on">${on ? "En pantalla" : ""}</span>`;
+			<span class="channel-live" data-live="${info?.live ?? false}">${info ? (info.live ? t.live : t.offline) : ""}</span>
+			<span class="channel-on">${on ? t.onScreen : ""}</span>`;
 		const input = label.querySelector("input")!;
 		input.addEventListener("change", () => {
 			pending = login;
@@ -1162,7 +1137,7 @@ function renderTwitch() {
 			pendingTimer = window.setTimeout(() => {
 				pending = null;
 				renderTwitch();
-				toast("El overlay no cambió de canal. ¿Está abierto?", { tone: "warn" });
+				toast(t.chatDidntChange, { tone: "warn" });
 			}, 8000);
 			send({ action: "twitch", channel: login });
 			renderTwitch();
@@ -1193,7 +1168,7 @@ document.addEventListener("keydown", (e) => {
 	const n = Number(e.key);
 	if (n >= 1 && n <= SCENES.length) {
 		e.preventDefault();
-		goScene(SCENES[n - 1][0]);
+		goScene(SCENES[n - 1]);
 		return;
 	}
 	if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !(document.activeElement as HTMLElement | null)?.closest("[role=tablist]")) {
@@ -1223,7 +1198,7 @@ function follow() {
 	const chosen = live.find((o) => o.state.obs) ?? live[0] ?? all.sort((a, b) => b.at - a.at)[0];
 	const count = live.length;
 	overlayCountNote =
-		count > 1 ? `Hay ${count} overlays abiertos; el panel sigue ${chosen.state.obs ? "el de OBS" : "el primero que se abrió"} y todos reciben los comandos. Cierra los que sobren (por ejemplo, una pestaña del navegador).` : "";
+		count > 1 ? t.manyOverlaysFix(count, Boolean(chosen.state.obs)) : "";
 	return chosen?.state ?? null;
 }
 
