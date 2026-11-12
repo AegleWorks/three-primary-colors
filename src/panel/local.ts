@@ -5,6 +5,7 @@ import type ControlLink from "../control/ControlLink";
 import type { Command, OverlayState } from "../control/ControlLink";
 import OBSHandler from "../handler/OBSHandler";
 import SceneSync from "../handler/SceneSync";
+import { guardEngine } from "../handler/guardEngine";
 import { t } from "./i18n";
 
 // What only the panel on the broadcasting machine can do: reach OBS, and let
@@ -27,7 +28,7 @@ const stored = (key: string, value?: string | null) => {
 // `changed` tells the panel that something its status bar shows (OBS, the
 // version check, remote access) moved.
 export function startLocal(link: ControlLink, send: (command: Command) => void, state: () => OverlayState | null, changed: () => void) {
-	const obs = new OBSHandler(new ZEngine("ws://127.0.0.1:24050/ws"));
+	const obs = new OBSHandler(guardEngine(new ZEngine("ws://127.0.0.1:24050/ws"), "panel"));
 	// A browser source the setup creates opens the overlay next to this page,
 	// in the round the overlay is showing.
 	obs.overlayUrl = () => new URL(`./?round=${encodeURIComponent(state()?.round || "f")}`, location.href).href;

@@ -23,7 +23,42 @@ const SIDES: Side[] = ["l", "r"];
 const TEAM: Record<string, Side> = { left: "l", right: "r" };
 const DRAFT_KEY = `draft:${ROUND.key}`;
 const TWITCH_KEY = "twitch:channel";
-const countryName = new Intl.DisplayNames(["es"], { type: "region" });
+const regionEs = new Intl.DisplayNames(["es"], { type: "region" });
+const regionEn = new Intl.DisplayNames(["en"], { type: "region" });
+let codeByEnglishName: Map<string, string> | null = null;
+
+// The country as the overlay shows it, in Spanish. tosu gives the spectated
+// player's country as an English name ("Colombia", "United States"); a
+// two-letter code works too. Anything not recognised shows as it came:
+// Intl.DisplayNames throws on a value that isn't a region code, and a throw
+// here used to leave the whole overlay deaf (see handler/guardEngine.ts).
+function countryLabel(raw: unknown): string | undefined {
+	const text = String(raw ?? "").trim();
+	if (!text) return undefined;
+	let code = /^[a-z]{2}$/i.test(text) ? text.toUpperCase() : undefined;
+	if (!code) {
+		if (!codeByEnglishName) {
+			codeByEnglishName = new Map();
+			const A = "A".charCodeAt(0);
+			for (let i = 0; i < 26; i++)
+				for (let j = 0; j < 26; j++) {
+					const c = String.fromCharCode(A + i, A + j);
+					try {
+						const name = regionEn.of(c);
+						if (name && name !== c) codeByEnglishName.set(name.toLowerCase(), c);
+					} catch {}
+				}
+		}
+		code = codeByEnglishName.get(text.toLowerCase());
+	}
+	if (!code) return text;
+	try {
+		const name = regionEs.of(code);
+		return name && name !== code ? name : text;
+	} catch {
+		return text;
+	}
+}
 const host = window.location.hostname || "127.0.0.1";
 const fmtLength = (ms: number) => {
 	const s = Math.round(ms / 1000);
@@ -161,7 +196,7 @@ export default class LiveOro {
 			seed: info.seed,
 			rank: spec.globalRank,
 			countryRank: info.countryRank,
-			country: spec.country ? (countryName.of(spec.country.toUpperCase()) ?? spec.country) : undefined,
+			country: countryLabel(spec.country),
 			pp: spec.totalPP,
 		});
 	}
