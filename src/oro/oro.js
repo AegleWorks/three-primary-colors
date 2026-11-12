@@ -2524,18 +2524,21 @@ export const oro = {
 	// A new channel: its name in the chat heads, and the old lines go.
 	twitchChannel,
 	// One lobby line from tosu: into the lobby chat and the pick timer.
-	chat(who, side, msg, time) {
+	// `act`: false for history (a line from before the overlay was listening),
+	// which is shown but never starts or stops the timer
+	chat(who, side, msg, time, act = true) {
 		lobbyLine(who, side, msg, time);
-		pickTimer.bancho(msg);
+		if (act) pickTimer.bancho(msg);
 	},
 	// Seed from data.json; ranks and pp from the player's osu! profile.
-	setPlayerInfo(side, { seed, rank, countryRank, country = "Colombia", pp }) {
+	// The player's country isn't shown: only the country rank, under "País".
+	setPlayerInfo(side, { seed, rank, countryRank, pp }) {
 		const seedText = seed ? `Seed ${seed}` : "";
 		$$(`.duelist--${side} .duelist-seed, .start-player--${side} .label`).forEach((el) => (el.textContent = seedText));
 		const tape = $$(`.duelist--${side} .tape div`);
 		[
 			["Global", rank, "#"],
-			[country, countryRank, "#"],
+			["País", countryRank, "#"],
 			["PP", pp ? Math.round(pp) : 0, ""],
 		].forEach(([label, value, pre], i) => {
 			const [dt, dd] = [$("dt", tape[i]), $("dd", tape[i])];
@@ -2544,10 +2547,10 @@ export const oro = {
 			dd.dataset.pre = pre;
 			dd.textContent = value ? pre + fmt(value) : "—";
 		});
-		// "#39 Colombia · Seed 1" on the left, mirrored on the right; what is
-		// not known is left out
+		// "#39 Seed 1" on the left, mirrored on the right; what is not known is
+		// left out
 		const meta = $(`.corner--${side} .corner-meta`);
-		const parts = [country, seedText].filter(Boolean).join(" · ");
+		const parts = seedText;
 		const rankTag = countryRank ? `<b>${fmtRank(countryRank)}</b>` : "";
 		meta.innerHTML = (side === "l" ? [rankTag, parts] : [parts, rankTag]).filter(Boolean).join(" ");
 	},

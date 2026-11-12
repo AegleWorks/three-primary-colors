@@ -1,6 +1,8 @@
 import type ZEngine from "@fukutotojido/z-engine";
 import axios from "axios";
 import IPCClient from "../handler/IPCClient";
+import { banchoReply, isBanchoReply } from "./bancho";
+import { decidePick } from "./autopick";
 import type CasterHandler from "../handler/CasterHandler";
 import TwitchChat, { type TwitchStatus } from "../handler/TwitchChat";
 import { avatar, chatBadges } from "../handler/TwitchUsers";
@@ -23,43 +25,23 @@ const SIDES: Side[] = ["l", "r"];
 const TEAM: Record<string, Side> = { left: "l", right: "r" };
 const DRAFT_KEY = `draft:${ROUND.key}`;
 const TWITCH_KEY = "twitch:channel";
-const regionEs = new Intl.DisplayNames(["es"], { type: "region" });
-const regionEn = new Intl.DisplayNames(["en"], { type: "region" });
-let codeByEnglishName: Map<string, string> | null = null;
-
-// The country as the overlay shows it, in Spanish. tosu gives the spectated
-// player's country as an English name ("Colombia", "United States"); a
-// two-letter code works too. Anything not recognised shows as it came:
-// Intl.DisplayNames throws on a value that isn't a region code, and a throw
-// here used to leave the whole overlay deaf (see handler/guardEngine.ts).
-function countryLabel(raw: unknown): string | undefined {
-	const text = String(raw ?? "").trim();
-	if (!text) return undefined;
-	let code = /^[a-z]{2}$/i.test(text) ? text.toUpperCase() : undefined;
-	if (!code) {
-		if (!codeByEnglishName) {
-			codeByEnglishName = new Map();
-			const A = "A".charCodeAt(0);
-			for (let i = 0; i < 26; i++)
-				for (let j = 0; j < 26; j++) {
-					const c = String.fromCharCode(A + i, A + j);
-					try {
-						const name = regionEn.of(c);
-						if (name && name !== c) codeByEnglishName.set(name.toLowerCase(), c);
-					} catch {}
-				}
-		}
-		code = codeByEnglishName.get(text.toLowerCase());
-	}
-	if (!code) return text;
-	try {
-		const name = regionEs.of(code);
-		return name && name !== code ? name : text;
-	} catch {
-		return text;
-	}
-}
 const host = window.location.hostname || "127.0.0.1";
+// how long an "!mp map" waits for osu! to load the map before its Bancho line is dropped
+const MAP_REPLY_MS = 8000;
+// osu!'s menu state while the tournament manager is open
+const TOURNEY_STATE = 22;
+// a lobby this new (just joined or reconnected) brings its loaded map along:
+// that map is no pick unless the referee asked for it
+const LOBBY_SETTLE_MS = 3000;
+// A lobby line stamped (HH:MM, the client's clock) within the last two
+// minutes. Older ones are history, even when tosu only now hands them over.
+const recent = (time: string) => {
+	const [h, m] = time.split(":").map(Number);
+	if (!Number.isFinite(h) || !Number.isFinite(m)) return true;
+	const now = new Date();
+	const diff = (now.getHours() * 60 + now.getMinutes() - (h * 60 + m) + 1440) % 1440;
+	return diff <= 2;
+};
 const fmtLength = (ms: number) => {
 	const s = Math.round(ms / 1000);
 	return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
@@ -72,7 +54,11 @@ export default class LiveOro {
 	private stars: Record<Side, number> = { l: 0, r: 0 };
 	private time = { current: 0, full: 0 };
 	private playing = false;
-	private chatCount = 0;
+	// The map clock only counts once it has been seen before the map's end.
+	// When a match starts, tosu's first frames can still carry the lobby's
+	// song preview, at or past the map's length; read as the map clock, that
+	// "ended" the map before a note was played and gave it to the left (0-0).
+	private clockArmed = false;
 	private mapKey = "";
 	private last: MatchState | null = null;
 
@@ -114,12 +100,20 @@ export default class LiveOro {
 					n50: Number(c.h50) || 0,
 				});
 			}
-			if (this.playing) clock(this.time.current / 1000, this.time.full / 1000);
+			if (this.playing) {
+				const { current, full } = this.time;
+				if (!this.clockArmed && full > 0 && current < full) this.clockArmed = true;
+				if (this.clockArmed) clock(current / 1000, full / 1000);
+			}
 		});
 		this.engine.register("menu.bm.time.current", (_, v: number) => (this.time.current = Number(v) || 0));
 		this.engine.register("menu.bm.time.full", (_, v: number) => (this.time.full = Number(v) || 0));
 		this.engine.register("tourney.manager.bools.scoreVisible", (_, v: boolean) => {
 			this.playing = Boolean(v);
+			// a new play starts the clock unarmed again (see clockArmed)
+			if (this.playing) this.clockArmed = false;
+			// the automatic pick is being played: it stays
+			if (this.playing && this.autoPick?.id === this.current.id) this.autoPick = null;
 			oro.setChatMode(this.playing ? "playing" : "lobby");
 		});
 		onEvent((type, side) => type === "end" && this.mapEnded(side as Side));
@@ -130,6 +124,12 @@ export default class LiveOro {
 	private mapEnded(winner: Side) {
 		const s = this.last;
 		if (!s) return;
+		// A tie (0-0 above all: no scores came in) names nobody; the operator
+		// marks the winner in the panel instead of the overlay guessing left.
+		if (Math.round(s.score.l) === Math.round(s.score.r)) {
+			console.warn(`[LiveOro] Map ${DRAFT.current || "?"} ended ${Math.round(s.score.l)}-${Math.round(s.score.r)}: no winner marked`);
+			return;
+		}
 		const slot = DRAFT.current;
 		const pick = DRAFT.picks.find((p) => p.id === slot);
 		if (pick) pick.won = winner;
@@ -157,7 +157,7 @@ export default class LiveOro {
 			});
 		}
 		for (let i = 0; i < this.clients.length; i++) {
-			for (const key of ["team", "spectating.name", "spectating.userID", "spectating.globalRank", "spectating.totalPP", "spectating.country"]) {
+			for (const key of ["team", "spectating.name", "spectating.userID", "spectating.globalRank", "spectating.totalPP"]) {
 				this.engine.register(`tourney.ipcClients.${i}.${key}`, (_, __, data) => this.readSpectating(data));
 			}
 		}
@@ -196,7 +196,6 @@ export default class LiveOro {
 			seed: info.seed,
 			rank: spec.globalRank,
 			countryRank: info.countryRank,
-			country: countryLabel(spec.country),
 			pp: spec.totalPP,
 		});
 	}
@@ -204,6 +203,9 @@ export default class LiveOro {
 	// ---------- the map in play ----------
 
 	private bindMap() {
+		for (const key of ["menu.state", "tourney.manager.teamName.left", "tourney.manager.teamName.right"]) {
+			this.engine.register(key, (_, __, data) => this.readLobby(data));
+		}
 		for (const key of ["menu.bm.id", "menu.bm.stats.fullSR", "menu.bm.metadata.title", "menu.bm.path.full"]) {
 			this.engine.register(key, (_, __, data) => this.readMap(data));
 		}
@@ -230,6 +232,21 @@ export default class LiveOro {
 			cs: Number(Number(bm.stats?.CS).toFixed(1)) || 0,
 			len: fmtLength(Number(bm.time?.full) || 0),
 		};
+		// The map an "!mp map" asked for, once osu! has it loaded: Bancho's line
+		// names the map that really came up, not the one in the command.
+		if (bm.id !== this.lastBeatmapId) {
+			this.lastBeatmapId = bm.id;
+			// A new map disarms the clock too: after an !mp abort tosu keeps
+			// scoreVisible on and the old time frozen, which on a shorter map
+			// would read as that map already finished.
+			this.clockArmed = false;
+			const asked = this.pendingMapReply;
+			if (asked && Date.now() - asked.at < MAP_REPLY_MS && bm.id) {
+				this.pendingMapReply = null;
+				oro.chat("BanchoBot", "bot", `Changed beatmap to https://osu.ppy.sh/b/${bm.id} ${map.artist} - ${map.title} [${map.diff}]`, asked.time, true);
+			}
+		}
+		this.readLobby(data);
 		// A replay in the showcase is not a pick: it only features its map.
 		if (document.body.dataset.scene === "showcase") {
 			if (slot) oro.feature(slot.id);
@@ -238,9 +255,16 @@ export default class LiveOro {
 		const key = JSON.stringify(map);
 		if (key === this.mapKey) return;
 		this.mapKey = key;
-		// A pool map coming up that nobody picked yet is the next picker's pick.
-		if (slot && slot.id !== "TB" && !DRAFT.bans[slot.id] && !DRAFT.picks.some((p) => p.id === slot.id)) {
-			DRAFT.picks.push({ id: slot.id, by: this.nextPicker(), won: null });
+		// A pool map coming up that nobody picked yet is the next picker's pick,
+		// but only in a tournament lobby (not a normal osu! browsing songs), and
+		// in a lobby just joined only when the referee asked for it.
+		const asked = Date.now() - this.mapAskedAt < MAP_REPLY_MS;
+		const inLobby = data?.menu?.state === TOURNEY_STATE;
+		const settled = Date.now() - this.lobbySince > LOBBY_SETTLE_MS;
+		const decided = slot ? decidePick(DRAFT.picks, DRAFT.bans, slot.id, { inLobby, asked, settled, autoPick: this.autoPick, nextPicker: this.nextPicker() }) : null;
+		if (decided) {
+			DRAFT.picks = decided.picks;
+			this.autoPick = decided.autoPick;
 			this.saveDraft();
 		}
 		this.current = { id: map.id, title: map.title };
@@ -249,22 +273,95 @@ export default class LiveOro {
 		this.onUpdate?.();
 	}
 
+	// The lobby is the menu state and the team names; when it changes, the
+	// clock for "just joined" starts. Watched on its own keys too, so a lobby
+	// that changed long before a map comes up counts as settled.
+	// biome-ignore lint/suspicious/noExplicitAny: tosu payload
+	private readLobby(data: any) {
+		const manager = data?.tourney?.manager;
+		const lobby = `${data?.menu?.state}|${manager?.teamName?.left ?? ""}|${manager?.teamName?.right ?? ""}`;
+		if (lobby === this.lobbyKey) return;
+		this.lobbyKey = lobby;
+		this.lobbySince = Date.now();
+	}
+
 	private nextPicker(): Side {
 		return DRAFT.next ?? (DRAFT.picks.at(-1)?.by === "l" ? "r" : "l");
 	}
 
 	// ---------- lobby chat ----------
 
+	// Read by content, not by position: tosu can insert lines in the middle
+	// (turning on SHOW_MP_COMMANDS brings back old !mp lines at their own
+	// times) or relabel a line's team for a frame, and neither may show a line
+	// twice or replay an old command. What was seen is counted per
+	// time|name|message, so the same message twice in a minute still shows twice.
+	private chatSeen = new Map<string, number>();
+	private chatLoaded = false;
+	// real BanchoBot replies, once one turns up the overlay stops writing its own
+	private realBancho = false;
+	// an "!mp map" waiting for osu! to load the map (see readMap)
+	private pendingMapReply: { time: string; at: number } | null = null;
+	// when the referee last asked for a map, Bancho replies or not
+	private mapAskedAt = 0;
+	// the lobby tosu is in (menu state and team names) and since when
+	private lobbyKey = "";
+	private lobbySince = 0;
+	// The last pick the overlay made by itself, until it is played. Another
+	// pool map coming up before that replaces it (the picker changed their
+	// mind) instead of counting as the other side's pick.
+	private autoPick: { id: string; by: Side } | null = null;
+	private lastBeatmapId: number | undefined;
+
 	private bindLobby() {
-		this.engine.register("tourney.manager.chat.length", (_, __, data) => {
-			const chat: Chat[] = data?.tourney?.manager?.chat ?? [];
-			if (chat.length < this.chatCount) this.chatCount = 0;
-			for (const line of chat.slice(this.chatCount)) {
-				const side = TEAM[line.team] ?? (line.team === "bot" ? "bot" : "ref");
-				oro.chat(line.name, side, line.messageBody, line.time);
+		this.engine.register("tourney.manager.chat", (_, __, data) => this.readChat(data?.tourney?.manager?.chat ?? []));
+	}
+
+	private readChat(chat: Chat[]) {
+		// a frame without the chat (tosu between reads) says nothing
+		if (!chat.length) return;
+		const counts = new Map<string, number>();
+		const fresh: Chat[] = [];
+		for (const line of chat) {
+			const key = `${line.time}|${line.name}|${line.messageBody}`;
+			const n = (counts.get(key) ?? 0) + 1;
+			counts.set(key, n);
+			if (n > (this.chatSeen.get(key) ?? 0)) fresh.push(line);
+		}
+		for (const [key, n] of counts) this.chatSeen.set(key, Math.max(n, this.chatSeen.get(key) ?? 0));
+		// The lobby's history on load is shown but not acted on: an old
+		// "!mp timer" must not start the clock now.
+		const history = !this.chatLoaded;
+		this.chatLoaded = true;
+		for (const line of fresh) {
+			const bot = line.team === "bot" || line.name === "BanchoBot";
+			if (bot && isBanchoReply(line.messageBody)) this.realBancho = true;
+			const act = !history && recent(line.time);
+			oro.chat(line.name, this.chatSide(line, bot), line.messageBody, line.time, act);
+			const askedMap = act && !bot && /^!mp\s+map\b/i.test(line.messageBody.trim());
+			if (askedMap) this.mapAskedAt = Date.now();
+			if (!act || bot || this.realBancho) continue;
+			if (askedMap) {
+				this.pendingMapReply = { time: line.time, at: Date.now() };
+				continue;
 			}
-			this.chatCount = chat.length;
-		});
+			const reply = banchoReply(line.messageBody, (id) => this.mapName(id));
+			if (reply) oro.chat("BanchoBot", "bot", reply, line.time, true);
+		}
+	}
+
+	// tosu marks a line "unknown" for a frame now and then; a line from one of
+	// the two players still goes on that player's side.
+	private chatSide(line: Chat, bot: boolean): Side | "bot" | "ref" {
+		if (TEAM[line.team]) return TEAM[line.team];
+		if (bot) return "bot";
+		const name = line.name.trim().toLowerCase();
+		return SIDES.find((side) => this.names[side].toLowerCase() === name) ?? "ref";
+	}
+
+	private mapName(beatmapId: number) {
+		const map = this.pool.find((m) => m.beatmapId === beatmapId);
+		return map ? `${map.artist} - ${map.title} [${map.diff}]` : undefined;
 	}
 
 	// ---------- casters: the first four on the Discord call ----------
@@ -430,6 +527,8 @@ export default class LiveOro {
 	// clears.
 
 	editDraft(id: string, side: Side, edit: DraftEdit) {
+		// a hand on the draft: the overlay no longer replaces its own pick
+		this.autoPick = null;
 		const pick = DRAFT.picks.find((p) => p.id === id);
 		if (edit === "clear") {
 			delete DRAFT.bans[id];
@@ -454,6 +553,7 @@ export default class LiveOro {
 	// The panel's undo: the draft as it was before an edit or a reset. It comes
 	// over the wire, so only well-formed sides and slots get in.
 	restoreDraft(draft: DraftSnapshot) {
+		this.autoPick = null;
 		const side = (s: unknown): s is Side => s === "l" || s === "r";
 		DRAFT.bans = Object.fromEntries(Object.entries(draft?.bans ?? {}).filter(([, s]) => side(s)));
 		DRAFT.picks = (Array.isArray(draft?.picks) ? draft.picks : [])
@@ -466,6 +566,7 @@ export default class LiveOro {
 	}
 
 	resetDraft() {
+		this.autoPick = null;
 		DRAFT.bans = {};
 		DRAFT.picks = [];
 		delete DRAFT.tbWon;
