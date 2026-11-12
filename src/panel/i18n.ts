@@ -193,6 +193,14 @@ const es = {
 	undone: "Deshecho",
 
 	// ---------- draft
+	starsTitle: "Estrellas",
+	starMinus: "Quitar una estrella",
+	starPlus: "Sumar una estrella",
+	starsSet: (l: number, r: number) => `Estrellas: ${l}–${r}`,
+	nextPickTitle: "Siguiente pick",
+	nextAuto: (who: string) => `Auto · ${who}`,
+	nextSet: (who: string) => `Siguiente pick: ${who}`,
+	nextAutoSet: "Siguiente pick: por turnos",
 	draft: "Draft",
 	poolReload: "↻ Recargar pool",
 	poolReloadTitle: "Vuelve a leer data.json y la sheet del mappool; el draft se mantiene",
@@ -272,7 +280,7 @@ const es = {
 	roundHintChanging: "Al cambiar, el overlay se recarga (el draft de cada ronda se guarda aparte). Si fue sin querer, vuelve a elegir la ronda actual.",
 	roundChanging: (round: string) => `Cambiando a ${round}: el overlay se recarga`,
 	rounds: {
-		ro64: "Ronda de 64",
+		ro48: "Ronda de 48",
 		ro32: "Ronda de 32",
 		ro16: "Octavos de final",
 		qf: "Cuartos de final",
@@ -551,6 +559,14 @@ const en: Dict = {
 	undo: "Undo",
 	undone: "Undone",
 
+	starsTitle: "Stars",
+	starMinus: "Take a star away",
+	starPlus: "Add a star",
+	starsSet: (l, r) => `Stars: ${l}–${r}`,
+	nextPickTitle: "Next pick",
+	nextAuto: (who) => `Auto · ${who}`,
+	nextSet: (who) => `Next pick: ${who}`,
+	nextAutoSet: "Next pick: taking turns",
 	draft: "Draft",
 	poolReload: "↻ Reload pool",
 	poolReloadTitle: "Reads data.json and the mappool sheet again; the draft stays",
@@ -627,7 +643,7 @@ const en: Dict = {
 	roundHintChanging: "Changing it reloads the overlay (each round's draft is kept separately). If it was a mistake, pick the current round again.",
 	roundChanging: (round) => `Changing to ${round}: the overlay reloads`,
 	rounds: {
-		ro64: "Round of 64",
+		ro48: "Round of 48",
 		ro32: "Round of 32",
 		ro16: "Round of 16",
 		qf: "Quarterfinals",

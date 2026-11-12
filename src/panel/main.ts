@@ -664,6 +664,63 @@ $("#draftReset").addEventListener("click", () => {
 	toast(t.draftCleared, { undo: () => send({ action: "draftRestore", draft: before }) });
 });
 
+// ======================================================================
+// By hand: the series and who picks next
+// ======================================================================
+
+for (const b of document.querySelectorAll<HTMLButtonElement>("[data-star]")) {
+	b.addEventListener("click", () => {
+		if (!state?.live) return;
+		const side = b.dataset.star as Side;
+		const { firstTo } = readMatch(state);
+		const before = { ...state.stars };
+		const stars = { ...before, [side]: Math.max(0, Math.min(firstTo, before[side] + Number(b.dataset.delta))) };
+		if (stars[side] === before[side]) return;
+		send({ action: "stars", stars });
+		toast(t.starsSet(stars.l, stars.r), { undo: () => send({ action: "stars", stars: before }) });
+	});
+}
+
+for (const b of document.querySelectorAll<HTMLButtonElement>("[data-next]")) {
+	b.addEventListener("click", () => {
+		if (!state?.live) return;
+		const v = b.dataset.next;
+		const side: Side | null = v === "l" || v === "r" ? v : null;
+		if ((state.draft.next ?? null) === side) return;
+		send({ action: "nextPicker", side });
+		toast(side ? t.nextSet(name(side)) : t.nextAutoSet);
+	});
+}
+
+let ctlDrawn = "";
+function renderMatchCtl() {
+	const live = Boolean(state?.live);
+	const stars = state?.stars ?? { l: 0, r: 0 };
+	const firstTo = state ? readMatch(state).firstTo : 0;
+	const last = state?.draft.picks.at(-1);
+	// whose turn it is by taking turns, what "Auto" would pick
+	const turn: Side = last ? other(last.by) : "l";
+	const chosen = state?.draft.next ?? "auto";
+	const key = JSON.stringify([live, stars, firstTo, chosen, turn, state?.names]);
+	if (key === ctlDrawn) return;
+	ctlDrawn = key;
+	$("#starsL").textContent = String(stars.l);
+	$("#starsR").textContent = String(stars.r);
+	$("#starsNameL").textContent = name("l");
+	$("#starsNameR").textContent = name("r");
+	for (const b of document.querySelectorAll<HTMLButtonElement>("[data-star]")) {
+		const n = stars[b.dataset.star as Side];
+		b.disabled = !live || (Number(b.dataset.delta) < 0 ? n <= 0 : n >= firstTo);
+	}
+	$("#nextAuto").textContent = t.nextAuto(name(turn));
+	$("#nextL").textContent = name("l");
+	$("#nextR").textContent = name("r");
+	for (const b of document.querySelectorAll<HTMLButtonElement>("[data-next]")) {
+		b.disabled = !live;
+		b.setAttribute("aria-checked", String(b.dataset.next === chosen));
+	}
+}
+
 function edit(id: string, side: Side, kind: DraftEdit) {
 	if (!state?.live) return;
 	const before = snapshot();
@@ -1208,6 +1265,7 @@ function renderAll() {
 	renderNow();
 	followScene();
 	renderDraft();
+	renderMatchCtl();
 	renderSheet();
 	renderShowcase();
 	renderQualifiers();

@@ -38,6 +38,7 @@ export const oro: {
 	twitchBadges(userId: string, urls: string[]): void;
 	twitchChannel(name: string): void;
 	chat(who: string, side: Side | "bot" | "ref", msg: string, time: string, act?: boolean): void;
+	setStrains(strains: number[]): void;
 	setPlayerInfo(side: Side, info: { seed?: number; rank?: number; countryRank?: number; pp?: number }): void;
 	setPool(maps: PoolMap[]): void;
 	draftChanged(): void;

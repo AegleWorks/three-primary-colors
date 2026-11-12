@@ -2244,3 +2244,111 @@ body[data-remote] [data-local] {
 		transition: none !important;
 	}
 }
+
+/* ---------- by hand: stars and the next picker ---------- */
+
+.match-ctl {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px 24px;
+	padding: 12px 14px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	background: var(--ink);
+}
+
+.ctl-group {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.ctl-label {
+	font: 800 11px/1 "Nunito", sans-serif;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+	color: var(--dim);
+}
+
+.stars-ctl {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.stars-ctl .who {
+	max-width: 120px;
+	font-size: 13px;
+}
+
+.stars-ctl i {
+	font-style: normal;
+	color: var(--dim);
+	padding: 0 4px;
+}
+
+.stars-n {
+	min-width: 1.4em;
+	font: 900 20px/1 var(--display);
+	text-align: center;
+	color: var(--gold-hi);
+}
+
+.step {
+	min-width: 32px;
+	padding: 5px 0;
+	font: 900 16px/1 var(--display);
+}
+
+.seg {
+	display: inline-flex;
+	padding: 3px;
+	border: 1px solid var(--line);
+	border-radius: 999px;
+	background: var(--panel);
+}
+
+.seg button {
+	min-height: 30px;
+	max-width: 160px;
+	padding: 0 12px;
+	border: 0;
+	border-radius: 999px;
+	background: none;
+	color: var(--dim);
+	font: 800 13px/1 "Nunito", sans-serif;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.seg button:hover:not(:disabled) {
+	color: var(--text);
+}
+
+.seg button:disabled {
+	cursor: default;
+	opacity: 0.5;
+}
+
+.seg button[aria-checked="true"] {
+	background: var(--gold);
+	color: var(--ink);
+}
+
+.seg button.seg--l[aria-checked="true"] {
+	background: var(--left);
+	color: #fff;
+}
+
+.seg button.seg--r[aria-checked="true"] {
+	background: var(--right);
+	color: #fff;
+}
+
+.seg button:focus-visible {
+	outline: 2px solid var(--gold-hi);
+	outline-offset: 1px;
+}

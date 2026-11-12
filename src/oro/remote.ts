@@ -51,6 +51,12 @@ export default class OverlayRemote {
 				case "draftReset":
 					this.live?.resetDraft();
 					break;
+				case "stars":
+					this.live?.setStars(command.stars);
+					break;
+				case "nextPicker":
+					this.live?.setNextPicker(command.side);
+					break;
 				case "draftRestore":
 					this.live?.restoreDraft(command.draft);
 					break;

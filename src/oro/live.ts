@@ -98,6 +98,9 @@ export default class LiveOro {
 					miss: Number(c.h0) || 0,
 					n100: Number(c.h100) || 0,
 					n50: Number(c.h50) || 0,
+					// tosu's count, else the client's own guess from combo drops
+					sb: Number(c.sb) || c.sliderbreaks || 0,
+					ur: Number(c.UR) || 0,
 				});
 			}
 			if (this.playing) {
@@ -209,6 +212,9 @@ export default class LiveOro {
 		for (const key of ["menu.bm.id", "menu.bm.stats.fullSR", "menu.bm.metadata.title", "menu.bm.path.full"]) {
 			this.engine.register(key, (_, __, data) => this.readMap(data));
 		}
+		// the difficulty graph under the vinyl (a new array every frame; oro
+		// redraws only when it is a different curve)
+		this.engine.register("menu.pp.strains", (_, strains) => oro.setStrains(strains));
 	}
 
 	// biome-ignore lint/suspicious/noExplicitAny: tosu payload
@@ -265,6 +271,8 @@ export default class LiveOro {
 		if (decided) {
 			DRAFT.picks = decided.picks;
 			this.autoPick = decided.autoPick;
+			// a picker set by hand was for this pick
+			delete DRAFT.next;
 			this.saveDraft();
 		}
 		this.current = { id: map.id, title: map.title };
@@ -529,6 +537,8 @@ export default class LiveOro {
 	editDraft(id: string, side: Side, edit: DraftEdit) {
 		// a hand on the draft: the overlay no longer replaces its own pick
 		this.autoPick = null;
+		// a new pick uses up the picker set by hand
+		if (edit === "pick" && !DRAFT.picks.some((p) => p.id === id)) delete DRAFT.next;
 		const pick = DRAFT.picks.find((p) => p.id === id);
 		if (edit === "clear") {
 			delete DRAFT.bans[id];
@@ -565,10 +575,28 @@ export default class LiveOro {
 		oro.draftChanged();
 	}
 
+	// From the panel: the series by hand. osu!'s own count takes over again
+	// the next time it changes.
+	setStars(stars: Record<Side, number>) {
+		const clamp = (n: unknown) => Math.max(0, Math.min(ROUND.firstTo, Math.round(Number(n)) || 0));
+		this.stars = { l: clamp(stars?.l), r: clamp(stars?.r) };
+		oro.setStars({ ...this.stars });
+		this.onUpdate?.();
+	}
+
+	// From the panel: who picks next, for when taking turns gets it wrong.
+	setNextPicker(side: Side | null) {
+		if (side === "l" || side === "r") DRAFT.next = side;
+		else delete DRAFT.next;
+		this.saveDraft();
+		oro.draftChanged();
+	}
+
 	resetDraft() {
 		this.autoPick = null;
 		DRAFT.bans = {};
 		DRAFT.picks = [];
+		delete DRAFT.next;
 		delete DRAFT.tbWon;
 		this.saveDraft();
 		oro.draftChanged();
@@ -591,7 +619,7 @@ export default class LiveOro {
 	private loadDraft() {
 		try {
 			const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
-			if (saved) Object.assign(DRAFT, { bans: saved.bans ?? {}, picks: saved.picks ?? [], tbWon: saved.tbWon });
+			if (saved) Object.assign(DRAFT, { bans: saved.bans ?? {}, picks: saved.picks ?? [], tbWon: saved.tbWon, next: saved.next === "l" || saved.next === "r" ? saved.next : undefined });
 		} catch {}
 	}
 
@@ -599,7 +627,7 @@ export default class LiveOro {
 	// panel hears about it.
 	private saveDraft() {
 		try {
-			localStorage.setItem(DRAFT_KEY, JSON.stringify({ bans: DRAFT.bans, picks: DRAFT.picks, tbWon: DRAFT.tbWon }));
+			localStorage.setItem(DRAFT_KEY, JSON.stringify({ bans: DRAFT.bans, picks: DRAFT.picks, tbWon: DRAFT.tbWon, next: DRAFT.next }));
 		} catch {}
 		this.onUpdate?.();
 	}

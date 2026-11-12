@@ -14,7 +14,7 @@ export interface Round {
 // panel can list them without pulling in the overlay (stage.js boots the
 // broadcast on import, and the bundler would ship it to the panel too).
 export const ROUNDS: Record<string, Round> = {
-	ro64: { name: "Ronda de 64", the: "la ronda de 64", bestOf: 9, bans: 1, next: "ro32" },
+	ro48: { name: "Ronda de 48", the: "la ronda de 48", bestOf: 9, bans: 1, next: "ro32" },
 	ro32: { name: "Ronda de 32", the: "la ronda de 32", bestOf: 9, bans: 1, next: "ro16" },
 	ro16: { name: "Octavos de final", the: "los octavos de final", bestOf: 11, bans: 2, next: "qf" },
 	qf: { name: "Cuartos de final", the: "los cuartos de final", bestOf: 11, bans: 2, next: "sf" },

@@ -20,6 +20,8 @@ export default class IPCClient {
 	h300 = 0;
 	grade = "SS";
 	UR = 0;
+	// slider breaks as tosu counts them
+	sb = 0;
 	mods = 0;
 
 	prevCombo = 0;
@@ -39,6 +41,7 @@ export default class IPCClient {
 		["gameplay.hits.300", "h300"],
 		["gameplay.hits.grade.current", "grade"],
 		["gameplay.hits.unstableRate", "UR"],
+		["gameplay.hits.sliderBreaks", "sb"],
 		["gameplay.mods.num", "mods"]
 	]
 
@@ -49,7 +52,7 @@ export default class IPCClient {
 		this.callbacks = IPCClient.VALUE_MAP.map(([ key, id ]) => {
 			const fullKey = `tourney.ipcClients.${this.idx}.${key}`;
 			// biome-ignore lint/suspicious/noExplicitAny: Var unused
-			const callback = (_: any, newValue: string | number) => this.updateValue(id, newValue);
+			const callback = (_: any, newValue: string | number | number[]) => this.updateValue(id, newValue);
 			engine.register(fullKey, callback);
 
 			return {
@@ -65,7 +68,7 @@ export default class IPCClient {
 		}
 	}
 
-	updateValue(key: string, value: string | number) {
+	updateValue(key: string, value: string | number | number[]) {
 		if (key === "currentCombo") {
 			const num = Number(value);
 			// Sliderbreak detection: combo dropped without an h0 (miss) increment
@@ -82,6 +85,6 @@ export default class IPCClient {
 			this.prevH0 = 0;
 		}
 
-		(this as unknown as Record<string, string | number>)[key] = value;
+		(this as unknown as Record<string, unknown>)[key] = value;
 	}
 }

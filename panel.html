@@ -117,6 +117,32 @@
 					</div>
 					<button type="button" class="btn btn--quiet" id="poolReload" title="Vuelve a leer data.json y la sheet del mappool; el draft se mantiene" data-i18n-title="poolReloadTitle" data-i18n="poolReload">↻ Recargar pool</button>
 				</div>
+				<!-- By hand, for when osu! or the turn order gets it wrong: the series
+				     (stars) and who picks next. -->
+				<div class="match-ctl">
+					<div class="ctl-group">
+						<span class="ctl-label" id="starsTitle" data-i18n="starsTitle">Estrellas</span>
+						<div class="stars-ctl" role="group" aria-labelledby="starsTitle">
+							<span class="who who--l" id="starsNameL" data-i18n="left">Izquierda</span>
+							<button type="button" class="btn btn--small step" data-star="l" data-delta="-1" aria-label="−1" data-i18n-aria-label="starMinus">−</button>
+							<b class="stars-n" id="starsL">0</b>
+							<button type="button" class="btn btn--small step" data-star="l" data-delta="1" aria-label="+1" data-i18n-aria-label="starPlus">+</button>
+							<i aria-hidden="true">–</i>
+							<button type="button" class="btn btn--small step" data-star="r" data-delta="-1" aria-label="−1" data-i18n-aria-label="starMinus">−</button>
+							<b class="stars-n" id="starsR">0</b>
+							<button type="button" class="btn btn--small step" data-star="r" data-delta="1" aria-label="+1" data-i18n-aria-label="starPlus">+</button>
+							<span class="who who--r" id="starsNameR" data-i18n="right">Derecha</span>
+						</div>
+					</div>
+					<div class="ctl-group">
+						<span class="ctl-label" id="nextTitle" data-i18n="nextPickTitle">Siguiente pick</span>
+						<div class="seg" role="radiogroup" aria-labelledby="nextTitle">
+							<button type="button" role="radio" data-next="auto" id="nextAuto">Auto</button>
+							<button type="button" role="radio" data-next="l" class="seg--l" id="nextL" data-i18n="left">Izquierda</button>
+							<button type="button" role="radio" data-next="r" class="seg--r" id="nextR" data-i18n="right">Derecha</button>
+						</div>
+					</div>
+				</div>
 				<p class="legend" aria-hidden="true">
 					<span><i class="sw sw--l"></i><span id="legendL" data-i18n="left">Izquierda</span></span>
 					<span><i class="sw sw--r"></i><span id="legendR" data-i18n="right">Derecha</span></span>

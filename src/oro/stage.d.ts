@@ -26,6 +26,10 @@ export interface PlayerNumbers {
 	miss: number;
 	n100: number;
 	n50: number;
+	sb?: number;
+	ur?: number;
+	// hit errors in ms (+ late), newest last
+	errors?: number[];
 }
 
 export interface MatchState {

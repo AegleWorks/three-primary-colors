@@ -161,6 +161,8 @@ function showMap(map, { slot = map.id, by = DRAFT.picks.find((p) => p.id === map
 	const pickEl = $(".map-pick");
 	pickEl.innerHTML = pick ?? (by ? `Pick de ${pfpTag(by)}<b>${owner(by)}</b>` : "");
 	pickEl.dataset.side = pick || !by ? "" : by;
+	// the slot badge wears the picker's colour, as on the mappool
+	$("#mapInfo").dataset.side = pick || !by ? "" : by;
 	renderPfps(pickEl);
 	$("#mapLen").textContent = map.len;
 	$("#mapTitle").textContent = map.title;
@@ -184,44 +186,77 @@ showMap(current);
 // edge; bans wear the banner's, darkened.
 const grid = $("#poolGrid");
 const order = $("#pickOrder");
+// The cards are built once per pool; a pick, ban or win after that only
+// updates the cards it touches, so the entrance doesn't replay on every
+// change and only the card that changed flashes.
+let poolShape = "";
+function cardState(map) {
+	const pick = DRAFT.picks.find((p) => p.id === map.id);
+	const ban = DRAFT.bans[map.id];
+	if (ban) return { cls: ["is-ban", `by-${ban}`], html: `<span class="card-state">${pfpTag(ban)}Ban</span>` };
+	if (pick && map.id === DRAFT.current && !pick.won) return { cls: ["is-live", `by-${pick.by}`], html: `<span class="card-state">${pfpTag(pick.by)}En juego</span>` };
+	if (pick?.won) return { cls: ["is-pick", `by-${pick.by}`, `won-${pick.won}`], html: `<span class="card-state">Gana ${pfpTag(pick.won)}</span>` };
+	if (pick) return { cls: ["is-live", `by-${pick.by}`], html: `<span class="card-state">${pfpTag(pick.by)}Pick</span>` };
+	return { cls: [], html: "" };
+}
+function paintCard(card, map) {
+	const { cls, html } = cardState(map);
+	const key = `${cls.join(" ")}|${html}`;
+	if (card.dataset.state === key) return false;
+	const first = card.dataset.state === undefined;
+	card.dataset.state = key;
+	card.className = ["card", ...cls].join(" ");
+	const top = card.querySelector(".card-top");
+	top.querySelector(".card-state")?.remove();
+	if (html) top.insertAdjacentHTML("beforeend", html);
+	renderPfps(card);
+	// only the card that changed: a short flash in its new colour (Web
+	// Animations, so no class lingers to fight the scene's entrance)
+	if (!first)
+		card.animate(
+			[
+				{ filter: "brightness(1.9)", transform: "scale(1.04)" },
+				{ filter: "brightness(1)", transform: "scale(1)" },
+			],
+			{ duration: 550, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+		);
+	return true;
+}
 function renderPool() {
-	grid.innerHTML = "";
-	let cardIndex = 0;
-	for (const mod of [...new Set(POOL.map((m) => modOf(m.id)))]) {
-		const row = document.createElement("div");
-		row.className = "pool-row";
-		row.innerHTML = `<span class="pool-mod mod--${mod.toLowerCase()}">${mod}</span>`;
-		for (const map of POOL.filter((m) => modOf(m.id) === mod)) {
-			const pick = DRAFT.picks.find((p) => p.id === map.id);
-			const ban = DRAFT.bans[map.id];
-			const card = document.createElement("article");
-			card.className = "card";
-			card.dataset.map = map.id;
-			card.style.setProperty("--i", cardIndex++);
-			let state = "";
-			if (ban) {
-				card.classList.add("is-ban", `by-${ban}`);
-				state = `<span class="card-state">${pfpTag(ban)}Ban</span>`;
-			} else if (pick && map.id === DRAFT.current && !pick.won) {
-				card.classList.add("is-live", `by-${pick.by}`);
-				state = `<span class="card-state">${pfpTag(pick.by)}En juego</span>`;
-			} else if (pick?.won) {
-				card.classList.add("is-pick", `by-${pick.by}`, `won-${pick.won}`);
-				state = `<span class="card-state">Gana ${pfpTag(pick.won)}</span>`;
-			} else if (pick) {
-				card.classList.add("is-live", `by-${pick.by}`);
-				state = `<span class="card-state">${pfpTag(pick.by)}Pick</span>`;
-			}
-			card.innerHTML = `
+	const shape = POOL.map((m) => `${m.id}|${m.set}|${m.title}`).join(",");
+	if (shape !== poolShape || !grid.children.length) {
+		poolShape = shape;
+		grid.innerHTML = "";
+		// every row on the same columns: as many as the longest row has
+		const mods = POOL.map((m) => modOf(m.id));
+		grid.style.setProperty("--cols", String(Math.max(1, ...[...new Set(mods)].map((mod) => mods.filter((x) => x === mod).length))));
+		let cardIndex = 0;
+		for (const mod of [...new Set(POOL.map((m) => modOf(m.id)))]) {
+			const row = document.createElement("div");
+			row.className = "pool-row";
+			row.innerHTML = `<span class="pool-mod mod--${mod.toLowerCase()}">${mod}</span>`;
+			for (const map of POOL.filter((m) => modOf(m.id) === mod)) {
+				const card = document.createElement("article");
+				card.className = "card";
+				card.dataset.map = map.id;
+				card.style.setProperty("--i", cardIndex++);
+				card.innerHTML = `
 				<div class="card-art" style='background-image:${cover(map)}'></div>
 				<div class="card-body">
-					<div class="card-top"><b class="card-id">${map.id}</b>${state}</div>
+					<div class="card-top"><b class="card-id">${map.id}</b></div>
 					<span class="card-title">${map.title}</span>
 					<span class="card-artist">${map.artist} · ${map.sr.toFixed(2)}★</span>
 				</div>`;
-			row.append(card);
+				paintCard(card, map);
+				row.append(card);
+			}
+			grid.append(row);
 		}
-		grid.append(row);
+	} else {
+		for (const card of grid.querySelectorAll(".card")) {
+			const map = POOL.find((m) => m.id === card.dataset.map);
+			if (map) paintCard(card, map);
+		}
 	}
 	order.innerHTML = "";
 	DRAFT.picks.forEach((p, i) => {
@@ -314,7 +349,8 @@ renderSeriesCopy(LIVE ? MATCH.stars : { l: 4, r: 2 });
 // ---------- chats: the lobby (osu! multiplayer) and Twitch ----------
 // Newest at the bottom; old lines are dropped once they scroll out.
 const CHAT_KEEP = 24;
-const feed = $("#chat");
+// every box that shows the lobby (gameplay deck, mappool) and every Twitch one
+const lobbyFeeds = $$("[data-lobby]");
 const twitchFeeds = $$("[data-twitch]");
 let lobbyClock = 6 * 60;
 const keep = (el) => {
@@ -326,8 +362,10 @@ function lobbyLine(who, side, msg, time) {
 	p.className = `msg msg--${side}`;
 	const t = lobbyClock++;
 	p.innerHTML = `<time>${time ?? `12:${String(Math.floor(t / 60) % 60).padStart(2, "0")}`}</time><b>${esc(who)}</b>${esc(msg)}`;
-	feed.append(p);
-	keep(feed);
+	lobbyFeeds.forEach((el, i) => {
+		el.append(i ? p.cloneNode(true) : p);
+		keep(el);
+	});
 }
 CHAT.forEach((line) => lobbyLine(line.who, line.side, line.msg));
 
@@ -1495,9 +1533,45 @@ const progress = $("#discProgress");
 const flip = $("#flip");
 const deck = $(".deck");
 let leader = null;
+// Judgements live in the panel on the seam.
+const HIT_KEYS = ["100", "50", "miss", "sb"];
 const hitEls = Object.fromEntries(
-	["l", "r"].map((side) => [side, Object.fromEntries(["100", "50", "miss"].map((k) => [k, Object.assign($(`[data-hit="${k}"][data-side="${side}"]`), { n: 0 })]))]),
+	["l", "r"].map((side) => [side, Object.fromEntries(HIT_KEYS.map((k) => [k, Object.assign($(`[data-hit="${k}"][data-side="${side}"]`), { n: 0 })]))]),
 );
+for (const side of Object.values(hitEls)) for (const el of Object.values(side)) el.classList.add("is-zero");
+const hitCount = (s, side, k) => (k === "miss" ? s.miss[side] : k === "sb" ? s.sb[side] : s[`n${k}`][side]);
+
+// Difficulty graph under the vinyl: tosu's strains as an area, the played
+// part lit by clipping a second copy to the song's progress.
+const strainPaths = [...$$("#strainGraph path")];
+const strainPlayed = $("#strainPlayed");
+function drawStrains(strains) {
+	const list = (Array.isArray(strains) ? strains : []).map(Number).filter((n) => Number.isFinite(n));
+	if (list.length < 2) {
+		for (const p of strainPaths) p.setAttribute("d", "");
+		return;
+	}
+	// at most 120 columns, each the peak of its stretch
+	const cols = Math.min(120, list.length);
+	const peaks = Array.from({ length: cols }, (_, i) => Math.max(...list.slice(Math.floor((i * list.length) / cols), Math.max(Math.floor(((i + 1) * list.length) / cols), Math.floor((i * list.length) / cols) + 1))));
+	const max = Math.max(...peaks) || 1;
+	const pts = peaks.map((v, i) => `${((i / (cols - 1)) * 100).toFixed(2)},${(40 - (v / max) * 37).toFixed(2)}`);
+	const d = `M0,40 L${pts.join(" L")} L100,40 Z`;
+	for (const p of strainPaths) p.setAttribute("d", d);
+}
+let strainKey = "";
+function setStrains(strains) {
+	const key = Array.isArray(strains) ? `${strains.length}|${strains[0]}|${strains.at(-1)}|${strains[Math.floor(strains.length / 2)]}` : "";
+	if (key === strainKey) return;
+	strainKey = key;
+	drawStrains(strains);
+}
+// the demo has no tosu: a made-up curve with a build, a break and a finale
+if (SIM) setStrains(Array.from({ length: 300 }, (_, i) => 3 + 2 * Math.sin(i / 9) + (i > 120 && i < 150 ? -3 : 0) + (i > 230 ? 2.5 : 0) + Math.random() * 1.2));
+
+// UR: just the number, at the bottom of each client over osu!'s own meter
+const urNum = { l: $('[data-ur="l"]'), r: $('[data-ur="r"]') };
+
 const restart = (el, cls) => {
 	el.classList.remove(cls);
 	void el.offsetWidth;
@@ -1514,19 +1588,19 @@ onTick((s) => {
 		setNum(score[side], fmt(s.score[side]));
 		setNum(acc[side], `${s.acc[side].toFixed(2)}%`);
 		setNum(combo[side], `${Math.round(s.combo[side])}x`);
-		for (const k of ["100", "50", "miss"]) {
-			const n = k === "miss" ? s.miss[side] : s[`n${k}`][side];
+		for (const k of HIT_KEYS) {
+			const n = hitCount(s, side, k);
 			const el = hitEls[side][k];
 			if (n === el.n) continue;
-			const chip = el.parentElement;
-			if (n > el.n) restart(chip, "is-pop");
-			if (k === "miss") {
-				if (el.n === 0 && n > 0) restart(chip, "is-broke");
-				chip.classList.toggle("is-fc", n === 0);
-			}
+			if (n > el.n) restart(el, "is-pop");
 			el.n = n;
 			el.textContent = n;
+			el.classList.toggle("is-zero", n === 0);
 		}
+		// plain text, not fixed cells: a short, slow number reads better with
+		// each digit's own width
+		const ur = String(Math.round(s.ur[side]));
+		if (urNum[side].textContent !== ur) urNum[side].textContent = ur;
 	}
 	const diff = s.score.l - s.score.r;
 	// fill and marker move by transform only (no layout); share is % of track
@@ -1552,6 +1626,7 @@ onTick((s) => {
 	score.l.classList.toggle("is-lead", diff > 0);
 	score.r.classList.toggle("is-lead", diff < 0);
 	setNum(clock, fmtTime(Math.max(0, s.length - s.t)));
+	strainPlayed.style.clipPath = `inset(0 ${(100 - Math.min(Math.max(s.t / s.length, 0), 1) * 100).toFixed(2)}% 0 0)`;
 	progress.style.strokeDasharray = `${(s.t / s.length) * 100} 100`;
 });
 
@@ -1702,7 +1777,8 @@ window.addEventListener("keydown", (e) => {
 
 // ---------- FC choke: shards off the cut, a heart monitor that flatlines ----------
 // Timed with the .choke keyframes in oro.css (3.6s, cut at 540ms).
-const CHOKE_MS = 3600;
+// keep in step with --C on .choke in oro.css
+const CHOKE_MS = 2000;
 const CHOKE_CUT_MS = 540;
 const CHOKE_BEATS = [0.3, 0.62, 0.86, 1.05]; // seconds, as in sfx.choke
 const CHOKE_FLAT = 1.25;
@@ -1881,7 +1957,7 @@ let chokeTimer = 0;
 function playChoke(side, s) {
 	const combo = `${fmt(s.combo[side])}x`;
 	const num = $(".choke-num");
-	num.style.fontSize = `${Math.min(200, Math.floor(880 / (0.62 * combo.length + 0.5)))}px`;
+	num.style.fontSize = `${Math.min(96, Math.floor(420 / (0.62 * combo.length + 0.5)))}px`;
 	$$('[data-choke="combo"]').forEach((el) => (el.textContent = combo));
 	$('[data-choke="name"]').textContent = owner(side);
 	$('[data-choke="score"]').textContent = fmt(s.score[side]);
@@ -2526,6 +2602,8 @@ export const oro = {
 	// One lobby line from tosu: into the lobby chat and the pick timer.
 	// `act`: false for history (a line from before the overlay was listening),
 	// which is shown but never starts or stops the timer
+	// tosu's difficulty strains for the map in play
+	setStrains,
 	chat(who, side, msg, time, act = true) {
 		lobbyLine(who, side, msg, time);
 		if (act) pickTimer.bancho(msg);

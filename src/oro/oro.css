@@ -131,12 +131,12 @@
 
 body[data-scene="mappool"] .backdrop-grade {
 	background:
-		radial-gradient(80% 80% at 50% 40%, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.9)),
-		rgba(0, 0, 0, 0.35);
+		radial-gradient(80% 80% at 50% 40%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.7)),
+		rgba(0, 0, 0, 0.15);
 }
 
 body[data-scene="gameplay"] .backdrop-grade {
-	background: rgba(0, 0, 0, 0.45);
+	background: rgba(0, 0, 0, 0.25);
 }
 
 body[data-scene="champion"] .backdrop-grade {
@@ -760,7 +760,8 @@ body[data-scene="champion"] .backdrop-grade {
 	overflow: hidden;
 	pointer-events: none;
 	visibility: hidden;
-	--C: 3.6s;
+	/* keep in step with CHOKE_MS in oro.js */
+	--C: 2s;
 }
 
 .choke[data-side="r"] {
@@ -775,8 +776,8 @@ body[data-scene="champion"] .backdrop-grade {
 	position: absolute;
 	inset: 0;
 	background:
-		radial-gradient(70% 65% at 50% 50%, transparent 28%, rgba(90, 0, 12, 0.55) 68%, rgba(12, 0, 3, 0.94) 100%),
-		rgba(20, 0, 4, 0.28);
+		radial-gradient(70% 65% at 50% 50%, transparent 35%, rgba(90, 0, 12, 0.28) 72%, rgba(12, 0, 3, 0.5) 100%),
+		rgba(20, 0, 4, 0.08);
 	opacity: 0;
 }
 
@@ -785,7 +786,7 @@ body[data-scene="champion"] .backdrop-grade {
 	content: "";
 	position: absolute;
 	inset: 0;
-	background: rgba(239, 51, 71, 0.5);
+	background: rgba(239, 51, 71, 0.25);
 	opacity: 0;
 }
 
@@ -795,9 +796,9 @@ body[data-scene="champion"] .backdrop-grade {
 	left: 0;
 	right: 0;
 	top: 50%;
-	height: 440px;
-	margin-top: -220px;
-	background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.72) 28%, rgba(0, 0, 0, 0.72) 72%, transparent);
+	height: 200px;
+	margin-top: -100px;
+	background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.32) 30%, rgba(0, 0, 0, 0.32) 70%, transparent);
 	opacity: 0;
 }
 
@@ -812,8 +813,8 @@ body[data-scene="champion"] .backdrop-grade {
 	position: absolute;
 	left: 0;
 	right: 0;
-	height: 72px;
-	background: #000;
+	height: 48px;
+	background: rgba(0, 0, 0, 0.45);
 	transform: scaleY(0);
 }
 
@@ -832,6 +833,7 @@ body[data-scene="champion"] .backdrop-grade {
 .choke-card {
 	position: absolute;
 	inset: 0;
+	opacity: 0.85;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -839,8 +841,8 @@ body[data-scene="champion"] .backdrop-grade {
 }
 
 .choke-kicker {
-	font: 700 17px/1 var(--label);
-	letter-spacing: 0.5em;
+	font: 700 13px/1 var(--label);
+	letter-spacing: 0.4em;
 	padding-left: 0.5em;
 	text-transform: uppercase;
 	color: #ffd6da;
@@ -853,8 +855,8 @@ body[data-scene="champion"] .backdrop-grade {
 .choke-num {
 	position: relative;
 	transform: rotate(-3.6deg);
-	margin: 18px 0 22px;
-	font: 900 200px/1 var(--display);
+	margin: 6px 0 0;
+	font: 900 96px/1 var(--display);
 	white-space: nowrap;
 }
 
@@ -863,9 +865,9 @@ body[data-scene="champion"] .backdrop-grade {
 	padding: 0.05em 0.25em 0.12em;
 	color: #fff;
 	text-shadow:
-		-6px 0 rgba(239, 51, 71, 0.85),
-		6px 0 rgba(70, 200, 255, 0.55),
-		0 0 70px rgba(239, 51, 71, 0.55);
+		-3px 0 rgba(239, 51, 71, 0.85),
+		3px 0 rgba(70, 200, 255, 0.55),
+		0 0 30px rgba(239, 51, 71, 0.5);
 	opacity: 0;
 }
 
@@ -884,10 +886,10 @@ body[data-scene="champion"] .backdrop-grade {
 	left: -6%;
 	right: -6%;
 	top: 50%;
-	height: 4px;
-	margin-top: -2px;
+	height: 3px;
+	margin-top: -1.5px;
 	background: linear-gradient(90deg, transparent, #fff 12%, #fff 88%, transparent);
-	box-shadow: 0 0 18px 4px rgba(255, 120, 130, 0.85);
+	box-shadow: 0 0 10px 2px rgba(255, 120, 130, 0.85);
 	transform: scaleX(0);
 	transform-origin: 0 50%;
 	opacity: 0;
@@ -1169,7 +1171,7 @@ body[data-scene="champion"] .backdrop-grade {
 }
 
 .duel-side.is-choked .duel-score {
-	animation: choke-score 3.6s ease-out;
+	animation: choke-score var(--C, 2s) ease-out;
 }
 
 @keyframes choke-score {
@@ -1198,7 +1200,8 @@ body[data-scene="champion"] .backdrop-grade {
 	inset: auto 0 0;
 	height: 260px;
 	display: grid;
-	grid-template-columns: 290px 1fr 620px;
+	/* both sides as wide: the duel and its score meter centre on the seam */
+	grid-template-columns: 290px 1fr 290px;
 	grid-template-rows: minmax(0, 1fr);
 	border-top: 1px solid var(--gold-line);
 	--flip: var(--gold);
@@ -1218,10 +1221,14 @@ body[data-scene="champion"] .backdrop-grade {
 	place-items: center;
 }
 
+/* vinyl on top, its clock just under it, the difficulty graph at the foot */
 .disc-ring {
 	position: absolute;
-	width: 226px;
-	height: 226px;
+	top: 12px;
+	left: 50%;
+	margin-left: -88px;
+	width: 176px;
+	height: 176px;
 	transform: rotate(-90deg);
 	fill: none;
 }
@@ -1239,9 +1246,12 @@ body[data-scene="champion"] .backdrop-grade {
 }
 
 .disc-vinyl {
-	position: relative;
-	width: 200px;
-	height: 200px;
+	position: absolute;
+	top: 23px;
+	left: 50%;
+	margin-left: -77px;
+	width: 154px;
+	height: 154px;
 	border-radius: 50%;
 	background-size: cover;
 	background-position: center;
@@ -1263,7 +1273,9 @@ body[data-scene="champion"] .backdrop-grade {
 
 .disc-time {
 	position: absolute;
-	bottom: 8px;
+	top: 172px;
+	left: 50%;
+	transform: translateX(-50%);
 	padding: 4px 10px 3px;
 	background: #000;
 	border: 1px solid var(--gold-line);
@@ -1321,110 +1333,12 @@ body[data-scene="champion"] .backdrop-grade {
 	--dw: 0.58em;
 }
 
-/* Judgements: osu!'s own colours for 100 and 50, the overlay red for a
-   miss. Misses sit nearest the centre on both sides so they compare at a
-   glance; with no misses the slot is a gold FC pill until it breaks. */
-.hits {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	margin-left: 4px;
-}
-
-.duel-side--r .hits {
-	margin: 0 4px 0 0;
-}
-
-.hit {
-	position: relative;
-	display: flex;
-	align-items: baseline;
-	gap: 5px;
-}
-
-.hit i {
-	font: 800 10px/1 var(--body);
-	font-style: normal;
-}
-
-.hit b {
-	font: 600 14px/1 var(--display);
-	color: var(--text);
-}
-
-.hit--100 i {
-	color: #6fe07a;
-}
-
-.hit--50 i {
-	color: #ffa24a;
-}
-
-.hit--miss i {
-	font-size: 11px;
-	color: var(--red);
-}
-
-.hit--miss b {
-	color: #ff8c97;
-}
-
-.hit em {
-	display: none;
-}
-
-.hit--miss.is-fc i,
-.hit--miss.is-fc b {
-	display: none;
-}
-
-.hit--miss.is-fc em {
-	display: block;
-	padding: 3px 7px 2px;
-	font: 900 10px/1 var(--display);
-	font-style: normal;
-	letter-spacing: 0.08em;
-	color: #1a1205;
-	background: linear-gradient(180deg, var(--gold-hi), var(--gold));
-	box-shadow: 0 0 10px rgba(255, 210, 120, 0.35);
-}
-
-.hit.is-pop b {
-	animation: hit-pop 0.45s var(--snap);
-}
-
-.hit--100.is-pop b {
-	--pop: #6fe07a;
-}
-
-.hit--50.is-pop b {
-	--pop: #ffa24a;
-}
-
-.hit--miss.is-pop b {
-	--pop: var(--red);
-}
-
 @keyframes hit-pop {
 	0% {
 		color: var(--pop);
 		transform: scale(1.5);
 		text-shadow: 0 0 14px var(--pop);
 	}
-}
-
-/* The FC pill breaks: a red flash and a shake as the miss count lands. */
-.hit--miss.is-broke {
-	animation: hit-broke 0.6s linear;
-}
-
-.hit--miss.is-broke::after {
-	content: "";
-	position: absolute;
-	inset: -4px -6px;
-	border: 1px solid var(--red);
-	box-shadow: 0 0 14px rgba(239, 51, 71, 0.7);
-	animation: hit-ring 0.6s ease-out both;
 }
 
 @keyframes hit-broke {
@@ -1639,7 +1553,8 @@ body[data-scene="champion"] .backdrop-grade {
 	position: relative;
 	display: flex;
 	flex-direction: column;
-	padding: 20px 36px 18px;
+	/* the stats sit clear of the bottom edge */
+	padding: 16px 18px 30px;
 	overflow: hidden;
 	min-width: 0;
 }
@@ -1649,9 +1564,9 @@ body[data-scene="champion"] .backdrop-grade {
 	inset: 0;
 	background-size: cover;
 	background-position: center;
-	opacity: 0.32;
-	-webkit-mask-image: linear-gradient(90deg, transparent, #000 70%);
-	mask-image: linear-gradient(90deg, transparent, #000 70%);
+	opacity: 0.6;
+	-webkit-mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.35), #000 45%);
+	mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.35), #000 45%);
 	animation: drift 24s ease-in-out infinite alternate;
 }
 
@@ -1665,14 +1580,36 @@ body[data-scene="champion"] .backdrop-grade {
 	}
 }
 
-.map > :not(.map-bg) {
-	position: relative;
+.map::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 55%;
+	background: linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.42));
+	pointer-events: none;
 }
 
+.map > :not(.map-bg) {
+	position: relative;
+	z-index: 1;
+	/* readable over the brighter art */
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 2px 10px rgba(0, 0, 0, 0.7);
+}
+
+/* slot and length on the first line, who picked it on the next */
 .map-top {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: 14px;
+	gap: 8px 10px;
+}
+
+.map-top .map-pick {
+	order: 3;
+	flex-basis: 100%;
+	min-width: 0;
 }
 
 .map-slot {
@@ -1683,8 +1620,11 @@ body[data-scene="champion"] .backdrop-grade {
 }
 
 .map-pick {
-	font: 600 14px/1 var(--body);
+	font: 600 13px/1 var(--body);
 	color: var(--dim);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .map-pick {
@@ -1694,7 +1634,7 @@ body[data-scene="champion"] .backdrop-grade {
 }
 
 .map-pick .pfp {
-	--pfp: 22px;
+	--pfp: 20px;
 }
 
 .map-pick b {
@@ -1704,12 +1644,12 @@ body[data-scene="champion"] .backdrop-grade {
 
 .map-len {
 	margin-left: auto;
-	font: 600 17px/1 var(--display);
+	font: 600 15px/1 var(--display);
 }
 
 .map-title {
-	margin-top: 14px;
-	font: 900 29px/1.08 var(--display);
+	margin-top: 10px;
+	font: 900 22px/1.08 var(--display);
 	letter-spacing: 0.005em;
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
@@ -1717,27 +1657,36 @@ body[data-scene="champion"] .backdrop-grade {
 	overflow: hidden;
 }
 
+.map-artist,
+.map-diff {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 .map-artist {
-	margin-top: 5px;
-	font: 600 16px/1.3 var(--body);
+	margin-top: 4px;
+	font: 600 13px/1.3 var(--body);
 	color: #c9c2b4;
 }
 
 .map-diff {
-	font: 800 15px/1.4 var(--body);
+	font: 800 13px/1.4 var(--body);
 	color: var(--gold);
 }
 
 .map-stats {
-	display: flex;
-	gap: 26px;
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 8px;
 	margin-top: auto;
 }
 
 .stat {
 	display: flex;
-	align-items: baseline;
-	gap: 7px;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
 }
 
 .stat dt {
@@ -1746,8 +1695,9 @@ body[data-scene="champion"] .backdrop-grade {
 }
 
 .stat dd {
-	font: 900 23px/1 var(--display);
-	--dw: 0.6em;
+	font: 900 16px/1 var(--display);
+	/* Torus's widest digit is ~0.66em: narrower cells made them run together */
+	--dw: 0.66em;
 }
 
 .stat--sr dt {
@@ -5173,27 +5123,31 @@ body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after 
 	}
 }
 
-.stinger-sol {
-	width: 150px;
-	height: 150px;
-	color: #241703;
-	filter: drop-shadow(0 1px 0 rgba(255, 245, 215, 0.6));
+/* The tournament's CT3 logo over the title, where the sun used to be. It
+   comes in growing and settling straight (a logo with letters doesn't spin). */
+.stinger-logo {
+	width: 190px;
+	height: auto;
+	filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.45));
+	user-select: none;
 }
 
-.stinger.run .stinger-sol {
-	animation: stinger-sol var(--T) var(--out) both;
+.stinger.run .stinger-logo {
+	animation: stinger-logo var(--T) var(--out) both;
 }
 
-@keyframes stinger-sol {
+@keyframes stinger-logo {
 
-	/* 880-1260ms */
+	/* 880-1260ms, as the sun did */
 	0%,
 	27.5% {
-		transform: rotate(-150deg) scale(0.4);
+		opacity: 0;
+		transform: rotate(-8deg) scale(0.4);
 	}
 
 	39.4%,
 	100% {
+		opacity: 1;
 		transform: rotate(0) scale(1);
 	}
 }
@@ -5685,7 +5639,7 @@ body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after 
 	}
 }
 
-.hit--miss.is-ghost::before {
+[data-miss].is-ghost::before {
 	content: "⟲";
 	position: absolute;
 	top: -9px;
@@ -6990,4 +6944,304 @@ body[data-scene="qualifiers"] .backdrop-grade {
 
 .quals[data-active] .quals-mod {
 	animation: wipe-in 0.7s calc(0.5s + var(--i) * 0.12s) var(--out) both;
+}
+
+/* =====================================================================
+   HIT PANEL
+   Both players' judgements and UR on the seam between the clients: the
+   left player's numbers on the left, the right player's on the right. It
+   opens out from the seam when the gameplay scene comes in.
+   ===================================================================== */
+
+.hitpanel {
+	position: absolute;
+	left: 50%;
+	top: 318px;
+	z-index: 3;
+	width: 312px;
+	padding: 6px 0;
+	/* no box: the numbers sit straight on the game */
+	transform: translateX(-50%);
+	pointer-events: none;
+}
+
+.hp-row {
+	position: relative;
+	display: grid;
+	grid-template-columns: 1fr 58px 1fr;
+	align-items: center;
+	height: 36px;
+	--hp: var(--text);
+}
+
+.hp--100 {
+	--hp: #6fe07a;
+}
+
+.hp--50 {
+	--hp: #ffa24a;
+}
+
+.hp--miss {
+	--hp: var(--red);
+}
+
+.hp--sb {
+	--hp: #a9a293;
+}
+
+.hp-row b {
+	font: 800 26px/1 var(--display);
+	color: var(--text);
+	text-shadow: 0 0 3px #000, 0 2px 8px rgba(0, 0, 0, 0.9);
+	--dw: 0.6em;
+}
+
+.hp-row b[data-side="l"] {
+	justify-self: end;
+	padding-right: 4px;
+}
+
+.hp-row b[data-side="r"] {
+	justify-self: start;
+	padding-left: 4px;
+}
+
+/* a number still at 0 stays quiet */
+.hp-row b.is-zero {
+	color: var(--faint);
+}
+
+.hp-row i {
+	position: relative;
+	justify-self: center;
+	z-index: 1;
+	min-width: 40px;
+	padding: 4px 0 3px;
+	border-radius: 999px;
+	background: color-mix(in srgb, var(--hp) 18%, transparent);
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--hp) 60%, transparent), 0 2px 8px rgba(0, 0, 0, 0.6);
+	text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+	font: 900 12px/1 var(--display);
+	font-style: normal;
+	letter-spacing: 0.04em;
+	text-align: center;
+	color: var(--hp);
+}
+
+.hp-row b.is-pop {
+	--pop: var(--hp);
+	animation: hit-pop 0.45s var(--snap);
+}
+
+/* ---------- entrance: out from the seam ---------- */
+
+.gp[data-active] .hitpanel {
+	animation: hp-open 0.7s 0.35s var(--out) both;
+}
+
+.gp[data-active] .hp-row b[data-side="l"] {
+	animation: hp-out-l 0.6s 0.55s var(--out) both;
+}
+
+.gp[data-active] .hp-row b[data-side="r"] {
+	animation: hp-out-r 0.6s 0.55s var(--out) both;
+}
+
+@keyframes hp-open {
+	from {
+		opacity: 0;
+		clip-path: inset(0 50% 0 50%);
+	}
+
+	to {
+		clip-path: inset(0 0 0 0);
+	}
+}
+
+@keyframes hp-out-l {
+	from {
+		opacity: 0;
+		transform: translateX(40px);
+	}
+}
+
+@keyframes hp-out-r {
+	from {
+		opacity: 0;
+		transform: translateX(-40px);
+	}
+}
+
+/* The gold video behind the glass bars, close to the original in gameplay:
+   barely blurred and under a lighter tint. */
+.gp .glass {
+	background: linear-gradient(180deg, rgba(14, 11, 5, 0.5), rgba(4, 3, 1, 0.66));
+	-webkit-backdrop-filter: blur(1.5px) saturate(1.15);
+	backdrop-filter: blur(1.5px) saturate(1.15);
+}
+
+/* UR: the number alone, at the bottom centre of each client, sitting just
+   over osu!'s own hit error meter. */
+.tag-ur {
+	position: absolute;
+	left: 50%;
+	bottom: 34px;
+	display: flex;
+	align-items: baseline;
+	gap: 4px;
+	font: 800 13px/1 var(--display);
+	letter-spacing: 0.04em;
+	color: var(--dim);
+	text-shadow: 0 0 3px #000, 0 2px 8px rgba(0, 0, 0, 0.9);
+	transform: translateX(-50%);
+}
+
+.tag-ur b {
+	font: 800 22px/1 var(--display);
+	letter-spacing: 0.01em;
+	color: var(--text);
+}
+
+/* The deck's series line: both names get the same room, each set toward its
+   side, so the score between the pips sits on the centre line. */
+.deck .series .series-name {
+	flex: 1 1 0;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.deck .series .series-name[data-name="l"] {
+	text-align: right;
+}
+
+.deck .series .series-name[data-name="r"] {
+	text-align: left;
+}
+
+/* ---------- difficulty graph under the vinyl ---------- */
+
+.disc-graph {
+	position: absolute;
+	left: 20px;
+	right: 20px;
+	top: 204px;
+	height: 30px;
+	border-bottom: 1px solid var(--gold-line);
+}
+
+.disc-graph svg {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.disc-graph path {
+	fill: rgba(226, 184, 102, 0.22);
+}
+
+.strain-played path {
+	fill: var(--gold);
+	filter: drop-shadow(0 0 4px rgba(226, 184, 102, 0.6));
+}
+
+.strain-played {
+	clip-path: inset(0 100% 0 0);
+}
+
+/* the slot badge in the picker's colour */
+.map[data-side="l"] .map-slot {
+	background: var(--left);
+}
+
+.map[data-side="r"] .map-slot {
+	background: var(--right);
+}
+
+/* Simpler FC choke: no line about the run, no letterbox, no heart monitor. */
+.choke-sub,
+.choke-bar,
+.choke-fx {
+	display: none;
+}
+
+/* Twitch pictures whole: the line clips what sticks out (it trims long
+   messages with "…"), so leave room for the circle and its ring. */
+.msg--tw {
+	padding: 1px 0 1px 2px;
+}
+
+/* Chatters' names in the masthead's face (Comfortaa), as on "Rempalago 3". */
+.msg b {
+	font-family: var(--label);
+	font-weight: 700;
+	letter-spacing: 0.01em;
+}
+
+/* ---------- mappool: the board on the left, the chats on the right ---------- */
+
+.pool-body {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 400px;
+	gap: 24px;
+}
+
+.pool-main {
+	min-width: 0;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+}
+
+/* Every row on the same grid (as many columns as the longest row, set by
+   oro.js), so the cards line up in columns, flush left; a short row just
+   leaves its last columns empty. */
+.pool-row {
+	display: grid;
+	grid-template-columns: 76px repeat(var(--cols, 4), minmax(0, 340px));
+	justify-content: start;
+}
+
+.pool-row .card {
+	width: auto;
+	min-width: 0;
+}
+
+.pool-chats {
+	min-height: 0;
+	display: grid;
+	/* the lobby is quiet next to Twitch: a third for it, two for Twitch */
+	grid-template-rows: minmax(0, 1fr) minmax(0, 2fr);
+	border: 1px solid var(--gold-line);
+	background: linear-gradient(180deg, rgba(14, 11, 5, 0.78), rgba(4, 3, 1, 0.86));
+	box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.pool-chats .chat {
+	padding: 10px 16px 6px;
+}
+
+.pool-chats .chat--game {
+	border-right: 0;
+	border-bottom: 1px solid var(--hair);
+}
+
+.pool-chats .chat-head {
+	margin-bottom: 6px;
+	font-size: 10px;
+}
+
+.pool-chats .feed {
+	font-size: 15px;
+	line-height: 1.5;
+}
+
+.pool[data-active] .pool-chats {
+	animation: rise 0.6s 0.4s var(--out) both;
 }

@@ -15,7 +15,7 @@ const RETRY_MIN_MS = 2_000;
 const RETRY_MAX_MS = 30_000;
 const KEEPALIVE_MS = 30_000;
 
-const ACTIONS = new Set(["scene", "key", "timer", "draft", "draftReset", "draftRestore", "showcase", "poolReload", "twitch", "round", "qualifier", "sources"]);
+const ACTIONS = new Set(["scene", "key", "timer", "draft", "draftReset", "draftRestore", "stars", "nextPicker", "showcase", "poolReload", "twitch", "round", "qualifier", "sources"]);
 // the overlay's shortcuts a panel offers in a release build
 const KEYS = new Set(["t", "g", "m"]);
 

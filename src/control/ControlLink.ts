@@ -15,6 +15,10 @@ export type Command =
 	| { action: "timer"; seconds: number | null }
 	| { action: "draft"; id: string; side: Side; edit: DraftEdit }
 	| { action: "draftReset" }
+	// the series by hand, when osu!'s stars came out wrong
+	| { action: "stars"; stars: Record<Side, number> }
+	// who picks next, by hand; null goes back to taking turns
+	| { action: "nextPicker"; side: Side | null }
 	// puts the whole draft back as it was: the panel's undo
 	| { action: "draftRestore"; draft: DraftSnapshot }
 	| { action: "showcase"; id: string }

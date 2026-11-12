@@ -103,7 +103,7 @@ Si cambias cualquier otra cosa de `data.json`, actualiza el source del overlay e
 
    | Ronda | `round=` |
    |-------|----------|
-   | Ronda de 64, 32, 16 | `ro64`, `ro32`, `ro16` |
+   | Ronda de 48, 32, 16 | `ro48`, `ro32`, `ro16` |
    | Cuartos, semis | `qf`, `sf` |
    | Tercer puesto, final | `third`, `f` |
    | Showmatch del staff | `show` |

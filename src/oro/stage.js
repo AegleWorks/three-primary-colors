@@ -18,7 +18,8 @@ export { ROUNDS };
 // false in a production build, so the bundler drops it.
 export const LIVE = !(import.meta.env.DEV && new URLSearchParams(location.search).has("sim"));
 const SIM = import.meta.env.DEV && !LIVE;
-const roundParam = new URLSearchParams(location.search).get("round");
+// the first round used to be the round of 64: an old ?round=ro64 is the 48 now
+const roundParam = new URLSearchParams(location.search).get("round")?.replace(/^ro64$/, "ro48");
 const roundKey = ROUNDS[roundParam] ? roundParam : "f";
 export const ROUND = {
 	key: roundKey,
@@ -111,6 +112,10 @@ const state = {
 	n300: { l: 0, r: 0 },
 	n100: { l: 0, r: 0 },
 	n50: { l: 0, r: 0 },
+	// slider breaks, unstable rate and the latest hit errors (ms, + is late)
+	sb: { l: 0, r: 0 },
+	ur: { l: 0, r: 0 },
+	errors: { l: [], r: [] },
 	hits: { l: 0, r: 0 },
 	ghost: { l: null, r: null },
 	paused: false,
@@ -179,6 +184,9 @@ function reset() {
 		state.n300[s] = 0;
 		state.n100[s] = 0;
 		state.n50[s] = 0;
+		state.sb[s] = 0;
+		state.ur[s] = 0;
+		state.errors[s] = [];
 		state.hits[s] = 0;
 		state.ghost[s] = null;
 	}
@@ -201,6 +209,21 @@ export function ingest(side, v) {
 	state.miss[side] = v.miss;
 	state.n100[side] = v.n100;
 	state.n50[side] = v.n50;
+	state.sb[side] = v.sb ?? 0;
+	state.ur[side] = v.ur ?? 0;
+	if (Array.isArray(v.errors)) state.errors[side] = v.errors.slice(-ERRORS_KEPT);
+}
+
+// hit errors the UR meter draws, newest last
+const ERRORS_KEPT = 40;
+// the simulation's players: a slight lean each (ms) and their spread
+const AIM = { l: { bias: -3, sd: 11 }, r: { bias: 4, sd: 14 } };
+const gauss = () => (Math.random() + Math.random() + Math.random() + Math.random() - 2) * 1.7;
+// UR is ten times the standard deviation of the hit errors
+function unstableRate(errors) {
+	if (errors.length < 2) return 0;
+	const mean = errors.reduce((a, b) => a + b, 0) / errors.length;
+	return Math.sqrt(errors.reduce((a, b) => a + (b - mean) ** 2, 0) / errors.length) * 10;
 }
 
 // The map clock, in seconds. Time running backwards is a new map; crossing
@@ -237,6 +260,15 @@ function step(dt) {
 			if (r < 0.0025) state.n50[s] += 1;
 			else if (r < 0.017) state.n100[s] += 1;
 			else state.n300[s] += 1;
+			state.errors[s].push(Math.round(AIM[s].bias + gauss() * AIM[s].sd));
+		}
+		if (state.errors[s].length > ERRORS_KEPT * 4) state.errors[s] = state.errors[s].slice(-ERRORS_KEPT * 4);
+		state.ur[s] = unstableRate(state.errors[s]);
+		// now and then a slider break: the combo goes, no miss
+		if (Math.random() < dt * 0.006 && state.combo[s] > 30) {
+			emit("break", s);
+			state.combo[s] = 0;
+			state.sb[s] += 1;
 		}
 		state.maxCombo[s] = Math.max(state.maxCombo[s], state.combo[s]);
 		state.score[s] += notes * 300 * (1 + state.combo[s] / 25) * skill[s] * 0.62;

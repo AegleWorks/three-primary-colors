@@ -197,8 +197,24 @@
 					<span class="pfp" data-pfp="r"></span>
 				</div>
 			</header>
-			<div class="pool-grid" id="poolGrid"></div>
-			<ol class="pool-order" id="pickOrder"></ol>
+			<div class="pool-body">
+				<div class="pool-main">
+					<div class="pool-grid" id="poolGrid"></div>
+					<ol class="pool-order" id="pickOrder"></ol>
+				</div>
+				<!-- The lobby chat and Twitch, as on the gameplay deck, both always
+				     open while the maps are being picked. -->
+				<aside class="pool-chats">
+					<section class="chat chat--game">
+						<span class="chat-head"><b>Lobby</b>#mp_rempalago</span>
+						<div class="feed" data-lobby></div>
+					</section>
+					<section class="chat chat--twitch">
+						<span class="chat-head"><b>Twitch</b><span data-twitch-channel>chat en vivo</span></span>
+						<div class="feed" data-twitch></div>
+					</section>
+				</aside>
+			</div>
 		</section>
 
 		<!-- GAMEPLAY -->
@@ -250,11 +266,24 @@
 					<div class="tag-break" data-break="l"><b>Combo break</b><span></span></div>
 					<div class="tag-ghost" data-ghost="l"><i>⟲</i><b>Miss de Bancho</b><span></span></div>
 					<span class="tag-id"><span class="pfp" data-pfp="l"></span><span class="tag-name" data-name="l">Clippy</span></span>
+					<span class="tag-ur"><b class="num" data-ur="l">0</b>UR</span>
 				</div>
 				<div class="tag tag--r">
 					<div class="tag-break" data-break="r"><b>Combo break</b><span></span></div>
 					<div class="tag-ghost" data-ghost="r"><i>⟲</i><b>Miss de Bancho</b><span></span></div>
 					<span class="tag-id"><span class="pfp" data-pfp="r"></span><span class="tag-name" data-name="r">Sombrax79</span></span>
+					<span class="tag-ur"><b class="num" data-ur="r">0</b>UR</span>
+				</div>
+			</div>
+
+			<!-- Judgements for both players, on the seam between the clients: the
+			     left player's numbers on the left, the right player's on the right. -->
+			<div class="hitpanel" aria-hidden="true">
+				<div class="hp-rows">
+					<div class="hp-row hp--100"><b class="num" data-hit="100" data-side="l">0</b><i>100</i><b class="num" data-hit="100" data-side="r">0</b></div>
+					<div class="hp-row hp--50"><b class="num" data-hit="50" data-side="l">0</b><i>50</i><b class="num" data-hit="50" data-side="r">0</b></div>
+					<div class="hp-row hp--sb"><b class="num" data-hit="sb" data-side="l">0</b><i>SB</i><b class="num" data-hit="sb" data-side="r">0</b></div>
+					<div class="hp-row hp--miss"><b class="num" data-hit="miss" data-side="l" data-miss="l">0</b><i>✕</i><b class="num" data-hit="miss" data-side="r" data-miss="r">0</b></div>
 				</div>
 			</div>
 
@@ -286,13 +315,19 @@
 					</svg>
 					<div class="disc-vinyl" id="discArt"></div>
 					<span class="disc-time num" id="clock">0:00</span>
+					<!-- The map's difficulty over time (tosu's strains), the part
+					     already played lit up. -->
+					<div class="disc-graph" id="strainGraph" aria-hidden="true">
+						<svg viewBox="0 0 100 40" preserveAspectRatio="none"><path class="strain-all" /></svg>
+						<svg viewBox="0 0 100 40" preserveAspectRatio="none" class="strain-played" id="strainPlayed"><path /></svg>
+					</div>
 				</div>
 
 				<div class="duel">
 					<div class="duel-scores">
 						<div class="duel-side duel-side--l">
 							<span class="duel-score num" data-score="l">0</span>
-							<span class="duel-sub"><b class="num" data-acc="l">100.00%</b><b class="num" data-combo="l">0x</b><span class="hits"><span class="hit hit--100"><i>100</i><b class="num" data-hit="100" data-side="l">0</b></span><span class="hit hit--50"><i>50</i><b class="num" data-hit="50" data-side="l">0</b></span><span class="hit hit--miss is-fc" data-miss="l"><i>✕</i><b class="num" data-hit="miss" data-side="l">0</b><em>FC</em></span></span></span>
+							<span class="duel-sub"><b class="num" data-acc="l">100.00%</b><b class="num" data-combo="l">0x</b></span>
 						</div>
 						<div class="duel-mid">
 							<span class="tb-state" id="tbState" aria-live="polite"></span>
@@ -301,7 +336,7 @@
 						</div>
 						<div class="duel-side duel-side--r">
 							<span class="duel-score num" data-score="r">0</span>
-							<span class="duel-sub"><span class="hits"><span class="hit hit--miss is-fc" data-miss="r"><i>✕</i><b class="num" data-hit="miss" data-side="r">0</b><em>FC</em></span><span class="hit hit--50"><i>50</i><b class="num" data-hit="50" data-side="r">0</b></span><span class="hit hit--100"><i>100</i><b class="num" data-hit="100" data-side="r">0</b></span></span><b class="num" data-combo="r">0x</b><b class="num" data-acc="r">100.00%</b></span>
+							<span class="duel-sub"><b class="num" data-combo="r">0x</b><b class="num" data-acc="r">100.00%</b></span>
 						</div>
 					</div>
 					<div class="track">
@@ -323,7 +358,7 @@
 					<div class="chats" id="chats" data-mode="lobby">
 						<section class="chat chat--game">
 							<span class="chat-head"><b>Lobby</b>#mp_rempalago</span>
-							<div class="feed" id="chat"></div>
+							<div class="feed" id="chat" data-lobby></div>
 						</section>
 						<section class="chat chat--twitch">
 							<span class="chat-head"><b>Twitch</b><span data-twitch-channel>chat en vivo</span></span>
@@ -502,7 +537,7 @@
 			<i class="stinger-flash"></i>
 			<i class="stinger-flare"></i>
 			<div class="stinger-core">
-				<svg class="stinger-sol"><use href="#sol" /></svg>
+				<img class="stinger-logo" src="./src/oro/media/logo-ct3.webp" alt="" draggable="false">
 				<span class="stinger-title">Rempalago 3</span>
 				<i class="stinger-tricolor"></i>
 				<span class="stinger-sub">Operación Tricolor</span>
