@@ -6956,7 +6956,9 @@ body[data-scene="qualifiers"] .backdrop-grade {
 .hitpanel {
 	position: absolute;
 	left: 50%;
-	top: 318px;
+	/* between osu!'s score and accuracy (top right of the left client) and
+	   its key input (lower down on the same edge) */
+	top: 196px;
 	z-index: 3;
 	width: 312px;
 	padding: 6px 0;
