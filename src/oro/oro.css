@@ -7437,3 +7437,17 @@ body[data-scene="qualifiers"] .backdrop-grade {
 	color: #d7d9de;
 	box-shadow: inset 0 0 0 1px #4a4d54;
 }
+
+/* The gameplay deck's chats: a long message goes on to the next row instead
+   of being cut (the Battle Royale deck too). */
+.chats .msg,
+.brg-chat .msg {
+	white-space: normal;
+	overflow-wrap: anywhere;
+	text-overflow: clip;
+}
+
+/* centred while the map plays, wrapped rows too */
+.chats[data-mode="playing"] .chat--twitch .msg {
+	text-align: center;
+}
