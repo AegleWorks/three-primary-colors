@@ -26,23 +26,33 @@ const OVERLAY_INPUT = "Overlay";
 export const BATTLE_SCENE = "TRC BR";
 const BATTLE_BACK_INPUT = "BR fondo";
 const BATTLE_GAP = 6;
+// the BR's captures, apart from the match scene's "osu! 1"...: building one
+// scene never rebinds or moves the other's sources
+const BATTLE_INPUT_PREFIX = "BR osu! ";
+const BATTLE_MODE_KEY = "rempalago-obs-battle";
 
-// The Battle Royale grid: as many 16:9 tiles as players, rounded up to an
-// even number (2 to 16), in the clients' band (x 0, y 100, 1920x720), sized
-// as big as they can be and centred. Rows and columns are whichever shape
-// gives the biggest tiles, but a full grid (16 as 4x4, not 6x3 with gaps)
-// wins when its tiles are nearly as big.
+// The Battle Royale grid: one tile per player, rounded up to an even number
+// (2 to 16), filling the clients' band (x 0, y 100, 1920x720) as much as it
+// can. osu!'s playfield is 4:3 in the middle of a 16:9 window, so a tile may
+// be anywhere from 16:9 down to 4:3: the window's empty sides are cropped
+// away and the playfield gets bigger (1v1: two 957x718 tiles instead of
+// 957x538). Rows and columns are whichever shape gives the biggest playfield;
+// a full grid wins when its playfield is nearly as big.
 export function battleGrid(players: number, box = { x: 0, y: 100, width: 1920, height: 720 }, gap = BATTLE_GAP) {
 	const count = Math.min(16, Math.max(2, Math.ceil(players / 2) * 2));
 	const shapes = Array.from({ length: count }, (_, i) => {
 		const cols = i + 1;
 		const rows = Math.ceil(count / cols);
-		const w = Math.floor(Math.min((box.width - gap * (cols - 1)) / cols, ((box.height - gap * (rows - 1)) / rows) * (16 / 9)));
-		return { cols, rows, w, h: Math.floor((w * 9) / 16), full: cols * rows === count };
+		const cellW = (box.width - gap * (cols - 1)) / cols;
+		const cellH = (box.height - gap * (rows - 1)) / rows;
+		// no taller than 4:3 (that would crop the playfield), no wider than 16:9
+		const h = Math.floor(Math.min(cellH, (cellW * 3) / 4));
+		const w = Math.floor(Math.min(cellW, (h * 16) / 9));
+		return { cols, rows, w, h, full: cols * rows === count };
 	});
-	const biggest = shapes.reduce((a, b) => (b.w > a.w ? b : a));
-	const full = shapes.filter((x) => x.full).reduce((a, b) => (b.w > a.w ? b : a));
-	const best = full.w >= biggest.w * 0.88 ? full : biggest;
+	const biggest = shapes.reduce((a, b) => (b.h > a.h ? b : a));
+	const full = shapes.filter((x) => x.full).reduce((a, b) => (b.h > a.h ? b : a));
+	const best = full.h >= biggest.h * 0.88 ? full : biggest;
 	const gridW = best.cols * best.w + gap * (best.cols - 1);
 	const gridH = best.rows * best.h + gap * (best.rows - 1);
 	const left = box.x + (box.width - gridW) / 2;
@@ -52,9 +62,21 @@ export function battleGrid(players: number, box = { x: 0, y: 100, width: 1920, h
 		// a short last row is centred too
 		const inRow = row === best.rows - 1 ? count - row * best.cols : best.cols;
 		const rowLeft = left + ((best.cols - inRow) * (best.w + gap)) / 2;
-		return { x: Math.round(rowLeft + (i % best.cols) * (best.w + gap)), y: Math.round(top + row * (best.h + gap)), width: Math.round(best.w), height: Math.round(best.h) };
+		return { x: Math.round(rowLeft + (i % best.cols) * (best.w + gap)), y: Math.round(top + row * (best.h + gap)), width: best.w, height: best.h };
 	});
 	return { count, cols: best.cols, rows: best.rows, rects };
+}
+
+// A capture covering its tile: scaled to fill it, the overflow cropped
+// evenly (the window's empty sides, around the playfield). Without the
+// window's size yet (not hooked), fitted inside the tile instead.
+function coverTransform(rect: { x: number; y: number; width: number; height: number }, source: { width: number; height: number }): Record<string, string | number> {
+	if (!(source.width > 0 && source.height > 0))
+		return { positionX: rect.x, positionY: rect.y, alignment: 5, boundsType: "OBS_BOUNDS_SCALE_INNER", boundsAlignment: 0, boundsWidth: rect.width, boundsHeight: rect.height, cropLeft: 0, cropRight: 0, cropTop: 0, cropBottom: 0 };
+	const scale = Math.max(rect.width / source.width, rect.height / source.height);
+	const cropX = Math.max(0, Math.floor((source.width - rect.width / scale) / 2));
+	const cropY = Math.max(0, Math.floor((source.height - rect.height / scale) / 2));
+	return { positionX: rect.x, positionY: rect.y, alignment: 5, boundsType: "OBS_BOUNDS_NONE", scaleX: scale, scaleY: scale, cropLeft: cropX, cropRight: cropX, cropTop: cropY, cropBottom: cropY };
 }
 
 interface OsuWindow {
@@ -264,6 +286,8 @@ export default class OBSHandler {
 		});
 
 		this.obs.on("CurrentProgramSceneChanged", (data) => {
+			if (data.sceneName === BATTLE_SCENE) this.setBattleMode(true);
+			else if (data.sceneName === this.config.sceneName) this.setBattleMode(false);
 			this.emitProgramScene(data.sceneName);
 			if (!this.config.sceneName) {
 				this.log(`Active scene changed to: ${data.sceneName}`);
@@ -442,7 +466,7 @@ export default class OBSHandler {
 	 * Computes dynamic tiling transforms and updates OBS scene items.
 	 */
 	async applyLayout() {
-		if (!this.connected) return;
+		if (!this.connected || this.battleMode) return;
 
 		const targetScene = await this.getTargetSceneName();
 		if (!targetScene) return;
@@ -569,6 +593,25 @@ export default class OBSHandler {
 	showcaseScene = "Showcase";
 
 	private windowed = new Set<number>();
+	// The Battle Royale is on (its scene built or on air): the match scene's
+	// sync and tiling stay still, so the BR's sixteen clients never land in
+	// it. Building the match scene, or putting it on air, turns it off.
+	private battleMode = (() => {
+		try {
+			return localStorage.getItem(BATTLE_MODE_KEY) === "1";
+		} catch {
+			return false;
+		}
+	})();
+
+	private setBattleMode(on: boolean) {
+		if (on === this.battleMode) return;
+		this.battleMode = on;
+		try {
+			localStorage.setItem(BATTLE_MODE_KEY, on ? "1" : "0");
+		} catch {}
+		this.log(`Battle Royale mode ${on ? "on" : "off"}`);
+	}
 	private tourneyClients = 0;
 	private syncTimer = 0;
 	private syncing = false;
@@ -780,6 +823,7 @@ export default class OBSHandler {
 			const problem = await this.ready();
 			if (problem) return { success: false, message: problem };
 			this.config.sceneName = sceneName;
+			this.setBattleMode(false);
 			await this.ensureScene(sceneName);
 			const windows = await this.listOsuWindows(sceneName);
 			const count = await this.syncGameplay(windows, true);
@@ -830,6 +874,7 @@ export default class OBSHandler {
 		try {
 			const problem = await this.ready();
 			if (problem) return { success: false, message: problem };
+			this.setBattleMode(true);
 			await this.ensureScene(sceneName);
 			const { clients, grid } = await this.placeBattleClients(sceneName, players);
 			const inputs = await this.inputNames();
@@ -869,6 +914,7 @@ export default class OBSHandler {
 			const problem = await this.ready();
 			if (problem) return { success: false, message: problem };
 			if (!(await this.sceneExists(sceneName))) return { success: false, message: t.obsBattleNoScene(sceneName) };
+			this.setBattleMode(true);
 			const { clients, grid } = await this.placeBattleClients(sceneName, players);
 			// new captures land on top: the overlay goes back above them
 			await this.ensureOverlay(sceneName);
@@ -895,8 +941,7 @@ export default class OBSHandler {
 		const { sceneItems } = await this.obs.call("GetSceneItemList", { sceneName });
 		const itemOf = (name: string) => sceneItems.find((si) => si.sourceName === name)?.sceneItemId as number | undefined;
 		for (const [i, win] of clients.entries()) {
-			const name = `osu! ${i + 1}`;
-			await this.retireWindowCapture(inputs, name);
+			const name = `${BATTLE_INPUT_PREFIX}${i + 1}`;
 			let id = itemOf(name);
 			if (!inputs.has(name)) id = (await this.obs.call("CreateInput", { sceneName, inputName: name, inputKind: CAPTURE_KIND, inputSettings: captureSettings(win, WINDOW_PRIORITY_TITLE) })).sceneItemId;
 			else {
@@ -905,17 +950,21 @@ export default class OBSHandler {
 			}
 			const rect = grid.rects[i];
 			await this.obs.call("SetSceneItemEnabled", { sceneName, sceneItemId: id, sceneItemEnabled: Boolean(rect) });
-			if (rect)
-				await this.obs.call("SetSceneItemTransform", {
-					sceneName,
-					sceneItemId: id,
-					sceneItemTransform: { positionX: rect.x, positionY: rect.y, alignment: 5, boundsType: "OBS_BOUNDS_SCALE_INNER", boundsAlignment: 0, boundsWidth: rect.width, boundsHeight: rect.height },
-				});
+			if (!rect) continue;
+			const { sceneItemTransform } = await this.obs.call("GetSceneItemTransform", { sceneName, sceneItemId: id });
+			const t = sceneItemTransform as { sourceWidth?: number; sourceHeight?: number };
+			await this.obs.call("SetSceneItemTransform", {
+				sceneName,
+				sceneItemId: id,
+				sceneItemTransform: coverTransform(rect, { width: Number(t.sourceWidth) || 0, height: Number(t.sourceHeight) || 0 }),
+			});
 		}
-		// clients that closed: their captures off the grid
+		// clients that closed, and the match's own captures if an older
+		// version put them here: off the grid
 		for (const si of sceneItems) {
-			const m = /^osu! (\d+)$/.exec(String(si.sourceName));
-			if (m && Number(m[1]) > clients.length) await this.obs.call("SetSceneItemEnabled", { sceneName, sceneItemId: si.sceneItemId as number, sceneItemEnabled: false });
+			const name = String(si.sourceName);
+			const mine = name.startsWith(BATTLE_INPUT_PREFIX) ? Number(name.slice(BATTLE_INPUT_PREFIX.length)) : null;
+			if ((mine !== null && mine > clients.length) || /^osu! \d+$/.test(name)) await this.obs.call("SetSceneItemEnabled", { sceneName, sceneItemId: si.sceneItemId as number, sceneItemEnabled: false });
 		}
 		return { clients, grid };
 	}
@@ -929,7 +978,7 @@ export default class OBSHandler {
 		try {
 			const scene = this.config.sceneName;
 			const windows = await this.listOsuWindows(probe && scene && (await this.sceneExists(scene)) ? scene : undefined);
-			await this.syncGameplay(windows, false);
+			if (!this.battleMode) await this.syncGameplay(windows, false);
 			await this.syncShowcase(windows, false);
 		} catch (err) {
 			console.warn("[OBSHandler] sync failed:", err);

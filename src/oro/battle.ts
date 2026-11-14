@@ -2,7 +2,7 @@ import type ZEngine from "@fukutotojido/z-engine";
 import axios from "axios";
 import type { Beatmap, Data } from "../types";
 import { fetchSheetPool, fetchSheetTabs, type SheetRow } from "./sheet";
-import { LIVE, fmt, onEvent } from "./stage.js";
+import { LIVE, fmt, goTo, onEvent, type BattleScene } from "./stage.js";
 
 // Battle Royale: a one-off event, apart from the 1v1 matches. Three scenes of
 // its own:
@@ -115,12 +115,29 @@ export default class Battle {
 		if (engine && LIVE) this.bind(engine);
 		if (SIM) this.simulate();
 		this.loadPool();
+		this.followObs();
 		onEvent((type, name) => {
 			if (type !== "scene") return;
 			if (name === "br-winner") confetti();
 			if (name === "br-lobby") this.renderLobby(true);
 		});
 		this.renderAll();
+	}
+
+	// ---------- OBS ----------
+
+	// The overlay in OBS hears OBS's own scene changes. A Battle Royale scene
+	// on air ("TRC BR", "BR Sala"...) with the overlay still on a match scene
+	// would put the match's hit panel and scores over the sixteen clients:
+	// the overlay goes to the BR scene by itself, whatever the panel's
+	// "Seguir a OBS". A BR scene the operator picked is left as it is.
+	private followObs() {
+		window.addEventListener("obsSceneChanged", (event) => {
+			const name = String((event as CustomEvent<{ name?: string }>).detail?.name ?? "");
+			const scene = battleSceneFor(name);
+			if (!scene || document.body.dataset.scene?.startsWith("br-")) return;
+			goTo(scene);
+		});
 	}
 
 	// ---------- the panel ----------
@@ -712,6 +729,16 @@ export default class Battle {
 		}, 3500);
 		this.setWinner("Clippy");
 	}
+}
+
+// An OBS scene name -> the Battle Royale scene it shows, or null when it is
+// not a BR scene. As the panel's SceneSync.
+export function battleSceneFor(obsScene: string): BattleScene | null {
+	if (!/battle|royale|\bbr\b/i.test(obsScene)) return null;
+	if (/champ|campe|winner|ganador/i.test(obsScene)) return "br-winner";
+	if (/sala|lobby|empez|start|jugadores/i.test(obsScene)) return "br-lobby";
+	if (/pool|mapas|maps/i.test(obsScene)) return "br-pool";
+	return "br-gameplay";
 }
 
 // ---------- the winner's confetti ----------
