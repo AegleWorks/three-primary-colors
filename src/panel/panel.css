@@ -2597,3 +2597,10 @@ body[data-remote] [data-local] {
 }
 
 [data-mod="ex"] { --mod: #f2a5d0; }
+
+/* the mappool's clear button, up with the match controls: visible, red on
+   the first tap */
+.pool-clear {
+	border-color: color-mix(in srgb, var(--bad) 55%, transparent);
+	color: #ff9aa4;
+}

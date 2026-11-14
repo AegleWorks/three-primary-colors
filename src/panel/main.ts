@@ -646,28 +646,34 @@ function reloadPool() {
 }
 $("#poolReload").addEventListener("click", reloadPool);
 
-// Borrar todo: a second tap within four seconds does it, and it can still be undone.
-let resetArmed = 0;
-$("#draftReset").addEventListener("click", () => {
-	const b = $("#draftReset");
-	if (!state?.live) return;
-	if (Date.now() - resetArmed > 4000) {
-		resetArmed = Date.now();
-		b.textContent = t.resetConfirm;
-		b.dataset.armed = "";
-		setTimeout(() => {
-			b.textContent = t.resetDraft;
-			delete b.dataset.armed;
-		}, 4000);
-		return;
-	}
-	resetArmed = 0;
-	b.textContent = t.resetDraft;
-	delete b.dataset.armed;
-	const before = snapshot();
-	send({ action: "draftReset" });
-	toast(t.draftCleared, { undo: () => send({ action: "draftRestore", draft: before }) });
-});
+// Borrar todo: a second tap within four seconds does it, and it can still be
+// undone. Two buttons do it: the one at the top (Limpiar picks y bans) and
+// the one at the bottom of the draft.
+function armedReset(id: string, label: () => string) {
+	let armed = 0;
+	$(id).addEventListener("click", () => {
+		const b = $(id);
+		if (!state?.live) return;
+		if (Date.now() - armed > 4000) {
+			armed = Date.now();
+			b.textContent = t.resetConfirm;
+			b.dataset.armed = "";
+			setTimeout(() => {
+				b.textContent = label();
+				delete b.dataset.armed;
+			}, 4000);
+			return;
+		}
+		armed = 0;
+		b.textContent = label();
+		delete b.dataset.armed;
+		const before = snapshot();
+		send({ action: "draftReset" });
+		toast(t.draftCleared, { undo: () => send({ action: "draftRestore", draft: before }) });
+	});
+}
+armedReset("#draftReset", () => t.resetDraft);
+armedReset("#poolClear", () => t.poolClear);
 
 // ======================================================================
 // By hand: the series and who picks next
@@ -776,6 +782,7 @@ function renderDraft() {
 	const box = $("#draft");
 	box.innerHTML = "";
 	$("#draftReset").toggleAttribute("disabled", !state?.live);
+	$("#poolClear").toggleAttribute("disabled", !state?.live || (!state.draft.picks.length && !Object.keys(state.draft.bans).length));
 	if (!state) {
 		box.innerHTML = `<div class="empty"><b>${t.emptyWaiting}</b><span>${t.emptyWaitingDetail}</span></div>`;
 		return;
