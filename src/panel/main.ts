@@ -206,6 +206,11 @@ function checks(): Check[] {
 		else list.push({ id: "chat", label: "Chat", level: "wait", text: t.connecting });
 	}
 
+	if (state && !ROUNDS[state.round])
+		list.push({ id: "round", label: t.roundTitle, level: "bad", text: t.roundUnset, fix: t.fixRound, action: { label: t.pickRound, run: () => round.focus() } });
+	else if (sheetDiffers())
+		list.push({ id: "round", label: t.roundTitle, level: "warn", text: t.roundSheetDiffersShort(roundName(sheetDiffers()!.key)), fix: t.fixRoundSheet, action: { label: t.roundUseSheet(roundName(sheetDiffers()!.key)), run: () => $("#roundApply").click() } });
+
 	if (!REMOTE) {
 		const obsOn = document.querySelector<HTMLElement>("#obsStatusDot")?.dataset.on === "true";
 		list.push(
@@ -227,7 +232,7 @@ function checks(): Check[] {
 // The one thing that most needs doing, if any.
 function topIssue(list: Check[]): Check | null {
 	const version = $("#versionWarning").textContent;
-	const order = ["bridge", "overlay"];
+	const order = ["bridge", "overlay", "round"];
 	for (const id of order) {
 		const c = list.find((x) => x.id === id && (x.level === "bad" || x.level === "warn"));
 		if (c) return c;
@@ -302,8 +307,8 @@ function renderBar() {
 	$("#seriesNameR").textContent = name("r");
 	$("#seriesL").textContent = String(state.stars.l);
 	$("#seriesR").textContent = String(state.stars.r);
-	const round = ROUNDS[state.round];
-	$("#seriesFormat").textContent = t.seriesFormat(roundLabel(state.round, round?.name), m.bestOf, m.firstTo);
+	// the round itself is in its own picker, next to this
+	$("#seriesFormat").textContent = ROUNDS[state.round] ? t.seriesFormat(m.bestOf, m.firstTo) : "";
 	$("#legendL").textContent = name("l");
 	$("#legendR").textContent = name("r");
 }
@@ -954,21 +959,49 @@ if (import.meta.env.DEV) for (const [key, label] of SIM_KEYS) $("#simKeys").appe
 else $("#simBlock").remove();
 
 const round = $<HTMLSelectElement>("#round");
+// shown only while the overlay has no round
+const roundNone = new Option(t.roundPlaceholder, "");
+roundNone.disabled = true;
+round.add(roundNone);
 for (const [key, r] of Object.entries(ROUNDS)) round.add(new Option(`${roundLabel(key, r.name)} · BO${r.bestOf}`, key));
+const roundName = (key: string) => (ROUNDS[key] ? roundLabel(key, ROUNDS[key].name) : t.roundUnset);
 // Changing the round reloads the overlay: picking one only offers it, the
 // button does it.
+// the schedule's round for the match on screen, when the overlay has another
+const sheetDiffers = () => {
+	const sheet = state?.roundSheet;
+	return sheet && ROUNDS[sheet.key] && ROUNDS[state!.round] && sheet.key !== state!.round ? sheet : null;
+};
 function renderRound() {
-	const changing = Boolean(state && round.value !== state.round);
+	const unset = Boolean(state && !ROUNDS[state.round]);
+	const changing = Boolean(state && ROUNDS[round.value] && round.value !== state.round);
+	const differs = !changing ? sheetDiffers() : null;
+	const agrees = state?.roundSheet && state.roundSheet.key === state.round ? state.roundSheet : null;
+	roundNone.hidden = !unset;
 	const apply = $<HTMLButtonElement>("#roundApply");
-	apply.hidden = !changing;
-	apply.textContent = t.roundApplyTo(roundLabel(round.value, ROUNDS[round.value]?.name));
-	$("#roundHint").dataset.warn = String(changing);
-	$("#roundHint").innerHTML = changing ? t.roundHintChanging : t.roundHint;
+	apply.hidden = !changing && !differs;
+	apply.textContent = differs ? t.roundUseSheet(roundName(differs.key)) : t.roundApplyTo(roundName(round.value));
+	$("#roundPick").dataset.state = changing || differs ? "changing" : unset ? "unset" : "ok";
+	const hint = $("#roundHint");
+	hint.textContent = changing
+		? unset
+			? t.roundHintSetting(roundName(round.value))
+			: t.roundHintChanging(roundName(state!.round), roundName(round.value))
+		: differs
+			? t.roundSheetDiffers(roundName(differs.key), differs.players[0], differs.players[1], differs.id)
+			: unset
+				? t.roundHintUnset
+				: agrees
+					? t.roundSheetOk(agrees.id)
+					: "";
+	hint.hidden = !hint.textContent;
+	hint.dataset.tone = agrees && !changing ? "ok" : "";
 }
 round.addEventListener("change", renderRound);
 $("#roundApply").addEventListener("click", () => {
-	send({ action: "round", round: round.value });
-	toast(t.roundChanging(roundLabel(round.value, ROUNDS[round.value]?.name)));
+	const to = round.value !== state?.round && ROUNDS[round.value] ? round.value : (sheetDiffers()?.key ?? round.value);
+	send({ action: "round", round: to });
+	toast(t.roundChanging(roundName(to)));
 	$("#roundApply").hidden = true;
 });
 

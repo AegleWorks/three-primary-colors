@@ -36,15 +36,22 @@ let roundSaved = null;
 try {
 	roundSaved = legacy(localStorage.getItem(ROUND_KEY));
 } catch {}
-const roundKey = [roundSaved, roundParam].find((key) => ROUNDS[key]) ?? "f";
+// No round picked: nothing round-specific goes on air. It used to fall back to
+// the final, so a new source or a cleared cache put "Campeón de Rempalago 3"
+// and a BO13 on a round of 32. The panel asks for the round in red until one
+// is picked. The longest series (BO13) so a real score is never cut short.
+const UNSET = { name: "Rempalago 3", the: "el partido", bestOf: 13, bans: 2, title: "Gana el partido", short: "Ganador" };
+const roundKey = [roundSaved, roundParam].find((key) => ROUNDS[key]) ?? "";
+const round = ROUNDS[roundKey] ?? UNSET;
 export const ROUND = {
 	key: roundKey,
-	...ROUNDS[roundKey],
-	firstTo: Math.ceil(ROUNDS[roundKey].bestOf / 2),
-	next: ROUNDS[ROUNDS[roundKey].next] || null,
+	...round,
+	firstTo: Math.ceil(round.bestOf / 2),
+	next: ROUNDS[round.next] || null,
 	// a round with nothing after it crowns its winner instead of advancing them
-	isFinal: !ROUNDS[roundKey].next,
+	isFinal: !round.next,
 	isTitle: roundKey === "f",
+	unset: !ROUNDS[roundKey],
 };
 
 export const MATCH = {

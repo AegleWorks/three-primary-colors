@@ -304,7 +304,7 @@ function renderSeriesCopy(stars = MATCH.stars, last = "l") {
 	const champ = stars.l >= stars.r ? "l" : "r";
 	const BIND = {
 		round: ROUND.name,
-		format: ROUND.exhibition ? `Exhibición · best of ${ROUND.bestOf} · sin bans` : `Best of ${ROUND.bestOf} · primero a ${ROUND.firstTo} mapas`,
+		format: ROUND.unset ? "" : ROUND.exhibition ? `Exhibición · best of ${ROUND.bestOf} · sin bans` : `Best of ${ROUND.bestOf} · primero a ${ROUND.firstTo} mapas`,
 		crown: ROUND.isFinal ? ROUND.title : `Avanza a ${ROUND.next.the}`,
 		won: LIVE ? stars[champ] : ROAD.filter(([, w]) => w === "l").length,
 		lost: LIVE ? stars[champ === "l" ? "r" : "l"] : ROAD.filter(([, w]) => w === "r").length,
@@ -312,8 +312,10 @@ function renderSeriesCopy(stars = MATCH.stars, last = "l") {
 	$$("[data-bind]").forEach((el) => (el.textContent = BIND[el.dataset.bind]));
 	const toGo = ROUND.firstTo - stars[last];
 	const who = owner(last);
-	$("#matchpoint").textContent =
-		toGo <= 0 ? `${who} se lleva la serie` : toGo === 1 ? `Match point · ${who} está a un mapa ${prize}` : `${who} está a ${toGo} mapas ${prize}`;
+	// without a round the maps still to go aren't known: no count on air
+	$("#matchpoint").textContent = ROUND.unset
+		? `${who} gana el mapa`
+		: toGo <= 0 ? `${who} se lleva la serie` : toGo === 1 ? `Match point · ${who} está a un mapa ${prize}` : `${who} está a ${toGo} mapas ${prize}`;
 	for (const el of $$("[data-name=win]")) el.textContent = owner(champ);
 	for (const el of $$("[data-name=lose]")) el.textContent = owner(champ === "l" ? "r" : "l");
 	$$(".champ [data-pfp]").forEach((el) => (el.dataset.pfp = champ));

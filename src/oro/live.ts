@@ -9,10 +9,11 @@ import { avatar, chatBadges } from "../handler/TwitchUsers";
 import type { DraftEdit, DraftSnapshot, OverlayState } from "../control/ControlLink";
 import type { Beatmap, Data } from "../types";
 import { oro, type PoolMap } from "./oro.js";
-import { fetchSheetPool, type SheetRow } from "./sheet";
+import { BRACKET_SHEET, type BracketMatch, fetchBracket, findMatch } from "./bracket";
+import { fetchSheetPool, type SheetRef, type SheetRow } from "./sheet";
 import Sources from "./sources";
 import { fmtLength, freshLines, isNewMatch, isRecent, num, scoreWinner, seriesAfter, starGain, withMod } from "./match";
-import { DRAFT, ROUND, clock, ingest, liveState, onEvent, setSource, type MatchState, type Side } from "./stage.js";
+import { DRAFT, ROUND, clock, ingest, liveState, onEvent, saveRound, setSource, type MatchState, type Side } from "./stage.js";
 
 // Feeds the Oro broadcast from the live match: tosu for the players, scores,
 // map and lobby chat; data.json for the seeds, the Twitch channel and the
@@ -31,6 +32,8 @@ const host = window.location.hostname || "127.0.0.1";
 const MAP_REPLY_MS = 8000;
 // osu!'s menu state while the tournament manager is open
 const TOURNEY_STATE = 22;
+// the schedule is read again this often (matches get filled in as rounds end)
+const BRACKET_REFRESH_MS = 5 * 60_000;
 // a lobby this new (just joined or reconnected) brings its loaded map along:
 // that map is no pick unless the referee asked for it
 const LOBBY_SETTLE_MS = 3000;
@@ -298,6 +301,7 @@ export default class LiveOro {
 		// tosu frame the lobby title's name comes before the spectated one, and
 		// the old spectated name still on record hid the new match
 		this.checkNewMatch();
+		this.findRound();
 		if (spec.userID) oro.setPerson(side, { osuId: spec.userID });
 		// osu!'s profile first: the tourney client's own numbers are often 0
 		const who = spec.userID ? String(spec.userID) : name;
@@ -580,7 +584,59 @@ export default class LiveOro {
 		this.players = Object.fromEntries(Object.entries(json.players ?? {}).map(([name, info]) => [name.toLowerCase(), info]));
 		for (const side of SIDES) this.refreshPlayer(side);
 		this.startTwitch(json.twitch);
+		this.loadBracket((json as Data & { bracketSheet?: SheetRef }).bracketSheet ?? BRACKET_SHEET);
 		await this.loadPoolOrRetry(json);
+	}
+
+	// ---------- the round, from the tournament's schedule (bracket.ts) ----------
+
+	private bracket: BracketMatch[] = [];
+	// the schedule's match for the two players on screen, if any
+	private bracketMatch: BracketMatch | null = null;
+	bracketStatus = { ok: true, text: "" };
+	private bracketTimer: ReturnType<typeof setInterval> | null = null;
+
+	private async loadBracket(sheet: SheetRef) {
+		if (!this.bracketTimer) this.bracketTimer = setInterval(() => this.loadBracket(sheet), BRACKET_REFRESH_MS);
+		try {
+			this.bracket = await fetchBracket(sheet);
+			this.bracketStatus = this.bracket.length
+				? { ok: true, text: `${this.bracket.length} matches` }
+				: { ok: false, text: "no matches read from the schedule (its layout changed?)" };
+		} catch (e) {
+			// the round stays as it is: by hand, as before
+			console.error("[LiveOro] Failed to read the schedule:", (e as Error).message);
+			this.bracketStatus = { ok: false, text: (e as Error).message };
+		}
+		this.findRound();
+		this.onUpdate?.();
+	}
+
+	// The two players on screen, looked up in the schedule. An overlay with no
+	// round takes the schedule's at once (a reload, as from the panel); one
+	// with a round keeps it, and the panel offers the schedule's when they
+	// differ: a reload in the middle of a match is a person's call.
+	private findRound() {
+		const sides = SIDES.map((s) => [this.names[s], this.teamName[s], this.spectating[s].name ?? ""]) as [string[], string[]];
+		const match = this.bracket.length ? findMatch(this.bracket, sides) : null;
+		if (match?.id !== this.bracketMatch?.id || match?.round !== this.bracketMatch?.round) {
+			this.bracketMatch = match;
+			this.onUpdate?.();
+		}
+		if (!match || !ROUND.unset || this.roundApplied) return;
+		this.roundApplied = true;
+		console.info(`[LiveOro] No round picked; the schedule has ${match.p1} vs ${match.p2} (match ${match.id}) in ${match.round}: switching to it`);
+		saveRound(match.round);
+		const url = new URL(location.href);
+		url.searchParams.set("round", match.round);
+		location.href = url.toString();
+	}
+
+	private roundApplied = false;
+
+	get roundSheet() {
+		const m = this.bracketMatch;
+		return m ? { key: m.round, id: m.id, players: [m.p1, m.p2] as [string, string] } : null;
 	}
 
 	// Each load of the pool gets a number; only the latest one asked for may

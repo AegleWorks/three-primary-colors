@@ -44,6 +44,16 @@
 			<span class="who who--r" id="seriesNameR" data-i18n="right">Derecha</span>
 			<span class="series-format" id="seriesFormat"></span>
 		</div>
+		<!-- The round: what the whole overlay's copy, best-of and bans hang on.
+		     Up here, in sight; red until one is picked. -->
+		<div class="round-pick" id="roundPick" data-state="ok">
+			<label class="round-pick-field">
+				<span class="round-pick-label" id="roundPickLabel" data-i18n="roundTitle">Ronda</span>
+				<select id="round" aria-describedby="roundHint"></select>
+			</label>
+			<button type="button" class="btn btn--gold btn--small" id="roundApply" hidden data-i18n="roundApply">Cambiar</button>
+			<p class="round-pick-hint" id="roundHint" hidden></p>
+		</div>
 		<div class="lang-switch" data-lang-switch></div>
 		<ul class="health" id="health" aria-label="Estado de las conexiones" data-i18n-aria-label="healthLabel"></ul>
 	</header>
@@ -319,15 +329,6 @@
 					<h2 id="checkTitle" data-i18n="checkTitle">Antes de salir al aire</h2>
 					<p class="hint" data-i18n="checkHint">Se revisa solo. Cuando todo esté en verde, puedes transmitir.</p>
 					<ul class="checklist" id="checklist"></ul>
-				</section>
-
-				<section class="card-block" aria-labelledby="roundTitle">
-					<h2 id="roundTitle" data-i18n="roundTitle">Ronda</h2>
-					<div class="round-row">
-						<label class="field"><span data-i18n="roundField">Ronda del partido</span><select id="round"></select></label>
-						<button type="button" class="btn btn--gold" id="roundApply" hidden data-i18n="roundApply">Cambiar</button>
-					</div>
-					<p class="hint" id="roundHint" data-i18n-html="roundHint">Cambiar la ronda recarga el overlay. Para dejarla fija, ponla en la URL del source: <code>?round=sf</code>.</p>
 				</section>
 
 				<section class="card-block" aria-labelledby="sourcesTitle">

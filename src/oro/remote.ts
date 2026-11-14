@@ -214,6 +214,8 @@ export default class OverlayRemote {
 			draft: DRAFT,
 			draftAt: this.live?.draftState.at,
 			draftPlayers: this.live?.draftState.players,
+			roundSheet: this.live?.roundSheet ?? null,
+			bracketStatus: this.live?.bracketStatus,
 			showcase: oro.featured(),
 			poolStatus: this.live?.poolStatus ?? { ok: true, text: "" },
 			twitch: this.live?.twitch ?? { channels: [], channel: "", status: "off" },

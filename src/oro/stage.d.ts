@@ -45,7 +45,8 @@ export interface MatchState {
 
 export const LIVE: boolean;
 export const ROUNDS: Record<string, { name: string; bestOf: number }>;
-export const ROUND: { key: string; name: string; bestOf: number; firstTo: number };
+// key "" and unset: no round picked yet (round-neutral copy on air)
+export const ROUND: { key: string; name: string; bestOf: number; firstTo: number; unset: boolean };
 export const MATCH: { stars: Record<Side, number>; firstTo: number };
 export const DRAFT: Draft;
 

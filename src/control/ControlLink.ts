@@ -68,6 +68,10 @@ export interface OverlayState {
 	// while OBS was closed (absent from overlays older than it)
 	draftAt?: number;
 	draftPlayers?: string[];
+	// the round the tournament's schedule has for the two players on screen
+	// (null: no match found), and whether the schedule could be read
+	roundSheet?: { key: string; id: string; players: [string, string] } | null;
+	bracketStatus?: { ok: boolean; text: string };
 	// the pool slot the showcase features
 	showcase: string;
 	// where the pool came from, or what went wrong loading it

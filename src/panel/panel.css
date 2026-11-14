@@ -515,6 +515,97 @@ select:hover {
 	color: var(--dim);
 }
 
+/* The round, in the bar: framed in gold, red until one is picked, orange
+   while a change waits for its button. */
+.round-pick {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px 10px;
+	/* the hint wraps inside it rather than squeezing the score */
+	flex: 0 1 400px;
+	min-width: min(100%, 300px);
+	padding: 6px 8px 6px 12px;
+	border: 1px solid var(--line-hi);
+	border-radius: var(--radius);
+	background: var(--raise);
+}
+
+.round-pick-field {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+}
+
+.round-pick-label {
+	font-size: 11.5px;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--gold);
+}
+
+.round-pick select {
+	min-width: 0;
+	max-width: 100%;
+	padding: 6px 10px;
+	font: 900 17px/1.2 var(--display);
+	color: var(--gold-hi);
+	background: var(--ink);
+}
+
+.round-pick-hint {
+	flex: 1 1 100%;
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.4;
+	color: var(--soft);
+}
+
+.round-pick-hint[data-tone="ok"] {
+	color: var(--ok);
+}
+
+.round-pick[data-state="unset"] {
+	border-color: var(--bad);
+	background: color-mix(in srgb, var(--bad) 16%, var(--raise));
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 25%, transparent);
+	animation: round-alarm 1.1s ease-in-out infinite alternate;
+}
+
+.round-pick[data-state="unset"] .round-pick-label,
+.round-pick[data-state="unset"] .round-pick-hint {
+	color: #ff9aa6;
+}
+
+.round-pick[data-state="unset"] select {
+	color: var(--text);
+	border-color: var(--bad);
+}
+
+.round-pick[data-state="changing"] {
+	border-color: var(--warn);
+	background: color-mix(in srgb, var(--warn) 12%, var(--raise));
+}
+
+.round-pick[data-state="changing"] .round-pick-label,
+.round-pick[data-state="changing"] .round-pick-hint {
+	color: var(--warn);
+}
+
+@keyframes round-alarm {
+	to {
+		box-shadow: 0 0 0 6px color-mix(in srgb, var(--bad) 8%, transparent);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.round-pick[data-state="unset"] {
+		animation: none;
+	}
+}
+
 .health {
 	display: flex;
 	flex-wrap: wrap;
@@ -1821,21 +1912,6 @@ select:hover {
 .checklist [data-level="wait"] i { background: var(--wait); }
 .checklist [data-level="warn"] i { background: var(--warn); }
 .checklist [data-level="bad"] i { background: var(--bad); color: #fff; }
-
-.round-row {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-end;
-	gap: 8px;
-}
-
-.round-row .field {
-	flex: 1 1 200px;
-}
-
-#roundHint[data-warn="true"] {
-	color: var(--warn);
-}
 
 .sources-table table {
 	width: 100%;
