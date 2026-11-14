@@ -1,11 +1,12 @@
-import type ZEngine from "@fukutotojido/z-engine";
+import type { Callback } from "./TosuEngine";
+import type ZEngine from "./TosuEngine";
 
 export default class IPCClient {
 	idx: number;
 	engine: ZEngine;
 	callbacks: {
 		key: string,
-		callback: (key: string, value: string | number) => void
+		callback: Callback
 	}[] = [];
 
 	team = "";
@@ -20,8 +21,9 @@ export default class IPCClient {
 	h300 = 0;
 	grade = "SS";
 	UR = 0;
-	// slider breaks as tosu counts them
+	// slider breaks as tosu counts them, and whether tosu sends them at all
 	sb = 0;
+	hasSb = false;
 	mods = 0;
 
 	prevCombo = 0;
@@ -52,7 +54,7 @@ export default class IPCClient {
 		this.callbacks = IPCClient.VALUE_MAP.map(([ key, id ]) => {
 			const fullKey = `tourney.ipcClients.${this.idx}.${key}`;
 			// biome-ignore lint/suspicious/noExplicitAny: Var unused
-			const callback = (_: any, newValue: string | number | number[]) => this.updateValue(id, newValue);
+			const callback = (_: any, newValue: string | number | number[], data: any) => this.updateValue(id, newValue, data);
 			engine.register(fullKey, callback);
 
 			return {
@@ -68,16 +70,19 @@ export default class IPCClient {
 		}
 	}
 
-	updateValue(key: string, value: string | number | number[]) {
+	updateValue(key: string, value: string | number | number[], data?: any) {
 		if (key === "currentCombo") {
-			const num = Number(value);
-			// Sliderbreak detection: combo dropped without an h0 (miss) increment
-			if (num < this.prevCombo && this.h0 === this.prevH0 && this.prevCombo > 0) {
-				this.sliderbreaks++;
-			}
-			this.prevCombo = num;
-		} else if (key === "h0") {
-			this.prevH0 = this.h0;
+			const combo = Number(value);
+			// Slider break: the combo dropped and no miss came with it. The miss
+			// count is read from this same frame: tosu's keys are seen one by one
+			// and the combo comes before the misses, so comparing with the miss
+			// count already stored took every miss for a slider break.
+			const misses = Number(data?.tourney?.ipcClients?.[this.idx]?.gameplay?.hits?.[0] ?? this.h0) || 0;
+			if (combo < this.prevCombo && this.prevCombo > 0 && misses <= this.prevH0) this.sliderbreaks++;
+			this.prevCombo = combo;
+			this.prevH0 = misses;
+		} else if (key === "sb") {
+			this.hasSb = value !== undefined && value !== null;
 		} else if (key === "score" && Number(value) === 0) {
 			// Map restart or new match reset
 			this.sliderbreaks = 0;

@@ -3,6 +3,7 @@ import * as http from "node:http";
 import * as net from "node:net";
 import * as path from "node:path";
 import { WebSocket, WebSocketServer } from "ws";
+import { OverlayPresence } from "./presence";
 import RemoteLink from "./RemoteLink";
 import { handleOsuTop } from "./osuTop";
 
@@ -516,7 +517,7 @@ export class DiscordIPCBridge {
 				console.log(`[DiscordBridge] Active voice session routed to: ${session.path} (Channel ${channelId})`);
 				this.activeSession = session;
 			}
-			this.state.currentChannelId = channelId;
+			this.switchChannel(channelId);
 			this.state.connectedToDiscord = true;
 			this.updateRosterFromVoiceStates(voiceStates);
 		} else if (this.activeSession === session) {
@@ -528,7 +529,7 @@ export class DiscordIPCBridge {
 			if (otherWithVoice) {
 				console.log(`[DiscordBridge] Active voice session switching to: ${otherWithVoice.path}`);
 				this.activeSession = otherWithVoice;
-				this.state.currentChannelId = otherWithVoice.currentChannelId;
+				this.switchChannel(otherWithVoice.currentChannelId);
 				otherWithVoice.queryVoiceChannel();
 			} else {
 				this.activeSession = null;
@@ -539,11 +540,21 @@ export class DiscordIPCBridge {
 		}
 	}
 
+	// Another channel: the old one's SPEAKING_STOP events no longer arrive (its
+	// subscription is gone), so whoever was talking there stayed lit on the
+	// overlay. Nobody is talking until the new channel says so.
+	private switchChannel(channelId: string | null) {
+		if (channelId === this.state.currentChannelId) return;
+		this.state.currentChannelId = channelId;
+		for (const user of this.state.users.values()) user.isSpeaking = false;
+		this.broadcastRoster();
+	}
+
 	private recalculateActiveSession() {
 		const withVoice = Array.from(this.sessions.values()).find((s) => s.currentChannelId !== null);
 		if (withVoice) {
 			this.activeSession = withVoice;
-			this.state.currentChannelId = withVoice.currentChannelId;
+			this.switchChannel(withVoice.currentChannelId);
 			withVoice.queryVoiceChannel();
 		} else {
 			this.activeSession = null;
@@ -803,10 +814,21 @@ export class DiscordIPCBridge {
 					channelId: this.state.currentChannelId,
 					users: Array.from(this.state.users.values()),
 				});
-				// A control panel that joins late gets the overlay's last state.
-				if (this.overlayState) ws.send(this.overlayState);
+				// A control panel that joins late gets the state of every overlay
+				// connected now (or, with none, the last one heard).
+				const states = this.presence.states();
+				for (const state of states.length ? states : this.overlayState ? [this.overlayState] : []) ws.send(state);
 				this.sendToClient(ws, this.remote.status);
 				ws.on("message", (data) => this.relay(ws, String(data)));
+				// an overlay's socket closing is that overlay gone: everyone hears
+				// it now, not after ten seconds without its heartbeat
+				ws.on("close", () => {
+					const id = this.presence.closed(ws);
+					if (!id) return;
+					const gone = JSON.stringify({ type: "overlay_gone", id });
+					this.toOverlay(gone);
+					this.remote.forward(gone);
+				});
 			});
 		});
 	}
@@ -816,6 +838,7 @@ export class DiscordIPCBridge {
 	// through this server. Panel commands go to every other client; the
 	// overlay's state goes to every other client and is kept for late joiners.
 	private overlayState: string | null = null;
+	private presence = new OverlayPresence<WebSocket>();
 	private panels = new Set<WebSocket>();
 	// Remote panels, reached through the relay; off until a panel here turns it on.
 	private remote = new RemoteLink(
@@ -836,7 +859,7 @@ export class DiscordIPCBridge {
 	}
 
 	private relay(from: WebSocket, raw: string) {
-		let message: { type?: unknown; on?: unknown };
+		let message: { type?: unknown; on?: unknown; id?: unknown };
 		try {
 			message = JSON.parse(raw);
 		} catch {
@@ -847,6 +870,7 @@ export class DiscordIPCBridge {
 		if (type !== "control" && type !== "overlay_state") return;
 		if (type === "overlay_state") {
 			this.overlayState = raw;
+			this.presence.stated(from, String(message.id ?? ""), raw);
 			this.remote.forward(raw);
 		}
 		if (!this.wss) return;

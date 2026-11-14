@@ -18,9 +18,25 @@ export { ROUNDS };
 // false in a production build, so the bundler drops it.
 export const LIVE = !(import.meta.env.DEV && new URLSearchParams(location.search).has("sim"));
 const SIM = import.meta.env.DEV && !LIVE;
-// the first round used to be the round of 64: an old ?round=ro64 is the 48 now
-const roundParam = new URLSearchParams(location.search).get("round")?.replace(/^ro64$/, "ro48");
-const roundKey = ROUNDS[roundParam] ? roundParam : "f";
+// The round picked in the panel is kept here, not only in the URL: OBS keeps
+// the URL the browser source was created with, so after an OBS restart or a
+// source refresh the overlay used to fall back to that round (the final, by
+// default) and to that round's draft. The URL's ?round only counts until a
+// round has been picked.
+const ROUND_KEY = "round";
+export function saveRound(key) {
+	try {
+		localStorage.setItem(ROUND_KEY, key);
+	} catch {}
+}
+// the first round used to be the round of 64: an old ro64 is the 48 now
+const legacy = (key) => key?.replace(/^ro64$/, "ro48");
+const roundParam = legacy(new URLSearchParams(location.search).get("round"));
+let roundSaved = null;
+try {
+	roundSaved = legacy(localStorage.getItem(ROUND_KEY));
+} catch {}
+const roundKey = [roundSaved, roundParam].find((key) => ROUNDS[key]) ?? "f";
 export const ROUND = {
 	key: roundKey,
 	...ROUNDS[roundKey],
@@ -196,6 +212,8 @@ function reset() {
 // Live data: a source fills the state each frame in place of the simulation.
 let source = null;
 export const setSource = (fn) => (source = fn);
+// The match state itself, for a source that samples outside the animation loop.
+export const liveState = () => state;
 
 // One player's numbers from the live source. A combo that falls while the
 // miss count rises is a break; listeners hear it while the state still
@@ -305,15 +323,40 @@ let transition = null;
 let transitioning = false;
 export const setTransition = (fn) => (transition = fn);
 
+// A scene asked for while the stinger runs used to be dropped, leaving the
+// overlay on the old scene when OBS switched twice in a row. The latest one
+// asked for waits and plays once the stinger is done.
+let queued = null;
+// A stinger whose animations never finish (the source hidden mid-run) must
+// not hold every later scene change hostage.
+const TRANSITION_LIMIT_MS = 6000;
+
 export async function goTo(name) {
-	if (transitioning || document.body.dataset.scene === name) return;
+	if (transitioning) {
+		queued = name;
+		return;
+	}
+	if (document.body.dataset.scene === name) return;
 	if (!transition || document.documentElement.classList.contains("shot")) return setScene(name);
 	transitioning = true;
+	let swapped = false;
+	const swap = () => {
+		if (swapped) return;
+		swapped = true;
+		setScene(name);
+	};
 	try {
-		await transition(() => setScene(name), name);
+		await Promise.race([transition(swap, name), new Promise((r) => setTimeout(r, TRANSITION_LIMIT_MS))]);
+	} catch (e) {
+		console.warn("[stage] Scene transition failed:", e);
 	} finally {
+		// whatever happened to the stinger, the scene asked for is the one shown
+		swap();
 		transitioning = false;
 	}
+	const next = queued;
+	queued = null;
+	if (next && next !== document.body.dataset.scene) goTo(next);
 }
 
 function buildSwitcher(extraHint, labels) {
@@ -338,6 +381,7 @@ function buildSwitcher(extraHint, labels) {
 	round.setAttribute("aria-label", "Ronda");
 	for (const [key, r] of Object.entries(ROUNDS)) round.add(new Option(`${r.name} · BO${r.bestOf}`, key, false, key === ROUND.key));
 	round.addEventListener("change", () => {
+		saveRound(round.value);
 		const url = new URL(location.href);
 		url.searchParams.set("round", round.value);
 		url.searchParams.set("scene", document.body.dataset.scene);

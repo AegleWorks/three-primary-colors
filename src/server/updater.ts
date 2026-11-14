@@ -21,7 +21,7 @@ const DOWNLOAD_MS = 180_000;
 
 type Release = { tag_name: string; assets: { name: string; browser_download_url: string; digest?: string }[] };
 
-function isNewer(tag: string) {
+export function isNewer(tag: string) {
 	const parts = (text: string) => text.replace(/^v/, "").split(".").map(Number);
 	const [next, now] = [parts(tag), parts(version)];
 	for (let i = 0; i < Math.max(next.length, now.length); i++) {
@@ -54,18 +54,58 @@ function extract(zip: string, into: string) {
 	if (status !== 0) throw new Error("no se pudo descomprimir el zip");
 }
 
+// The overlay's folder is swapped whole, not copied over file by file: a copy
+// that failed halfway (a file held by tosu, OneDrive or an antivirus) left a
+// new index.html next to the old scripts, an overlay of two versions that
+// broke in odd ways. The new folder is built next to the old one with the
+// organiser's data.json, then the two trade places by renaming. Only when
+// Windows won't rename (something holds the folder) does it fall back to
+// copying over, as before.
+export function installOverlay(root: string, staged: string) {
+	const live = path.join(root, "static", "vcl-overlay");
+	const fresh = path.join(root, "static", "vcl-overlay.new");
+	const old = path.join(root, "static", "vcl-overlay.old");
+	const userFile = path.join(root, USER_FILE);
+	fs.rmSync(fresh, { recursive: true, force: true });
+	fs.rmSync(old, { recursive: true, force: true });
+	fs.mkdirSync(path.dirname(live), { recursive: true });
+	fs.cpSync(path.join(staged, "static", "vcl-overlay"), fresh, { recursive: true });
+	if (fs.existsSync(userFile)) fs.copyFileSync(userFile, path.join(fresh, "data.json"));
+	// anything else someone (or tosu) left at the top of the folder stays too
+	if (fs.existsSync(live)) {
+		for (const entry of fs.readdirSync(live, { withFileTypes: true })) {
+			const to = path.join(fresh, entry.name);
+			if (entry.isFile() && !fs.existsSync(to)) fs.copyFileSync(path.join(live, entry.name), to);
+		}
+	}
+	if (!fs.existsSync(live)) {
+		fs.renameSync(fresh, live);
+		return;
+	}
+	try {
+		fs.renameSync(live, old);
+	} catch {
+		console.warn("  La carpeta del overlay está en uso; copio los archivos encima.");
+		fs.cpSync(fresh, live, { recursive: true, force: true });
+		fs.rmSync(fresh, { recursive: true, force: true });
+		return;
+	}
+	try {
+		fs.renameSync(fresh, live);
+	} catch (err) {
+		fs.renameSync(old, live);
+		throw err;
+	}
+	fs.rmSync(old, { recursive: true, force: true });
+}
+
 function install(root: string, staged: string) {
 	const exe = process.execPath;
 	const fresh = path.join(staged, "rempalago-bridge.exe");
 	const overlay = path.join(staged, "static", "vcl-overlay", "index.html");
 	if (!fs.existsSync(fresh) || !fs.existsSync(overlay)) throw new Error("al zip le faltan archivos");
 
-	const userFile = path.join(root, USER_FILE);
-	fs.cpSync(path.join(staged, "static"), path.join(root, "static"), {
-		recursive: true,
-		force: true,
-		filter: (_, to) => !(path.resolve(to) === path.resolve(userFile) && fs.existsSync(userFile)),
-	});
+	installOverlay(root, staged);
 	fs.copyFileSync(path.join(staged, "LEEME.md"), path.join(root, "LEEME.md"));
 
 	// last, so a failure above leaves this version to try again next start

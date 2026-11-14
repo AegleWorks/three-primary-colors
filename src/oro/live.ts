@@ -1,17 +1,18 @@
-import type ZEngine from "@fukutotojido/z-engine";
-import axios from "axios";
+import type ZEngine from "../handler/TosuEngine";
+import { http, isNotFound } from "./http";
 import IPCClient from "../handler/IPCClient";
 import { banchoReply, isBanchoReply } from "./bancho";
 import { decidePick } from "./autopick";
 import type CasterHandler from "../handler/CasterHandler";
 import TwitchChat, { type TwitchStatus } from "../handler/TwitchChat";
 import { avatar, chatBadges } from "../handler/TwitchUsers";
-import type { DraftEdit, DraftSnapshot } from "../control/ControlLink";
+import type { DraftEdit, DraftSnapshot, OverlayState } from "../control/ControlLink";
 import type { Beatmap, Data } from "../types";
 import { oro, type PoolMap } from "./oro.js";
 import { fetchSheetPool, type SheetRow } from "./sheet";
 import Sources from "./sources";
-import { DRAFT, ROUND, clock, ingest, onEvent, setSource, type MatchState, type Side } from "./stage.js";
+import { fmtLength, freshLines, isNewMatch, isRecent, num, scoreWinner, seriesAfter, starGain, withMod } from "./match";
+import { DRAFT, ROUND, clock, ingest, liveState, onEvent, setSource, type MatchState, type Side } from "./stage.js";
 
 // Feeds the Oro broadcast from the live match: tosu for the players, scores,
 // map and lobby chat; data.json for the seeds, the Twitch channel and the
@@ -33,37 +34,9 @@ const TOURNEY_STATE = 22;
 // a lobby this new (just joined or reconnected) brings its loaded map along:
 // that map is no pick unless the referee asked for it
 const LOBBY_SETTLE_MS = 3000;
-// A lobby line stamped (HH:MM, the client's clock) within the last two
-// minutes. Older ones are history, even when tosu only now hands them over.
-const recent = (time: string) => {
-	const [h, m] = time.split(":").map(Number);
-	if (!Number.isFinite(h) || !Number.isFinite(m)) return true;
-	const now = new Date();
-	const diff = (now.getHours() * 60 + now.getMinutes() - (h * 60 + m) + 1440) % 1440;
-	return diff <= 2;
-};
-const fmtLength = (ms: number) => {
-	const s = Math.round(ms / 1000);
-	return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
-};
-
-// A map's numbers with its slot's mod (HR, DT/NC, EZ, HT); other slots as they are.
-const round1 = (n: number) => Math.round(n * 10) / 10;
-function withMod(slot: string, m: { bpm: number; ar: number; od: number; cs: number; seconds: number }) {
-	const mod = slot.replace(/\d+$/, "").toUpperCase();
-	let { ar, od, cs } = m;
-	if (mod === "HR") [ar, od, cs] = [Math.min(10, ar * 1.4), Math.min(10, od * 1.4), Math.min(10, cs * 1.3)];
-	if (mod === "EZ") [ar, od, cs] = [ar / 2, od / 2, cs / 2];
-	const rate = mod === "DT" || mod === "NC" ? 1.5 : mod === "HT" ? 0.75 : 1;
-	if (rate !== 1) {
-		// AR and OD by their timing windows, sped up
-		const arMs = (ar < 5 ? 1800 - 120 * ar : 1200 - 150 * (ar - 5)) / rate;
-		ar = arMs > 1200 ? (1800 - arMs) / 120 : 5 + (1200 - arMs) / 150;
-		od = (80 - (80 - 6 * od) / rate) / 6;
-	}
-	return { bpm: Math.round(m.bpm * rate), ar: round1(ar), od: round1(od), cs: round1(cs), seconds: m.seconds / rate };
-}
-
+// a profile or a pool that failed to load is asked for again after this long
+const PROFILE_RETRY_MS = 15_000;
+const POOL_RETRY_MS = 20_000;
 export default class LiveOro {
 	private clients: IPCClient[];
 	private pool: PoolMap[] = [];
@@ -102,51 +75,67 @@ export default class LiveOro {
 	}
 
 	private bindScores() {
-		setSource((state) => {
-			this.last = state;
-			for (const side of SIDES) {
-				const c = this.client(side);
-				if (!c) continue;
-				// Cleared from the panel: tosu keeps the last play's numbers
-				// after the song, so they read as 0 until they change (a new play).
-				const held = this.cleared[side];
-				if (held !== undefined) {
-					if (held === this.playKey(c)) {
-						ingest(side, { score: 0, combo: 0, maxCombo: 0, acc: 100, miss: 0, n100: 0, n50: 0, sb: 0, ur: 0 });
-						continue;
-					}
-					delete this.cleared[side];
+		// Sampled on every tosu frame, and on every animation frame while the
+		// overlay is drawn (the same numbers twice are a no-op): the map's end
+		// and the result's numbers no longer depend on the source being painted.
+		setSource((state) => this.sample(state));
+		this.engine.onFrame(() => this.sample(liveState()));
+		this.bindScoreKeys();
+	}
+
+	private sample(state: MatchState) {
+		this.last = state;
+		for (const side of SIDES) {
+			const c = this.client(side);
+			if (!c) continue;
+			// Cleared from the panel: tosu keeps the last play's numbers
+			// after the song, so they read as 0 until they change (a new play).
+			const held = this.cleared[side];
+			if (held !== undefined) {
+				if (held === this.playKey(c)) {
+					ingest(side, { score: 0, combo: 0, maxCombo: 0, acc: 100, miss: 0, n100: 0, n50: 0, sb: 0, ur: 0 });
+					continue;
 				}
-				ingest(side, {
-					score: Number(c.score) || 0,
-					combo: Number(c.currentCombo) || 0,
-					maxCombo: Number(c.maxCombo) || 0,
-					acc: Number(c.accuracy) || 100,
-					miss: Number(c.h0) || 0,
-					n100: Number(c.h100) || 0,
-					n50: Number(c.h50) || 0,
-					// tosu's count, else the client's own guess from combo drops
-					sb: Number(c.sb) || c.sliderbreaks || 0,
-					ur: Number(c.UR) || 0,
-				});
+				delete this.cleared[side];
 			}
-			if (this.playing) {
-				const { current, full } = this.time;
-				if (!this.clockArmed && full > 0 && current < full) this.clockArmed = true;
-				if (this.clockArmed) clock(current / 1000, full / 1000);
-			}
-		});
+			ingest(side, {
+				score: num(c.score),
+				combo: num(c.currentCombo),
+				maxCombo: num(c.maxCombo),
+				// a real 0% stays 0% (it used to read as 100)
+				acc: num(c.accuracy, 100),
+				miss: num(c.h0),
+				n100: num(c.h100),
+				n50: num(c.h50),
+				// tosu's count when it sends one (0 included), else the client's guess
+				sb: c.hasSb ? num(c.sb) : c.sliderbreaks,
+				ur: num(c.UR),
+			});
+		}
+		if (this.playing) {
+			const { current, full } = this.time;
+			if (!this.clockArmed && full > 0 && current < full) this.clockArmed = true;
+			if (this.clockArmed) clock(current / 1000, full / 1000);
+		}
+	}
+
+	private bindScoreKeys() {
 		this.engine.register("menu.bm.time.current", (_, v: number) => (this.time.current = Number(v) || 0));
 		this.engine.register("menu.bm.time.full", (_, v: number) => (this.time.full = Number(v) || 0));
 		this.engine.register("tourney.manager.bools.scoreVisible", (_, v: boolean) => {
 			this.playing = Boolean(v);
-			// a new play starts the clock unarmed again (see clockArmed)
-			if (this.playing) this.clockArmed = false;
+			// a new play starts the clock unarmed again (see clockArmed), and
+			// the series as it stands is what this map's result adds to
+			if (this.playing) {
+				this.clockArmed = false;
+				this.mapPlayed = true;
+				this.starsAtPlay = { ...this.osuStars };
+			}
 			// the automatic pick is being played: it stays
 			if (this.playing && this.autoPick?.id === this.current.id) this.autoPick = null;
 			oro.setChatMode(this.playing ? "playing" : "lobby");
 		});
-		onEvent((type, side) => type === "end" && this.mapEnded(side as Side));
+		onEvent((type) => type === "end" && this.mapEnded());
 	}
 
 	// From the panel: both players' numbers back to 0 once the song is over.
@@ -163,27 +152,62 @@ export default class LiveOro {
 		}
 	}
 
-	// A finished map: its winner takes the pick, the result screen gets the
-	// numbers. tosu's stars may not have moved yet, so the winner's is counted.
-	private mapEnded(winner: Side) {
+	// The map in play has been played (scores were on screen) since it loaded:
+	// only then can osu!'s stars going up be this map's result.
+	private mapPlayed = false;
+	// The stars as osu! counts them, apart from `stars` (which the panel can
+	// set by hand), and as they were when the map in play started.
+	private osuStars: Record<Side, number> = { l: 0, r: 0 };
+	private starsAtPlay: Record<Side, number> = { l: 0, r: 0 };
+
+	// The song is over: a first call on the winner from the scores, so the
+	// result screen doesn't wait. osu!'s stars confirm or correct it (onStars).
+	private mapEnded() {
 		const s = this.last;
 		if (!s) return;
-		// A tie (0-0 above all: no scores came in) names nobody; the operator
-		// marks the winner in the panel instead of the overlay guessing left.
-		if (Math.round(s.score.l) === Math.round(s.score.r)) {
-			console.warn(`[LiveOro] Map ${DRAFT.current || "?"} ended ${Math.round(s.score.l)}-${Math.round(s.score.r)}: no winner marked`);
+		const winner = scoreWinner(s.score);
+		// A tie (0-0 above all: no scores came in) names nobody here; osu!'s
+		// stars or the operator do.
+		if (!winner) {
+			console.warn(`[LiveOro] Map ${DRAFT.current || "?"} ended ${Math.round(s.score.l)}-${Math.round(s.score.r)}: waiting for osu!'s stars`);
 			return;
 		}
+		this.markWinner(winner, "score");
+	}
+
+	// osu!'s tourney client counted a map for `side`. It is the authority: the
+	// score read the moment the clock crossed the map's end can be a frame
+	// short of the last notes (a spinner, a slider end), and a close map was
+	// then given to the wrong player.
+	private onStars(side: Side, before: unknown, after: unknown) {
+		this.osuStars[side] = num(after);
+		if (!starGain(before, after) || !this.mapPlayed) return;
+		this.markWinner(side, "osu");
+	}
+
+	private markWinner(winner: Side, by: "score" | "osu") {
+		// a mirror shows the OBS overlay's result, it doesn't make its own
+		if (this.mirroring) return;
 		const slot = DRAFT.current;
 		const pick = DRAFT.picks.find((p) => p.id === slot);
-		if (pick) pick.won = winner;
-		if (slot === "TB") DRAFT.tbWon = winner;
-		this.saveDraft();
-		oro.draftChanged();
+		const was = slot === "TB" ? DRAFT.tbWon : pick?.won;
+		if (was && was !== winner && by === "osu") console.warn(`[LiveOro] Map ${slot} was marked for ${was}; osu! counted it for ${winner}: corrected`);
+		// osu! said so already: a late score-based call doesn't undo it
+		if (by === "score" && this.decidedByOsu) return;
+		this.decidedByOsu = by === "osu";
+		if (was !== winner) {
+			if (pick) pick.won = winner;
+			if (slot === "TB") DRAFT.tbWon = winner;
+			this.saveDraft();
+			oro.draftChanged();
+		}
+		const s = this.last;
+		if (!s) return;
 		const numbers = (side: Side) => ({ score: Math.round(s.score[side]), acc: s.acc[side], maxCombo: s.maxCombo[side], miss: s.miss[side] });
-		const stars = { ...this.stars, [winner]: this.stars[winner] + 1 };
-		oro.setResult({ winner, stars, l: numbers("l"), r: numbers("r") });
+		oro.setResult({ winner, stars: seriesAfter(this.starsAtPlay, winner, ROUND.firstTo), l: numbers("l"), r: numbers("r") });
 	}
+
+	private decidedByOsu = false;
 
 	// ---------- players: names, avatars, ranks, seeds, stars ----------
 
@@ -194,8 +218,9 @@ export default class LiveOro {
 				this.teamName[side] = String(name ?? "").trim();
 				this.refreshPlayer(side);
 			});
-			this.engine.register(`tourney.manager.stars.${team}`, (_, n: number) => {
-				this.stars[side] = Number(n) || 0;
+			this.engine.register(`tourney.manager.stars.${team}`, (before, n: number) => {
+				this.onStars(side, before, n);
+				this.stars[side] = num(n);
 				oro.setStars({ ...this.stars });
 				this.onUpdate?.();
 			});
@@ -220,6 +245,36 @@ export default class LiveOro {
 		}
 	}
 
+	// The players the saved draft was started with, under every name they went
+	// by then (the lobby title's and the spectated player's). The draft is kept
+	// per round so a refresh mid-match doesn't lose it, which also meant the
+	// next match of the round started with the last one's picks and bans (and
+	// autopick and the pick order went wrong) unless someone reset it by hand.
+	// None of those names on screen any more: a new match, a new draft. The
+	// list is only set when a draft starts, never followed name by name: the
+	// two new names arrive one side at a time, and following them made the
+	// first new name "known" by the time the second one came.
+	private draftPlayers: string[] = [];
+
+	private playerAliases(): Set<string> | null {
+		if (SIDES.some((s) => !this.names[s])) return null;
+		return new Set(SIDES.flatMap((s) => [this.names[s], this.teamName[s], this.spectating[s].name ?? ""].map((n) => n.trim().toLowerCase())).filter(Boolean));
+	}
+
+	private checkNewMatch() {
+		if (this.mirroring) return;
+		const known = this.playerAliases();
+		if (!known) return;
+		if (!this.draftPlayers.length) {
+			this.draftPlayers = [...known];
+			this.saveDraft();
+			return;
+		}
+		if (!isNewMatch(this.draftPlayers, known)) return;
+		console.info(`[LiveOro] New match (${[...known].join(", ")}; the draft was ${this.draftPlayers.join(", ")}): draft reset`);
+		this.resetDraft();
+	}
+
 	private teamName: Record<Side, string> = { l: "", r: "" };
 	names: Record<Side, string> = { l: "", r: "" };
 
@@ -235,6 +290,10 @@ export default class LiveOro {
 			oro.setPerson(side, { name });
 			this.onUpdate?.();
 		}
+		// on every refresh, not only when the name shown changes: within one
+		// tosu frame the lobby title's name comes before the spectated one, and
+		// the old spectated name still on record hid the new match
+		this.checkNewMatch();
 		if (spec.userID) oro.setPerson(side, { osuId: spec.userID });
 		// osu!'s profile first: the tourney client's own numbers are often 0
 		const who = spec.userID ? String(spec.userID) : name;
@@ -268,7 +327,7 @@ export default class LiveOro {
 		const key = who.toLowerCase();
 		this.profiles.set(key, null);
 		try {
-			const user = (await axios.get(`https://api.try-z.net/users/${encodeURIComponent(who)}/osu`)).data;
+			const user = (await http.get(`https://api.try-z.net/users/${encodeURIComponent(who)}/osu`)).data;
 			const stats = user?.statistics;
 			this.profiles.set(key, {
 				id: user?.id ?? undefined,
@@ -284,14 +343,29 @@ export default class LiveOro {
 		} catch (e) {
 			// osu! has no such player (banned, renamed): asked no more, shown
 			// by name alone. Any other failure: the next change tries again.
-			if (axios.isAxiosError(e) && e.response?.status === 404) {
+			if (isNotFound(e)) {
 				this.profiles.set(key, {});
 				if (key === this.replayName.toLowerCase()) this.showReplayer();
 				return;
 			}
+			// Any other failure (try-z down or slow) is tried again on its own:
+			// waiting for "the next change" left a player without rank or banner
+			// for the whole match.
 			this.profiles.delete(key);
 			console.error(`[LiveOro] Failed to read ${who}'s osu! profile:`, (e as Error).message);
+			this.retryProfiles();
 		}
+	}
+
+	private profileRetry: ReturnType<typeof setTimeout> | null = null;
+
+	private retryProfiles() {
+		if (this.profileRetry) return;
+		this.profileRetry = setTimeout(() => {
+			this.profileRetry = null;
+			for (const s of SIDES) this.refreshPlayer(s);
+			this.showReplayer();
+		}, PROFILE_RETRY_MS);
 	}
 
 	// ---------- the map in play ----------
@@ -337,7 +411,7 @@ export default class LiveOro {
 			ar: Number(Number(bm.stats?.AR).toFixed(1)) || 0,
 			od: Number(Number(bm.stats?.OD).toFixed(1)) || 0,
 			cs: Number(Number(bm.stats?.CS).toFixed(1)) || 0,
-			len: fmtLength(Number(bm.time?.full) || 0),
+			len: fmtLength(num(bm.time?.full)),
 			// A pool map shows the pool's numbers, with its slot's mod applied
 			// (the tourney client reads the map without mods).
 			...(slot ? { sr: slot.sr, bpm: slot.bpm, ar: slot.ar, od: slot.od, cs: slot.cs, len: slot.len } : {}),
@@ -346,6 +420,9 @@ export default class LiveOro {
 		// names the map that really came up, not the one in the command.
 		if (bm.id !== this.lastBeatmapId) {
 			this.lastBeatmapId = bm.id;
+			// another map: nothing has been played on it yet
+			this.mapPlayed = this.playing;
+			this.decidedByOsu = false;
 			// A new map disarms the clock too: after an !mp abort tosu keeps
 			// scoreVisible on and the old time frozen, which on a shorter map
 			// would read as that map already finished.
@@ -371,7 +448,7 @@ export default class LiveOro {
 		const asked = Date.now() - this.mapAskedAt < MAP_REPLY_MS;
 		const inLobby = data?.menu?.state === TOURNEY_STATE;
 		const settled = Date.now() - this.lobbySince > LOBBY_SETTLE_MS;
-		const decided = slot ? decidePick(DRAFT.picks, DRAFT.bans, slot.id, { inLobby, asked, settled, autoPick: this.autoPick, nextPicker: this.nextPicker() }) : null;
+		const decided = slot && !this.mirroring ? decidePick(DRAFT.picks, DRAFT.bans, slot.id, { inLobby, asked, settled, autoPick: this.autoPick, nextPicker: this.nextPicker() }) : null;
 		if (decided) {
 			DRAFT.picks = decided.picks;
 			this.autoPick = decided.autoPick;
@@ -432,15 +509,7 @@ export default class LiveOro {
 	private readChat(chat: Chat[]) {
 		// a frame without the chat (tosu between reads) says nothing
 		if (!chat.length) return;
-		const counts = new Map<string, number>();
-		const fresh: Chat[] = [];
-		for (const line of chat) {
-			const key = `${line.time}|${line.name}|${line.messageBody}`;
-			const n = (counts.get(key) ?? 0) + 1;
-			counts.set(key, n);
-			if (n > (this.chatSeen.get(key) ?? 0)) fresh.push(line);
-		}
-		for (const [key, n] of counts) this.chatSeen.set(key, Math.max(n, this.chatSeen.get(key) ?? 0));
+		const fresh = freshLines(this.chatSeen, chat);
 		// The lobby's history on load is shown but not acted on: an old
 		// "!mp timer" must not start the clock now.
 		const history = !this.chatLoaded;
@@ -448,7 +517,7 @@ export default class LiveOro {
 		for (const line of fresh) {
 			const bot = line.team === "bot" || line.name === "BanchoBot";
 			if (bot && isBanchoReply(line.messageBody)) this.realBancho = true;
-			const act = !history && recent(line.time);
+			const act = !history && isRecent(line.time, new Date());
 			oro.chat(line.name, this.chatSide(line, bot), line.messageBody, line.time, act);
 			const askedMap = act && !bot && /^!mp\s+map\b/i.test(line.messageBody.trim());
 			if (askedMap) this.mapAskedAt = Date.now();
@@ -493,16 +562,42 @@ export default class LiveOro {
 	// ---------- data.json: pool, seeds, Twitch ----------
 
 	private async loadData() {
+		let json: Data;
 		try {
-			const json: Data = (await axios.get("./data.json")).data;
-			this.players = Object.fromEntries(Object.entries(json.players ?? {}).map(([name, info]) => [name.toLowerCase(), info]));
-			for (const side of SIDES) this.refreshPlayer(side);
-			this.startTwitch(json.twitch);
-			await this.loadPool(json);
+			json = (await http.get("./data.json", { params: { t: Date.now() } })).data;
 		} catch (e) {
+			// without data.json there are no seeds, no Twitch and no pool: keep asking
 			console.error("[LiveOro] Failed to load data.json:", (e as Error).message);
-			this.poolStatus = { ok: false, text: `No se pudo cargar el pool: ${(e as Error).message}` };
+			this.poolStatus = { ok: false, text: `No se pudo leer data.json (${(e as Error).message}); reintento en ${POOL_RETRY_MS / 1000} s` };
 			this.onUpdate?.();
+			setTimeout(() => this.loadData(), POOL_RETRY_MS);
+			return;
+		}
+		this.players = Object.fromEntries(Object.entries(json.players ?? {}).map(([name, info]) => [name.toLowerCase(), info]));
+		for (const side of SIDES) this.refreshPlayer(side);
+		this.startTwitch(json.twitch);
+		await this.loadPoolOrRetry(json);
+	}
+
+	// Each load of the pool gets a number; only the latest one asked for may
+	// set it. The pool used to be whichever answer came back last: the load at
+	// start and the panel's tab (or two quick tab changes) raced, and the
+	// overlay could end up on a different pool than the panel showed.
+	private poolLoad = 0;
+	private poolRetry: ReturnType<typeof setTimeout> | null = null;
+
+	private async loadPoolOrRetry(json: Data) {
+		if (this.poolRetry) clearTimeout(this.poolRetry);
+		this.poolRetry = null;
+		const load = ++this.poolLoad;
+		try {
+			await this.loadPool(json, load);
+		} catch (e) {
+			if (load !== this.poolLoad) return;
+			console.error("[LiveOro] Failed to load the pool:", (e as Error).message);
+			this.poolStatus = { ok: false, text: `No se pudo cargar el pool (${(e as Error).message}); reintento en ${POOL_RETRY_MS / 1000} s` };
+			this.onUpdate?.();
+			this.poolRetry = setTimeout(() => this.reloadPool(), POOL_RETRY_MS);
 		}
 	}
 
@@ -512,7 +607,11 @@ export default class LiveOro {
 	// survives a source refresh.
 
 	private chat: TwitchChat | null = null;
-	twitch: { channels: string[]; channel: string; status: TwitchStatus | "off" } = { channels: [], channel: "", status: "off" };
+	twitch: {
+		channels: string[];
+		channel: string;
+		status: TwitchStatus | "off";
+	} = { channels: [], channel: "", status: "off" };
 
 	private startTwitch(listed: Data["twitch"]) {
 		const fromUrl = new URLSearchParams(location.search).get("twitch")?.toLowerCase();
@@ -551,7 +650,7 @@ export default class LiveOro {
 	// The pool: the Google Sheet when data.json names one, else data.json's
 	// own mappool, where slots are named by mod and position (NM1, NM2...).
 	// A lone TB is just "TB" either way.
-	private async loadPool(json: Data) {
+	private async loadPool(json: Data, load: number) {
 		let rows: SheetRow[] = [];
 		let from = "data.json";
 		if (json.sheet) {
@@ -559,10 +658,13 @@ export default class LiveOro {
 				rows = await fetchSheetPool({ ...json.sheet, gid: this.poolGid ?? json.sheet.gid });
 				from = "la sheet";
 			} catch (e) {
+				if (load !== this.poolLoad) return;
 				console.error("[LiveOro] Failed to read the mappool sheet:", (e as Error).message);
 				this.poolStatus = { ok: false, text: `No se pudo leer la sheet (${(e as Error).message}); uso el mappool de data.json` };
 			}
 		}
+		// a newer load (another tab picked in the panel) owns the pool now
+		if (load !== this.poolLoad) return;
 		if (!rows.length) rows = (json.mappool ?? []).flatMap(({ mod, maps }) => maps.map((beatmapId, i) => ({ slot: `${mod}${i + 1}`, beatmapId })));
 		const tbs = rows.filter((r) => r.slot.replace(/\d+$/, "") === "TB");
 		if (tbs.length === 1) tbs[0].slot = "TB";
@@ -573,7 +675,8 @@ export default class LiveOro {
 		}
 		const query = new URLSearchParams();
 		for (const id of new Set(rows.map((r) => r.beatmapId).filter(Boolean))) query.append("ids", String(id));
-		const beatmaps: Beatmap[] = query.size ? ((await axios.get(`https://api.try-z.net/beatmaps?${query}`)).data?.beatmaps ?? []) : [];
+		const beatmaps: Beatmap[] = query.size ? ((await http.get(`https://api.try-z.net/beatmaps?${query}`)).data?.beatmaps ?? []) : [];
+		if (load !== this.poolLoad) return;
 		const missing: string[] = [];
 		this.pool = rows.flatMap((r) => {
 			const b = r.beatmapId ? beatmaps.find((m) => m.id === r.beatmapId) : undefined;
@@ -644,13 +747,21 @@ export default class LiveOro {
 
 	// From the panel: read data.json and the sheet again, keeping the draft.
 	async reloadPool() {
+		// whatever load is still on its way is out of date from here
+		const asked = ++this.poolLoad;
+		let json: Data;
 		try {
-			const json: Data = (await axios.get("./data.json", { params: { t: Date.now() } })).data;
-			await this.loadPool(json);
+			json = (await http.get("./data.json", { params: { t: Date.now() } })).data;
 		} catch (e) {
-			this.poolStatus = { ok: false, text: `No se pudo recargar el pool: ${(e as Error).message}` };
+			if (asked !== this.poolLoad) return;
+			this.poolStatus = { ok: false, text: `No se pudo recargar el pool (${(e as Error).message}); reintento en ${POOL_RETRY_MS / 1000} s` };
 			this.onUpdate?.();
+			if (this.poolRetry) clearTimeout(this.poolRetry);
+			this.poolRetry = setTimeout(() => this.reloadPool(), POOL_RETRY_MS);
+			return;
 		}
+		if (asked !== this.poolLoad) return;
+		await this.loadPoolOrRetry(json);
 	}
 
 	poolStatus = { ok: true, text: "Cargando el pool" };
@@ -720,6 +831,8 @@ export default class LiveOro {
 
 	resetDraft() {
 		this.autoPick = null;
+		// a fresh draft belongs to whoever is on screen now
+		this.draftPlayers = [...(this.playerAliases() ?? [])];
 		DRAFT.bans = {};
 		DRAFT.picks = [];
 		delete DRAFT.next;
@@ -731,6 +844,7 @@ export default class LiveOro {
 	private bindDraftControls() {
 		const grid = document.querySelector<HTMLElement>("#poolGrid")!;
 		const act = (event: MouseEvent, side: Side) => {
+			if (this.mirroring) return;
 			const id = (event.target as HTMLElement).closest<HTMLElement>(".card")?.dataset.map;
 			if (!id) return;
 			event.preventDefault();
@@ -746,16 +860,49 @@ export default class LiveOro {
 		try {
 			const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
 			if (saved) Object.assign(DRAFT, { bans: saved.bans ?? {}, picks: saved.picks ?? [], tbWon: saved.tbWon, next: saved.next === "l" || saved.next === "r" ? saved.next : undefined });
+			if (Array.isArray(saved?.players)) this.draftPlayers = saved.players.filter((n: unknown) => typeof n === "string");
 		} catch {}
 	}
 
 	// Every draft change goes through here, so it is also where the control
 	// panel hears about it.
 	private saveDraft() {
+		if (this.mirroring) return this.onUpdate?.();
 		try {
-			localStorage.setItem(DRAFT_KEY, JSON.stringify({ bans: DRAFT.bans, picks: DRAFT.picks, tbWon: DRAFT.tbWon, next: DRAFT.next }));
+			localStorage.setItem(DRAFT_KEY, JSON.stringify({ bans: DRAFT.bans, picks: DRAFT.picks, tbWon: DRAFT.tbWon, next: DRAFT.next, players: this.draftPlayers }));
 		} catch {}
 		this.onUpdate?.();
+	}
+
+	// ---------- mirror of the overlay in OBS (see leader.ts) ----------
+
+	private mirroring = false;
+	private mirroredKey = "";
+
+	setMirror(on: boolean) {
+		this.mirroring = on;
+		this.autoPick = null;
+		this.mirroredKey = "";
+		// leading again: what was last mirrored is this overlay's draft now
+		if (!on) this.saveDraft();
+	}
+
+	// The OBS overlay's draft and series, shown as they are.
+	mirrorFrom(state: OverlayState) {
+		const draft = state.draft;
+		if (!draft || !Array.isArray(draft.picks)) return;
+		const key = JSON.stringify([draft.bans, draft.picks, draft.tbWon, draft.next, state.stars]);
+		if (key === this.mirroredKey) return;
+		this.mirroredKey = key;
+		DRAFT.bans = { ...(draft.bans ?? {}) };
+		DRAFT.picks = draft.picks.map((p) => ({ ...p }));
+		if (draft.tbWon) DRAFT.tbWon = draft.tbWon;
+		else delete DRAFT.tbWon;
+		if (draft.next) DRAFT.next = draft.next;
+		else delete DRAFT.next;
+		this.stars = { l: num(state.stars?.l), r: num(state.stars?.r) };
+		oro.setStars({ ...this.stars });
+		oro.draftChanged();
 	}
 
 	// Called when the draft, the pool or the players change.

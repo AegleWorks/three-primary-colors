@@ -101,7 +101,7 @@ export class Room extends DurableObject<Env> {
 		}
 		if (fromHost) {
 			if (type === "end") await this.end();
-			else if (type === "overlay_state") for (const panel of this.open("panel")) panel.send(message);
+			else if (type === "overlay_state" || type === "overlay_gone") for (const panel of this.open("panel")) panel.send(message);
 		} else if (type === "control") {
 			for (const host of this.open("host")) host.send(message);
 		}

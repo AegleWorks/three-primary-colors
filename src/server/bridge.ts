@@ -41,6 +41,17 @@ console.log(`
   La primera vez Discord te pide autorizar la conexión: acéptala.
 `);
 
+// OneDrive (Desktop and Documents are inside it on many Windows installs) keeps
+// files "online only" and locks them while it syncs: tosu then reads part of
+// what it needs and the updater can't replace files. Seen on a streamer's PC.
+if (compiled && /onedrive/i.test(process.cwd())) {
+	console.warn(`  Ojo: esta carpeta está dentro de OneDrive (${process.cwd()}).
+  OneDrive bloquea y deja "solo en línea" los archivos, y tosu y el overlay fallan a medias.
+  Mueve el bridge, tosu y su carpeta static a una carpeta fuera de OneDrive, como C:\\Rempalago.
+  Si osu! también está en OneDrive, marca su carpeta como "Mantener siempre en este dispositivo".
+`);
+}
+
 // Before updating: an older copy still open would keep the old files in use.
 if (compiled && stopOldBridges(BRIDGE_PORT).length) await wait(1_000);
 if (compiled) await ensureTosu(process.cwd());

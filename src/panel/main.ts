@@ -1445,6 +1445,18 @@ link.onState((incoming) => {
 	renderAll();
 });
 
+// The bridge saw an overlay's socket close: it no longer counts as open, and
+// the panel follows another one right away. With no other one, it is kept as
+// the last one heard, not answering, as when it goes quiet.
+link.onGone((id) => {
+	const gone = overlays.get(id);
+	if (!gone) return;
+	gone.at = Number.NEGATIVE_INFINITY;
+	const next = follow();
+	if (next) state = next;
+	renderAll();
+});
+
 // spelled out so the build drops OBS from the remote panel altogether
 if (import.meta.env.MODE !== "remote") import("./local").then(({ startLocal }) => startLocal(link, send, () => state, renderAll));
 

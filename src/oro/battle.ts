@@ -1,5 +1,6 @@
-import type ZEngine from "@fukutotojido/z-engine";
-import axios from "axios";
+import type ZEngine from "../handler/TosuEngine";
+import { http, isNotFound } from "./http";
+import { freshLines } from "./match";
 import type { Beatmap, Data } from "../types";
 import { fetchSheetPool, fetchSheetTabs, type SheetRow } from "./sheet";
 import { LIVE, fmt, goTo, onEvent, type BattleScene } from "./stage.js";
@@ -70,6 +71,8 @@ export interface BattleState {
 	// the tourney client is up (tosu sees its players)
 	clientsUp: boolean;
 	pool: BattlePool;
+	// seen leaving (lower-case): a mirror that leads again keeps them out
+	gone?: string[];
 }
 
 type Chat = { team: string; time: string; name: string; messageBody: string };
@@ -143,7 +146,7 @@ export default class Battle {
 	// ---------- the panel ----------
 
 	get state(): BattleState {
-		return { players: this.players(), winner: this.winner, cover: this.coverMode, clientsUp: this.clientsUp, pool: { ...this.pool, played: [...this.pool.played] } };
+		return { players: this.players(), winner: this.winner, cover: this.coverMode, clientsUp: this.clientsUp, pool: { ...this.pool, played: [...this.pool.played] }, gone: [...this.gone] };
 	}
 
 	setWinner(name: string | null) {
@@ -214,7 +217,7 @@ export default class Battle {
 	// numbers with the mod applied; a row without an id is shown from its cells.
 	async loadPool() {
 		try {
-			const json: Data & { battleSheet?: { id: string; gid?: number } } = (await axios.get("./data.json", { params: { t: Date.now() } })).data;
+			const json: Data & { battleSheet?: { id: string; gid?: number } } = (await http.get("./data.json", { params: { t: Date.now() } })).data;
 			const id = json.battleSheet?.id ?? json.sheet?.id;
 			if (!id) throw new Error("data.json no tiene sheet");
 			let gid = json.battleSheet?.gid;
@@ -226,7 +229,9 @@ export default class Battle {
 			const rows: SheetRow[] = await fetchSheetPool({ id, gid });
 			const query = new URLSearchParams();
 			for (const b of new Set(rows.map((r) => r.beatmapId).filter(Boolean))) query.append("ids", String(b));
-			const beatmaps: Beatmap[] = query.size ? ((await axios.get(`https://api.try-z.net/beatmaps?${query}`)).data?.beatmaps ?? []) : [];
+			const beatmaps: Beatmap[] = query.size ? ((await http.get(`https://api.try-z.net/beatmaps?${query}`)).data?.beatmaps ?? []) : [];
+			// a mirror shows the OBS overlay's pool as it is
+			if (this.mirroring) return;
 			this.pool.maps = rows.flatMap((r) => {
 				const b = r.beatmapId ? beatmaps.find((m) => m.id === r.beatmapId) : undefined;
 				if (!b && !r.title) return [];
@@ -285,7 +290,8 @@ export default class Battle {
 	}
 
 	private changed() {
-		for (const p of this.players()) {
+		// a mirror's profiles come with the OBS overlay's room
+		if (!this.mirroring) for (const p of this.players()) {
 			const key = p.id ? String(p.id) : p.name.toLowerCase();
 			if (!this.profiles.has(key) && !this.profiles.has(p.name.toLowerCase())) this.fetchProfile(p.id ? String(p.id) : p.name, p.name);
 		}
@@ -301,7 +307,7 @@ export default class Battle {
 		this.profiles.set(key, null);
 		if (SIM) return;
 		try {
-			const user = (await axios.get(`https://api.try-z.net/users/${encodeURIComponent(who)}/osu`)).data;
+			const user = (await http.get(`https://api.try-z.net/users/${encodeURIComponent(who)}/osu`)).data;
 			const stats = user?.statistics;
 			const prof: Profile = {
 				id: user?.id ?? undefined,
@@ -315,7 +321,7 @@ export default class Battle {
 			this.profiles.set(key, prof);
 			this.profiles.set(name.toLowerCase(), prof);
 		} catch (e) {
-			if (axios.isAxiosError(e) && e.response?.status === 404) {
+			if (isNotFound(e)) {
 				this.profiles.set(key, { unknown: true });
 				this.profiles.set(name.toLowerCase(), { unknown: true });
 			} else {
@@ -332,9 +338,72 @@ export default class Battle {
 		this.onUpdate?.();
 	}
 
+	// ---------- mirror of the overlay in OBS (see leader.ts) ----------
+
+	private mirroring = false;
+	private mirroredKey = "";
+
+	setMirror(on: boolean) {
+		this.mirroring = on;
+		this.mirroredKey = "";
+		// leading again: what was last mirrored is this overlay's room now
+		if (!on) this.save();
+	}
+
+	// The OBS overlay's room, winner, cover and pool, shown as they are. The
+	// players come with their profiles, so a mirror asks osu! for nothing.
+	mirrorFrom(state: BattleState | undefined) {
+		if (!this.mirroring || !state || !Array.isArray(state.players)) return;
+		const key = JSON.stringify([state.players, state.winner, state.cover, state.pool?.current, state.pool?.next, state.pool?.played, state.pool?.maps?.length, state.pool?.status, state.gone]);
+		if (key === this.mirroredKey) return;
+		this.mirroredKey = key;
+		this.room.clear();
+		if (Array.isArray(state.gone)) this.gone = new Set(state.gone.map((g) => String(g).toLowerCase()));
+		for (const p of state.players) {
+			if (!p?.name) continue;
+			const k = String(p.name).toLowerCase();
+			this.room.set(k, { name: String(p.name), id: Number(p.id) || undefined });
+			this.profiles.set(k, { ...p });
+		}
+		this.winner = state.winner ? String(state.winner) : null;
+		this.winnerData = this.winner ? (this.players().find((p) => p.name.toLowerCase() === this.winner!.toLowerCase()) ?? { name: this.winner }) : null;
+		if (["auto", "cover", "open"].includes(state.cover)) this.coverMode = state.cover;
+		const pool = state.pool;
+		if (pool) {
+			if (Array.isArray(pool.maps) && pool.maps.length) this.pool.maps = pool.maps.map((m) => ({ ...m }));
+			this.pool.current = pool.current ?? null;
+			this.pool.next = pool.next ?? null;
+			this.pool.played = Array.isArray(pool.played) ? pool.played.map(String) : [];
+			if (pool.status) this.pool.status = { ...pool.status };
+		}
+		// the map card and its clock are this overlay's own, from tosu
+		this.renderPool();
+		this.renderLobby();
+		this.renderCount();
+		this.renderCover();
+		this.renderWinner();
+		this.onUpdate?.();
+	}
+
 	// ---------- tosu ----------
 
+	// The BR is on: a BR scene is showing, or the tourney client spectates more
+	// players than a 1v1 has.
+	private inBattle() {
+		return Boolean(document.body.dataset.scene?.startsWith("br-")) || this.spectated.length > 2;
+	}
+
+	private engine: ZEngine | null = null;
+
 	private bind(engine: ZEngine) {
+		this.engine = engine;
+		// Into a BR scene: whoever the client already shows joins the room now,
+		// not at the next change.
+		onEvent((type, name) => {
+			if (type !== "scene" || !String(name).startsWith("br-") || !this.engine) return;
+			this.spectated = [];
+			this.readClients(this.engine.cache);
+		});
 		for (let i = 0; i < MAX; i++) {
 			for (const key of ["spectating.name", "spectating.userID", "team"]) {
 				engine.register(`tourney.ipcClients.${i}.${key}`, (_, __, data) => this.readClients(data));
@@ -365,6 +434,17 @@ export default class Battle {
 		const key = JSON.stringify(now);
 		if (key === JSON.stringify(this.spectated) && up === this.clientsUp) return;
 		this.spectated = now;
+		// The 1v1 matches run through the same tourney client: their two
+		// players used to join the BR room (and stay there, saved) all day.
+		// A mirror's room is the OBS overlay's: it only follows whether the
+		// client is up.
+		if (!this.inBattle() || this.mirroring) {
+			if (up !== this.clientsUp) {
+				this.clientsUp = up;
+				this.renderCover();
+			}
+			return;
+		}
 		// Seen in the client once, in the room until BanchoBot says they left
 		// (or the panel takes them out): the client is restarted all the time
 		// and comes back with other players, which doesn't empty the room.
@@ -384,21 +464,17 @@ export default class Battle {
 
 	private readChat(chat: Chat[]) {
 		if (!chat.length) return;
-		const counts = new Map<string, number>();
 		let touched = false;
 		// the lobby's history on load: it rebuilds the room, but doesn't bring
 		// back someone the panel took out
 		const history = !this.chatLoaded;
 		this.chatLoaded = true;
-		for (const line of chat) {
-			const k = `${line.time}|${line.name}|${line.messageBody}`;
-			const n = (counts.get(k) ?? 0) + 1;
-			counts.set(k, n);
-			if (n <= (this.chatSeen.get(k) ?? 0)) continue;
+		for (const line of freshLines(this.chatSeen, chat)) {
 			if (line.team !== "bot" && line.name !== "BanchoBot") continue;
+			// a 1v1 lobby's joins and leaves aren't the BR room's
+			if (!this.inBattle() || this.mirroring) continue;
 			touched = this.bancho(line.messageBody.trim(), history) || touched;
 		}
-		for (const [k, n] of counts) this.chatSeen.set(k, Math.max(n, this.chatSeen.get(k) ?? 0));
 		if (touched) this.changed();
 	}
 
@@ -457,7 +533,7 @@ export default class Battle {
 	// not uploaded). Again once the pool loads: the map may have come first.
 	private matchCurrent() {
 		const bm = this.lastBm;
-		if (!bm) return;
+		if (!bm || this.mirroring) return;
 		const same = (a?: string, b?: string) => (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
 		const slot =
 			this.pool.maps.find((m) => m.beatmapId && m.beatmapId === bm.id) ??
@@ -476,7 +552,7 @@ export default class Battle {
 		const deck = document.querySelector<HTMLElement>("#brDeck");
 		if (deck) deck.dataset.mode = on ? "playing" : "lobby";
 		// a map that starts being played counts as played
-		if (on && this.pool.current) this.markPlayed(this.pool.current);
+		if (on && this.pool.current && !this.mirroring) this.markPlayed(this.pool.current);
 	}
 
 	private markPlayed(id: string) {
@@ -571,7 +647,7 @@ export default class Battle {
 		const pfp = p.id ? `<img src="https://a.ppy.sh/${p.id}" alt="" decoding="async" onerror="this.remove()">` : "";
 		return `<i class="br-banner"${p.cover ? ` style="background-image:url('${esc(p.cover)}')"` : ""}></i>
 			<span class="br-n">${i + 1}</span>
-			<span class="br-pfp"><b>${esc((p.name[0] || "?").toUpperCase())}</b>${pfp}</span>
+			<span class="br-pfp"><b>${esc(([...p.name][0] || "?").toUpperCase())}</b>${pfp}</span>
 			<span class="br-text"><b class="br-name">${esc(p.name)}</b><span class="br-stats">${stats}</span></span>`;
 	}
 
@@ -663,7 +739,7 @@ export default class Battle {
 		name.textContent = p?.name ?? "—";
 		name.dataset.text = p?.name ?? "";
 		$("#brwBanner").style.backgroundImage = p?.cover ? `url("${p.cover}")` : "";
-		$("#brwPfp").innerHTML = `<b>${esc((p?.name?.[0] || "?").toUpperCase())}</b>${p?.id ? `<img src="https://a.ppy.sh/${p.id}" alt="" onerror="this.remove()">` : ""}`;
+		$("#brwPfp").innerHTML = `<b>${esc(([...(p?.name ?? "")][0] || "?").toUpperCase())}</b>${p?.id ? `<img src="https://a.ppy.sh/${p.id}" alt="" onerror="this.remove()">` : ""}`;
 		$("#brwStats").innerHTML = p
 			? [p.rank ? `<b>#${fmt(p.rank)}</b> global` : "", p.countryRank ? `<b>#${fmt(p.countryRank)}</b> ${esc(p.country || "país")}` : "", p.pp ? `<b>${fmt(p.pp)}</b>pp` : ""]
 					.filter(Boolean)
@@ -675,8 +751,9 @@ export default class Battle {
 	// ---------- kept across a source refresh ----------
 
 	private save() {
-		// the simulation's made-up room is never kept
-		if (SIM) return;
+		// the simulation's made-up room is never kept, nor a mirror's (its
+		// storage is another browser's, not OBS's)
+		if (SIM || this.mirroring) return;
 		try {
 			localStorage.setItem(KEY, JSON.stringify({ room: [...this.room.values()], gone: [...this.gone], winner: this.winner, cover: this.coverMode, played: this.pool.played, next: this.pool.next }));
 		} catch {}

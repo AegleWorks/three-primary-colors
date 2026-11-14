@@ -51,7 +51,10 @@ export const DRAFT: Draft;
 
 export function fmt(n: number): string;
 export function goTo(name: SceneName): Promise<void>;
+// keeps the round picked in the panel across reloads (see stage.js)
+export function saveRound(key: string): void;
 export function onEvent(fn: (type: string, arg?: unknown) => void): void;
 export function setSource(fn: (state: MatchState) => void): void;
+export function liveState(): MatchState;
 export function ingest(side: Side, numbers: PlayerNumbers): void;
 export function clock(seconds: number, length: number): void;

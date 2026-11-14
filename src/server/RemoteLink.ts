@@ -19,7 +19,7 @@ const ACTIONS = new Set(["scene", "key", "timer", "draft", "draftReset", "draftR
 // the overlay's shortcuts a panel offers in a release build
 const KEYS = new Set(["t", "g", "m"]);
 
-function allowed(raw: string) {
+export function allowed(raw: string) {
 	try {
 		const message = JSON.parse(raw);
 		return message?.type === "control" && ACTIONS.has(message.action) && (message.action !== "key" || KEYS.has(message.key));
@@ -99,9 +99,17 @@ export default class RemoteLink {
 		const room = createHash("sha256").update(normalizeCode(this.code)).digest("hex");
 		const ws = new WebSocket(`${relayRoom(RELAY, room)}?role=host&token=${this.token}`);
 		this.ws = ws;
+		// A connection that died without closing (Wi-Fi dropped, the PC slept)
+		// stayed "online" forever: remote panels saw nothing and nobody retried.
+		// No pong for two pings in a row ends it, and the close retries.
+		let missed = 0;
+		ws.on("pong", () => (missed = 0));
 		ws.on("open", () => {
 			this.retryMs = RETRY_MIN_MS;
-			this.keepalive = setInterval(() => ws.ping(), KEEPALIVE_MS);
+			this.keepalive = setInterval(() => {
+				if (++missed > 2) return ws.terminate();
+				ws.ping();
+			}, KEEPALIVE_MS);
 			const state = this.latestState();
 			if (state) ws.send(state);
 			this.onChange(this.status);

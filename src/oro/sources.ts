@@ -1,4 +1,4 @@
-import axios from "axios";
+import { http } from "./http";
 import type { Data } from "../types";
 import { fetchSheetTabs, type SheetTab } from "./sheet";
 
@@ -95,7 +95,7 @@ export default class Sources {
 	// names a tab, fill in the rest.
 	async discover() {
 		try {
-			const json: Data = (await axios.get("./data.json", { params: { t: Date.now() } })).data;
+			const json: Data = (await http.get("./data.json", { params: { t: Date.now() } })).data;
 			this.sheetId = json.sheet?.id ?? json.qualifiersSheet?.id ?? "";
 			if (!this.sheetId) {
 				this.status = { ok: false, text: "data.json no tiene sheet" };

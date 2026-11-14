@@ -1,4 +1,4 @@
-import axios from "axios";
+import { http } from "./http";
 import type { TopPlay } from "../server/osuTop";
 import type { Beatmap } from "../types";
 import { fetchSheetPool, parseCsv, type SheetTab } from "./sheet";
@@ -163,7 +163,7 @@ export default class Qualifiers {
 			const rows = await fetchSheetPool(sheet);
 			const query = new URLSearchParams();
 			for (const id of new Set(rows.map((r) => r.beatmapId))) query.append("ids", String(id));
-			const beatmaps: Beatmap[] = (await axios.get(`https://api.try-z.net/beatmaps?${query}`)).data?.beatmaps ?? [];
+			const beatmaps: Beatmap[] = (await http.get(`https://api.try-z.net/beatmaps?${query}`)).data?.beatmaps ?? [];
 			// another tab was picked while this one loaded
 			if (key !== this.sheetKey) return;
 			for (const r of rows) {
@@ -181,7 +181,7 @@ export default class Qualifiers {
 		if (!p?.osuId || this.ranks.has(p.osuId)) return;
 		this.ranks.set(p.osuId, {});
 		try {
-			const user = (await axios.get(`https://api.try-z.net/users/${p.osuId}/osu`)).data;
+			const user = (await http.get(`https://api.try-z.net/users/${p.osuId}/osu`)).data;
 			const stats = user?.statistics;
 			this.ranks.set(p.osuId, {
 				global: stats?.global_rank ?? undefined,
@@ -208,7 +208,7 @@ export default class Qualifiers {
 		}
 		this.tops.set(p.osuId, []);
 		try {
-			const plays: unknown = (await axios.get(`${BRIDGE}/osu/top/${p.osuId}`, { timeout: 10_000 })).data;
+			const plays: unknown = (await http.get(`${BRIDGE}/osu/top/${p.osuId}`, { timeout: 10_000 })).data;
 			// an older bridge answers nothing useful here
 			this.tops.set(p.osuId, Array.isArray(plays) ? plays : []);
 			if (this.player === p) this.renderTop();

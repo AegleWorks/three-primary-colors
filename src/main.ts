@@ -1,4 +1,4 @@
-import ZEngine from "@fukutotojido/z-engine";
+import ZEngine from "./handler/TosuEngine";
 import ControlLink from "./control/ControlLink";
 import CasterHandler from "./handler/CasterHandler";
 import { guardEngine } from "./handler/guardEngine";

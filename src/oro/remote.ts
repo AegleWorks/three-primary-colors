@@ -1,15 +1,20 @@
+import { version } from "../../package.json";
 import type ControlLink from "../control/ControlLink";
+import type { Command } from "../control/ControlLink";
+import { Leader } from "./leader";
+import { OverlayId } from "./overlayId";
 import type Battle from "./battle";
 import type LiveOro from "./live";
 import { oro } from "./oro.js";
 import type Qualifiers from "./qualifiers";
 import type Sources from "./sources";
-import { DRAFT, LIVE, ROUND, goTo, onEvent } from "./stage.js";
+import { DRAFT, LIVE, ROUND, ROUNDS, goTo, onEvent, saveRound } from "./stage.js";
 
 // The overlay's end of the control link: runs the panel's commands and tells
 // the panel what the overlay is showing. `live` is null in the ?sim demo,
 // which has no draft to edit.
-const ID = Math.random().toString(36).slice(2, 10);
+// Kept across a reload of this page (see overlayId.ts).
+const ID = new OverlayId();
 // Re-sent this often so the panel can tell which overlays are still open.
 const HEARTBEAT_MS = 4000;
 
@@ -27,7 +32,35 @@ function heartbeat(beat: () => void) {
 	}
 }
 
+// Once per bridge version, so a bridge that can't update the files tosu serves
+// (it lives in another folder) doesn't reload the overlay in a loop.
+const RELOADED = "rempalago-overlay-reloaded";
+function reloadFor(bridge: string) {
+	if (!bridge || bridge === version) return;
+	try {
+		if (sessionStorage.getItem(RELOADED) === bridge) return;
+		sessionStorage.setItem(RELOADED, bridge);
+	} catch {
+		return;
+	}
+	console.warn(`[OverlayRemote] Overlay v${version}, bridge v${bridge}: reloading`);
+	location.reload();
+}
+
+// What a mirror leaves to the OBS overlay: everything that writes the draft,
+// the series or the Battle Royale's room and pool. The mirror gets the result
+// from the OBS overlay's state instead.
+const LEADER_ONLY = new Set<Command["action"]>(["draft", "draftReset", "stars", "nextPicker", "draftRestore", "battle"]);
+
 export default class OverlayRemote {
+	private leader = new Leader({
+		get id() {
+			return ID.id;
+		},
+		obs: "obsstudio" in window,
+	});
+	private mirroring = false;
+
 	constructor(
 		private link: ControlLink,
 		private live: LiveOro | null,
@@ -36,6 +69,7 @@ export default class OverlayRemote {
 		private battle: Battle,
 	) {
 		link.onCommand((command) => {
+			if (this.mirroring && LEADER_ONLY.has(command.action)) return;
 			switch (command.action) {
 				case "scene":
 					goTo(command.scene);
@@ -95,6 +129,8 @@ export default class OverlayRemote {
 					if (command.poolReload) this.battle.loadPool();
 					break;
 				case "round": {
+					if (!ROUNDS[command.round]) break;
+					saveRound(command.round);
 					const url = new URL(location.href);
 					url.searchParams.set("round", command.round);
 					location.href = url.toString();
@@ -109,14 +145,48 @@ export default class OverlayRemote {
 		sources.onUpdate = () => this.publish();
 		battle.onUpdate = () => this.publish();
 		link.onStatus = (connected) => connected && this.publish();
-		heartbeat(() => this.publish());
+		// The bridge updates the overlay's files when it starts, but OBS keeps
+		// running the code it loaded: a bridge on another version reloads this
+		// page once, so overlay, panel and bridge speak the same version.
+		link.onRemoteStatus((status) => reloadFor(status.version));
+		// Other overlays' states: an OBS overlay among them makes this one (if
+		// it isn't in OBS) a mirror of it; see leader.ts.
+		link.onState((other) => {
+			this.leader.heard(other, Date.now());
+			this.updateMirror();
+			if (!this.mirroring || !other.obs) return;
+			this.live?.mirrorFrom(other);
+			this.battle.mirrorFrom(other.battle);
+		});
+		link.onGone((id) => {
+			this.leader.gone(id);
+			this.updateMirror();
+		});
+		heartbeat(() => {
+			this.updateMirror();
+			this.publish();
+		});
 		// back in front: say so right away rather than at the next beat
 		document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && this.publish());
 	}
 
+	private updateMirror() {
+		const on = this.leader.mirroring(Date.now());
+		if (on === this.mirroring) return;
+		this.mirroring = on;
+		this.live?.setMirror(on);
+		this.battle.setMirror(on);
+		console.info(on ? "[OverlayRemote] An overlay in OBS is open: this one mirrors it" : "[OverlayRemote] No overlay in OBS any more: this one runs the match");
+		// leading again: the panel hears this one now, not at the next beat
+		if (!on) this.publish();
+	}
+
 	private publish() {
+		// a mirror stays off the wire: the panel, the remote panels and the
+		// bridge's last-state cache only hear the OBS overlay
+		if (this.mirroring) return;
 		this.link.publish({
-			id: ID,
+			id: ID.id,
 			obs: "obsstudio" in window,
 			scene: document.body.dataset.scene ?? "",
 			round: ROUND.key,

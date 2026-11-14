@@ -78,7 +78,9 @@ export interface OverlayState {
 	battle?: BattleState;
 }
 
-type Message = ({ type: "control" } & Command) | ({ type: "overlay_state" } & OverlayState) | RemoteStatus | { type: "remote"; on: boolean };
+// overlay_gone: the bridge saw that overlay's socket close (bridges older than
+// it never say so, and the ten-second timeout covers it)
+type Message = ({ type: "control" } & Command) | ({ type: "overlay_state" } & OverlayState) | { type: "overlay_gone"; id: string } | RemoteStatus | { type: "remote"; on: boolean };
 
 export default class ControlLink {
 	private ws: WebSocket | null = null;
@@ -108,6 +110,10 @@ export default class ControlLink {
 
 	onState(fn: (state: OverlayState) => void) {
 		this.handlers.push((m) => m.type === "overlay_state" && fn(m));
+	}
+
+	onGone(fn: (id: string) => void) {
+		this.handlers.push((m) => m.type === "overlay_gone" && typeof m.id === "string" && fn(m.id));
 	}
 
 	onRemoteStatus(fn: (status: RemoteStatus) => void) {

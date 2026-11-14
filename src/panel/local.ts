@@ -1,4 +1,4 @@
-import ZEngine from "@fukutotojido/z-engine";
+import ZEngine from "../handler/TosuEngine";
 import { version } from "../../package.json";
 import type { RemoteStatus } from "../config/remote";
 import type ControlLink from "../control/ControlLink";
@@ -14,6 +14,7 @@ const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySele
 const RELOADED = "rempalago-panel-reloaded";
 const OBS_SAVED = "rempalago-obs";
 const OLD_BRIDGE_MS = 5000;
+const OBS_RETRY_MS = 5000;
 
 const stored = (key: string, value?: string | null) => {
 	try {
@@ -100,6 +101,19 @@ export function startLocal(link: ControlLink, send: (command: Command) => void, 
 			connect(true);
 		}
 	} catch {}
+	// A remembered connection comes back on its own: OBS restarted, or opened
+	// after the panel. Before, the panel stayed disconnected (and stopped
+	// following OBS's scenes) until someone pressed connect.
+	let retrying = false;
+	setInterval(async () => {
+		if (retrying || obs.connected || !stored(OBS_SAVED)) return;
+		retrying = true;
+		try {
+			await connect(true);
+		} finally {
+			retrying = false;
+		}
+	}, OBS_RETRY_MS);
 
 	// Follow OBS: remembered across reloads.
 	const follow = $<HTMLInputElement>("#sceneFollowObs");

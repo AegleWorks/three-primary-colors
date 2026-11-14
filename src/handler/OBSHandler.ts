@@ -1,5 +1,5 @@
 import { OBSWebSocket } from "obs-websocket-js";
-import type ZEngine from "@fukutotojido/z-engine";
+import type ZEngine from "./TosuEngine";
 import TilingEngine, {
 	type Rect,
 	type TilingLayoutMode,

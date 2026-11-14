@@ -45,7 +45,15 @@ const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 // A map's art: its set's cover, or the background tosu serves for a map
 // outside the pool.
 const cover = (map) => (map.art === "none" ? "none" : `url("${map.art || `https://assets.ppy.sh/beatmaps/${map.set}/covers/cover.jpg`}")`);
+// Text from outside (sheet cells, osu! metadata, lobby titles) going into
+// markup. A function declaration, hoisted: the pool renders on load, before the
+// chat's `esc` below exists.
+function escHtml(text) {
+	return String(text ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+}
 const owner = (s) => PEOPLE[s].name;
+// the same, for markup
+const ownerHtml = (s) => escHtml(PEOPLE[s].name);
 const byId = (id) => POOL.find((m) => m.id === id);
 let current = byId(DRAFT.current) || BLANK;
 const shot = import.meta.env.DEV && new URLSearchParams(location.search).has("shot");
@@ -79,7 +87,7 @@ function renderPfps(scope = document) {
 		if (el._pfp === tag) return;
 		el._pfp = tag;
 		el.dataset.side = key[0] === "c" ? "c" : key;
-		el.innerHTML = `<b>${(who.name[0] || "?").toUpperCase()}</b>`;
+		el.innerHTML = `<b>${escHtml(([...(who.name || "")][0] || "?").toUpperCase())}</b>`;
 		if (!url) return;
 		const img = new Image();
 		img.alt = "";
@@ -162,7 +170,7 @@ function showMap(map, { slot = map.id, by = DRAFT.picks.find((p) => p.id === map
 	$("#mapSlot").textContent = slot;
 	$("#mapSlot").dataset.slot = slot;
 	const pickEl = $(".map-pick");
-	pickEl.innerHTML = pick ?? (by ? `Pick de ${pfpTag(by)}<b>${owner(by)}</b>` : "");
+	pickEl.innerHTML = pick ?? (by ? `Pick de ${pfpTag(by)}<b>${ownerHtml(by)}</b>` : "");
 	pickEl.dataset.side = pick || !by ? "" : by;
 	// the slot badge wears the picker's colour, as on the mappool
 	$("#mapInfo").dataset.side = pick || !by ? "" : by;
@@ -237,7 +245,7 @@ function renderPool() {
 		for (const mod of [...new Set(POOL.map((m) => modOf(m.id)))]) {
 			const row = document.createElement("div");
 			row.className = "pool-row";
-			row.innerHTML = `<span class="pool-mod mod--${mod.toLowerCase()}">${mod}</span>`;
+			row.innerHTML = `<span class="pool-mod mod--${escHtml(mod.toLowerCase())}">${escHtml(mod)}</span>`;
 			for (const map of POOL.filter((m) => modOf(m.id) === mod)) {
 				const card = document.createElement("article");
 				card.className = "card";
@@ -246,9 +254,9 @@ function renderPool() {
 				card.innerHTML = `
 				<div class="card-art" style='background-image:${cover(map)}'></div>
 				<div class="card-body">
-					<div class="card-top"><b class="card-id">${map.id}</b></div>
-					<span class="card-title">${map.title}</span>
-					<span class="card-artist">${map.artist} · ${map.sr.toFixed(2)}★</span>
+					<div class="card-top"><b class="card-id">${escHtml(map.id)}</b></div>
+					<span class="card-title">${escHtml(map.title)}</span>
+					<span class="card-artist">${escHtml(map.artist)} · ${Number(map.sr).toFixed(2)}★</span>
 				</div>`;
 				paintCard(card, map);
 				row.append(card);
@@ -266,7 +274,7 @@ function renderPool() {
 		const li = document.createElement("li");
 		li.className = `by-${p.by}${p.won ? ` won-${p.won}` : " is-live"}`;
 		li.style.setProperty("--i", i);
-		li.innerHTML = `<b>${String(i + 1).padStart(2, "0")}</b>${pfpTag(p.by)}${p.id}`;
+		li.innerHTML = `<b>${String(i + 1).padStart(2, "0")}</b>${pfpTag(p.by)}${escHtml(p.id)}`;
 		order.append(li);
 	});
 	// The picker is whoever did not pick last; the first pick is the left's
@@ -274,7 +282,7 @@ function renderPool() {
 	const next = DRAFT.next || (DRAFT.picks.at(-1)?.by === "l" ? "r" : "l");
 	const turn = $(".pool-turn");
 	turn.dataset.side = next;
-	turn.innerHTML = `${pfpTag(next)}<b data-name="${next}">${owner(next)}</b> está eligiendo`;
+	turn.innerHTML = `${pfpTag(next)}<b data-name="${next}">${ownerHtml(next)}</b> está eligiendo`;
 	$("#pickTimer").dataset.side = next;
 	renderPfps(grid.parentElement);
 	window.fitAll?.();
@@ -334,9 +342,9 @@ function renderSeriesCopy(stars = MATCH.stars, last = "l") {
 					<span class="road-n">${final ? (ROUND.isTitle ? "Mapa del título" : ROUND.isFinal ? "Mapa decisivo" : "Mapa del pase") : `Mapa ${i + 1}`}</span>
 					<span class="road-tally"><b class="${won === "l" ? "is-up" : ""}">${tally.l}</b><i></i><b class="${won === "r" ? "is-up" : ""}">${tally.r}</b></span>
 				</div>
-				<span class="road-id mod--${modOf(id).toLowerCase()}">${id}${final ? `<svg><use href="#spark" /></svg>` : ""}</span>
-				<span class="road-title">${map.title}</span>
-				<span class="road-who">${owner(won)}</span>
+				<span class="road-id mod--${escHtml(modOf(id).toLowerCase())}">${escHtml(id)}${final ? `<svg><use href="#spark" /></svg>` : ""}</span>
+				<span class="road-title">${escHtml(map.title)}</span>
+				<span class="road-who">${ownerHtml(won)}</span>
 			</div>
 			<i class="road-node"></i>`;
 		road.append(li);
@@ -602,7 +610,8 @@ const pickTimer = (() => {
 	function bancho(line) {
 		let m;
 		if ((m = line.match(/^!mp timer(?:\s+(\d+))?\s*$/i))) return start(Number(m[1] || 30), `!mp timer ${m[1] || 30}`);
-		if (/^!mp aborttimer/i.test(line) || /countdown aborted/i.test(line)) return stop();
+		// the map started: the pick clock has nothing left to count
+		if (/^!mp aborttimer/i.test(line) || /countdown aborted/i.test(line) || /^the match has started/i.test(line)) return stop();
 		if ((m = line.match(/countdown ends in (?:(\d+) minutes?)?(?:\s*and\s*)?(?:(\d+) seconds?)?/i)) && (m[1] || m[2]))
 			return sync(Number(m[1] || 0) * 60 + Number(m[2] || 0));
 		if (/countdown finished/i.test(line)) endAt = performance.now();
@@ -1761,7 +1770,7 @@ function renderShowLine() {
 		group.dataset.mod = mod.toLowerCase();
 		group.style.setProperty("--n", maps.length);
 		// a lone slot (TB) names its mod itself
-		group.innerHTML = `${maps.length === 1 && maps[0].id === mod ? "" : `<b class="line-head">${mod}</b>`}<ol class="line-maps"></ol>`;
+		group.innerHTML = `${maps.length === 1 && maps[0].id === mod ? "" : `<b class="line-head">${escHtml(mod)}</b>`}<ol class="line-maps"></ol>`;
 		for (const m of maps) {
 			const li = document.createElement("li");
 			li.className = "line-map";

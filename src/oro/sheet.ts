@@ -1,4 +1,4 @@
-import axios from "axios";
+import { http } from "./http";
 
 // The mappool from a Google Sheet shared as "anyone with the link can view".
 // Columns are found by their header, so they can move: Mod (the slot: NM1,
@@ -35,7 +35,7 @@ const COLUMNS = ["mod", "id", "sr", "bpm", "length", "cs", "ar", "od", "mapper"]
 export async function fetchSheetPool({ id, gid = 0 }: SheetRef): Promise<SheetRow[]> {
 	const url = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/export?format=csv&gid=${gid}`;
 	// no-cache: a reload from the panel must see the sheet's latest edits
-	const csv: string = (await axios.get(url, { responseType: "text", params: { t: Date.now() } })).data;
+	const csv: string = (await http.get(url, { responseType: "text", params: { t: Date.now() } })).data;
 	const [header = [], ...rows] = parseCsv(csv);
 	const at = Object.fromEntries(COLUMNS.map((name) => [name, header.findIndex((h) => h.trim().toLowerCase() === name)]));
 	if (at.mod < 0 || at.id < 0) throw new Error("the sheet needs a Mod and an ID column");
@@ -95,7 +95,7 @@ export interface SheetTab {
 // as {name: "Pool 1", pageUrl: "...", gid: "0"}, with JavaScript escapes.
 export async function fetchSheetTabs(id: string): Promise<SheetTab[]> {
 	const url = `https://docs.google.com/spreadsheets/d/${encodeURIComponent(id)}/htmlview`;
-	const html: string = (await axios.get(url, { responseType: "text", params: { t: Date.now() } })).data;
+	const html: string = (await http.get(url, { responseType: "text", params: { t: Date.now() } })).data;
 	const unescape = (s: string) =>
 		s.replace(/\\x([0-9a-f]{2})|\\u([0-9a-f]{4})|\\(.)/gi, (_, x, u, c) => (x || u ? String.fromCharCode(Number.parseInt(x || u, 16)) : c));
 	const tabs: SheetTab[] = [];

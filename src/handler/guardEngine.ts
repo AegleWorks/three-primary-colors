@@ -1,4 +1,4 @@
-import type ZEngine from "@fukutotojido/z-engine";
+import type ZEngine from "./TosuEngine";
 
 // z-engine runs every registered callback in one loop with no try/catch, and
 // only saves the new data once the loop is done. A callback that throws cuts
