@@ -27,6 +27,15 @@ export default defineConfig(({ mode }) => ({
 							test: /node_modules/,
 							priority: 20,
 						},
+						// package.json (the version) is read by both the overlay and the
+						// panel. Left to itself it lands in the overlay's entry chunk, and
+						// the panel then runs the whole overlay just to read the version:
+						// it throws on the missing .stage and takes local.ts (OBS) with it.
+						{
+							name: "version",
+							test: /package\.json$/,
+							priority: 30,
+						},
 						{
 							name: (moduleId) => {
 								const module = path
