@@ -17,9 +17,13 @@ export default defineConfig(({ mode }) => ({
 				panel: path.resolve(import.meta.dirname, "panel.html"),
 			},
 			output: {
-				entryFileNames: "assets/[name].js",
-				assetFileNames: "assets/[name].[ext]",
-				chunkFileNames: "assets/[name].js",
+				// A hash in every name: tosu sends no cache headers, so a browser
+				// (Firefox above all) kept running last version's scripts under the
+				// same names after an update. Only the .html pages keep fixed names,
+				// and they point at the new files.
+				entryFileNames: "assets/[name]-[hash].js",
+				assetFileNames: "assets/[name]-[hash].[ext]",
+				chunkFileNames: "assets/[name]-[hash].js",
 				codeSplitting: {
 					groups: [
 						{
