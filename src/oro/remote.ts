@@ -15,6 +15,8 @@ import { DRAFT, LIVE, ROUND, ROUNDS, goTo, onEvent, saveRound } from "./stage.js
 // which has no draft to edit.
 // Kept across a reload of this page (see overlayId.ts).
 const ID = new OverlayId();
+const IN_OBS = "obsstudio" in window;
+const BOOT_MS = 15_000;
 // Re-sent this often so the panel can tell which overlays are still open.
 const HEARTBEAT_MS = 4000;
 
@@ -57,9 +59,12 @@ export default class OverlayRemote {
 		get id() {
 			return ID.id;
 		},
-		obs: "obsstudio" in window,
+		obs: IN_OBS,
 	});
 	private mirroring = false;
+	// the first seconds of this overlay: a tab's state heard then is weighed
+	// against what this one loaded (see LiveOro.adoptFrom)
+	private bootUntil = Date.now() + BOOT_MS;
 
 	constructor(
 		private link: ControlLink,
@@ -152,6 +157,15 @@ export default class OverlayRemote {
 		// Other overlays' states: an OBS overlay among them makes this one (if
 		// it isn't in OBS) a mirror of it; see leader.ts.
 		link.onState((other) => {
+			// In OBS: a tab speaking is a tab leading (a mirror stays quiet), so it
+			// ran the match while OBS was closed. What it has newer comes back.
+			if (IN_OBS && !other.obs && other.id !== ID.id) {
+				const boot = Date.now() < this.bootUntil;
+				const draft = this.live?.adoptFrom(other, boot) ?? false;
+				const room = this.battle.adoptFrom(other.battle, boot);
+				if (draft || room) this.publish();
+				return;
+			}
 			this.leader.heard(other, Date.now());
 			this.updateMirror();
 			if (!this.mirroring || !other.obs) return;
@@ -177,8 +191,10 @@ export default class OverlayRemote {
 		this.live?.setMirror(on);
 		this.battle.setMirror(on);
 		console.info(on ? "[OverlayRemote] An overlay in OBS is open: this one mirrors it" : "[OverlayRemote] No overlay in OBS any more: this one runs the match");
-		// leading again: the panel hears this one now, not at the next beat
-		if (!on) this.publish();
+		// leading again: the panel hears this one now, not at the next beat;
+		// a mirror: the panels stop counting it as an open overlay
+		if (on) this.link.retire(ID.id);
+		else this.publish();
 	}
 
 	private publish() {
@@ -187,7 +203,7 @@ export default class OverlayRemote {
 		if (this.mirroring) return;
 		this.link.publish({
 			id: ID.id,
-			obs: "obsstudio" in window,
+			obs: IN_OBS,
 			scene: document.body.dataset.scene ?? "",
 			round: ROUND.key,
 			live: LIVE,
@@ -196,6 +212,8 @@ export default class OverlayRemote {
 			map: this.live?.current ?? { id: "", title: "" },
 			pool: (this.live?.poolMaps ?? []).map(({ id, set, title, artist, diff, mapper, sr, bpm, len }) => ({ id, set, title, artist, diff, mapper, sr, bpm, len })),
 			draft: DRAFT,
+			draftAt: this.live?.draftState.at,
+			draftPlayers: this.live?.draftState.players,
 			showcase: oro.featured(),
 			poolStatus: this.live?.poolStatus ?? { ok: true, text: "" },
 			twitch: this.live?.twitch ?? { channels: [], channel: "", status: "off" },

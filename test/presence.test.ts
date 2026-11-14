@@ -46,3 +46,23 @@ describe("OverlayPresence: the bridge knows at once when an overlay goes", () =>
 		expect(p.closed("s1")).toBeNull();
 	});
 });
+
+describe("OverlayPresence.forget: a tab that became a mirror", () => {
+	test("its last state is no longer handed to a late panel", () => {
+		const p = new OverlayPresence<string>();
+		p.stated("obs", "obs1", "{obs}");
+		p.stated("tab", "tab1", "{tab}");
+		p.forget("tab");
+		expect(p.states()).toEqual(["{obs}"]);
+		// and its socket closing later names nobody: it was already retired
+		expect(p.closed("tab")).toBeNull();
+	});
+
+	test("leading again, it is back", () => {
+		const p = new OverlayPresence<string>();
+		p.stated("tab", "tab1", "{1}");
+		p.forget("tab");
+		p.stated("tab", "tab1", "{2}");
+		expect(p.states()).toEqual(["{2}"]);
+	});
+});

@@ -25,6 +25,12 @@ export class OverlayPresence<Socket> {
 		return was.id;
 	}
 
+	// The overlay on this socket stopped leading (it became a mirror): its
+	// last state no longer stands for an open overlay.
+	forget(socket: Socket) {
+		this.bySocket.delete(socket);
+	}
+
 	// The last state of every overlay connected now, for a panel that joins:
 	// all of them, so it knows at once there are two, and none that is gone.
 	states(): string[] {

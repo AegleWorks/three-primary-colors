@@ -73,6 +73,9 @@ export interface BattleState {
 	pool: BattlePool;
 	// seen leaving (lower-case): a mirror that leads again keeps them out
 	gone?: string[];
+	// when any of this was last changed (ms): the overlay in OBS takes over a
+	// newer room from a tab that ran the event while OBS was closed
+	updatedAt?: number;
 }
 
 type Chat = { team: string; time: string; name: string; messageBody: string };
@@ -146,7 +149,7 @@ export default class Battle {
 	// ---------- the panel ----------
 
 	get state(): BattleState {
-		return { players: this.players(), winner: this.winner, cover: this.coverMode, clientsUp: this.clientsUp, pool: { ...this.pool, played: [...this.pool.played] }, gone: [...this.gone] };
+		return { players: this.players(), winner: this.winner, cover: this.coverMode, clientsUp: this.clientsUp, pool: { ...this.pool, played: [...this.pool.played] }, gone: [...this.gone], updatedAt: this.updatedAt };
 	}
 
 	setWinner(name: string | null) {
@@ -289,13 +292,13 @@ export default class Battle {
 		});
 	}
 
-	private changed() {
+	private changed(edit = true) {
 		// a mirror's profiles come with the OBS overlay's room
 		if (!this.mirroring) for (const p of this.players()) {
 			const key = p.id ? String(p.id) : p.name.toLowerCase();
 			if (!this.profiles.has(key) && !this.profiles.has(p.name.toLowerCase())) this.fetchProfile(p.id ? String(p.id) : p.name, p.name);
 		}
-		this.save();
+		this.save(edit);
 		this.renderLobby();
 		this.renderCount();
 		this.renderWinner();
@@ -342,21 +345,44 @@ export default class Battle {
 
 	private mirroring = false;
 	private mirroredKey = "";
+	// when the room, winner, cover or pool last changed (0: never, or saved by
+	// an older version)
+	private updatedAt = 0;
+	private loadedAt = 0;
 
 	setMirror(on: boolean) {
 		this.mirroring = on;
 		this.mirroredKey = "";
 		// leading again: what was last mirrored is this overlay's room now
-		if (!on) this.save();
+		if (!on) this.save(false);
 	}
 
 	// The OBS overlay's room, winner, cover and pool, shown as they are. The
 	// players come with their profiles, so a mirror asks osu! for nothing.
 	mirrorFrom(state: BattleState | undefined) {
 		if (!this.mirroring || !state || !Array.isArray(state.players)) return;
-		const key = JSON.stringify([state.players, state.winner, state.cover, state.pool?.current, state.pool?.next, state.pool?.played, state.pool?.maps?.length, state.pool?.status, state.gone]);
+		const key = JSON.stringify([state.players, state.winner, state.cover, state.pool?.current, state.pool?.next, state.pool?.played, state.pool?.maps?.length, state.pool?.status, state.gone, state.updatedAt]);
 		if (key === this.mirroredKey) return;
 		this.mirroredKey = key;
+		this.apply(state);
+		this.onUpdate?.();
+	}
+
+	// Run in OBS: a tab ran the event while OBS was closed, and its room is
+	// newer than this one: it becomes this overlay's. True when taken over.
+	// `boot`: as in LiveOro.adoptFrom, weighed against the room as loaded.
+	adoptFrom(state: BattleState | undefined, boot = false): boolean {
+		const mine = boot ? this.loadedAt : this.updatedAt;
+		if (this.mirroring || !state || !Array.isArray(state.players) || !(Number(state.updatedAt) > mine)) return false;
+		console.info("[Battle] A tab ran the BR while OBS was closed: its newer room taken over");
+		this.apply(state);
+		this.save(false);
+		this.onUpdate?.();
+		return true;
+	}
+
+	private apply(state: BattleState) {
+		if (state.updatedAt !== undefined) this.updatedAt = Number(state.updatedAt) || 0;
 		this.room.clear();
 		if (Array.isArray(state.gone)) this.gone = new Set(state.gone.map((g) => String(g).toLowerCase()));
 		for (const p of state.players) {
@@ -382,7 +408,6 @@ export default class Battle {
 		this.renderCount();
 		this.renderCover();
 		this.renderWinner();
-		this.onUpdate?.();
 	}
 
 	// ---------- tosu ----------
@@ -750,12 +775,15 @@ export default class Battle {
 
 	// ---------- kept across a source refresh ----------
 
-	private save() {
+	// `edit`: a change to the room, winner, cover or pool, which dates it (not a
+	// save of what was loaded, mirrored or taken over)
+	private save(edit = true) {
 		// the simulation's made-up room is never kept, nor a mirror's (its
 		// storage is another browser's, not OBS's)
 		if (SIM || this.mirroring) return;
+		if (edit) this.updatedAt = Date.now();
 		try {
-			localStorage.setItem(KEY, JSON.stringify({ room: [...this.room.values()], gone: [...this.gone], winner: this.winner, cover: this.coverMode, played: this.pool.played, next: this.pool.next }));
+			localStorage.setItem(KEY, JSON.stringify({ room: [...this.room.values()], gone: [...this.gone], winner: this.winner, cover: this.coverMode, played: this.pool.played, next: this.pool.next, at: this.updatedAt }));
 		} catch {}
 	}
 
@@ -774,7 +802,8 @@ export default class Battle {
 				this.winnerData = { name: this.winner };
 				this.fetchProfile(this.winner);
 			}
-			this.changed();
+			this.updatedAt = this.loadedAt = Number(saved.at) || 0;
+			this.changed(false);
 		} catch {}
 	}
 

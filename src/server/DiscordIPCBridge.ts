@@ -867,6 +867,13 @@ export class DiscordIPCBridge {
 		}
 		const type = message?.type;
 		if (type === "remote") return message.on ? this.remote.start() : this.remote.stop();
+		// an overlay that became a mirror retires itself: panels drop it now
+		if (type === "overlay_gone") {
+			this.presence.forget(from);
+			this.remote.forward(raw);
+			for (const client of this.wss?.clients ?? []) if (client !== from && client.readyState === WebSocket.OPEN) client.send(raw);
+			return;
+		}
 		if (type !== "control" && type !== "overlay_state") return;
 		if (type === "overlay_state") {
 			this.overlayState = raw;

@@ -63,6 +63,11 @@ export interface OverlayState {
 	map: { id: string; title: string };
 	pool: { id: string; set: number; title: string; artist: string; diff: string; mapper: string; sr: number; bpm: number; len: string }[];
 	draft: Draft;
+	// when the draft was last edited (ms), and the players it belongs to: the
+	// overlay in OBS takes over a newer draft from a tab that ran the match
+	// while OBS was closed (absent from overlays older than it)
+	draftAt?: number;
+	draftPlayers?: string[];
 	// the pool slot the showcase features
 	showcase: string;
 	// where the pool came from, or what went wrong loading it
@@ -102,6 +107,11 @@ export default class ControlLink {
 
 	publish(state: OverlayState) {
 		this.raw({ type: "overlay_state", ...state });
+	}
+
+	// this overlay stops leading (it mirrors one in OBS): the panels drop it
+	retire(id: string) {
+		this.raw({ type: "overlay_gone", id });
 	}
 
 	onCommand(fn: (command: Command) => void) {

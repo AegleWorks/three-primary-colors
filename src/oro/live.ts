@@ -255,6 +255,10 @@ export default class LiveOro {
 	// two new names arrive one side at a time, and following them made the
 	// first new name "known" by the time the second one came.
 	private draftPlayers: string[] = [];
+	// when the draft was last edited (0: never, or saved by an older version),
+	// and as it was loaded
+	private draftAt = 0;
+	private loadedAt = 0;
 
 	private playerAliases(): Set<string> | null {
 		if (SIDES.some((s) => !this.names[s])) return null;
@@ -267,7 +271,7 @@ export default class LiveOro {
 		if (!known) return;
 		if (!this.draftPlayers.length) {
 			this.draftPlayers = [...known];
-			this.saveDraft();
+			this.saveDraft(false);
 			return;
 		}
 		if (!isNewMatch(this.draftPlayers, known)) return;
@@ -861,15 +865,18 @@ export default class LiveOro {
 			const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) || "null");
 			if (saved) Object.assign(DRAFT, { bans: saved.bans ?? {}, picks: saved.picks ?? [], tbWon: saved.tbWon, next: saved.next === "l" || saved.next === "r" ? saved.next : undefined });
 			if (Array.isArray(saved?.players)) this.draftPlayers = saved.players.filter((n: unknown) => typeof n === "string");
+			this.draftAt = this.loadedAt = num(saved?.at);
 		} catch {}
 	}
 
 	// Every draft change goes through here, so it is also where the control
-	// panel hears about it.
-	private saveDraft() {
+	// panel hears about it. `edit`: a change to the draft itself, which dates
+	// it (not a save of what was loaded, mirrored or taken over).
+	private saveDraft(edit = true) {
 		if (this.mirroring) return this.onUpdate?.();
+		if (edit) this.draftAt = Date.now();
 		try {
-			localStorage.setItem(DRAFT_KEY, JSON.stringify({ bans: DRAFT.bans, picks: DRAFT.picks, tbWon: DRAFT.tbWon, next: DRAFT.next, players: this.draftPlayers }));
+			localStorage.setItem(DRAFT_KEY, JSON.stringify({ bans: DRAFT.bans, picks: DRAFT.picks, tbWon: DRAFT.tbWon, next: DRAFT.next, players: this.draftPlayers, at: this.draftAt }));
 		} catch {}
 		this.onUpdate?.();
 	}
@@ -884,25 +891,55 @@ export default class LiveOro {
 		this.autoPick = null;
 		this.mirroredKey = "";
 		// leading again: what was last mirrored is this overlay's draft now
-		if (!on) this.saveDraft();
+		if (!on) this.saveDraft(false);
 	}
 
 	// The OBS overlay's draft and series, shown as they are.
 	mirrorFrom(state: OverlayState) {
 		const draft = state.draft;
 		if (!draft || !Array.isArray(draft.picks)) return;
-		const key = JSON.stringify([draft.bans, draft.picks, draft.tbWon, draft.next, state.stars]);
+		const key = JSON.stringify([draft.bans, draft.picks, draft.tbWon, draft.next, state.stars, state.draftAt]);
 		if (key === this.mirroredKey) return;
 		this.mirroredKey = key;
+		this.applyDraft(state);
+		this.stars = { l: num(state.stars?.l), r: num(state.stars?.r) };
+		oro.setStars({ ...this.stars });
+		oro.draftChanged();
+	}
+
+	// Run in OBS: a tab ran this round's match while OBS was closed, and its
+	// draft is newer than this one: it becomes this overlay's draft (the series
+	// stays osu!'s). True when taken over. `boot`: OBS just opened, so what it
+	// did by itself since (an autopick, a reset from tosu's first frames) is
+	// not newer than the tab's; it is weighed as it was loaded.
+	adoptFrom(state: OverlayState, boot = false): boolean {
+		const mine = boot ? this.loadedAt : this.draftAt;
+		if (this.mirroring || state.round !== ROUND.key || !(num(state.draftAt) > mine)) return false;
+		if (!state.draft || !Array.isArray(state.draft.picks)) return false;
+		console.info(`[LiveOro] A tab ran the match while OBS was closed: its newer draft (${new Date(num(state.draftAt)).toLocaleTimeString()}) taken over`);
+		this.autoPick = null;
+		this.applyDraft(state);
+		this.saveDraft(false);
+		oro.draftChanged();
+		return true;
+	}
+
+	private applyDraft(state: OverlayState) {
+		const draft = state.draft;
 		DRAFT.bans = { ...(draft.bans ?? {}) };
 		DRAFT.picks = draft.picks.map((p) => ({ ...p }));
 		if (draft.tbWon) DRAFT.tbWon = draft.tbWon;
 		else delete DRAFT.tbWon;
 		if (draft.next) DRAFT.next = draft.next;
 		else delete DRAFT.next;
-		this.stars = { l: num(state.stars?.l), r: num(state.stars?.r) };
-		oro.setStars({ ...this.stars });
-		oro.draftChanged();
+		// the draft's players and date come with it, so it isn't taken for
+		// another match's or redated by a save
+		if (Array.isArray(state.draftPlayers)) this.draftPlayers = state.draftPlayers.filter((n) => typeof n === "string");
+		if (state.draftAt !== undefined) this.draftAt = num(state.draftAt);
+	}
+
+	get draftState() {
+		return { at: this.draftAt, players: [...this.draftPlayers] };
 	}
 
 	// Called when the draft, the pool or the players change.
