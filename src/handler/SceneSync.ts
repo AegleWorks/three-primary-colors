@@ -18,6 +18,13 @@ const RULES: [RegExp, SceneName][] = [
 ];
 
 export function sceneFor(obsScene: string): SceneName | null {
+	// the Battle Royale event's scenes: "BR sala", "Battle Royale gameplay"...
+	if (/battle|royale|br/i.test(obsScene)) {
+		if (/champ|campe|winner|ganador/i.test(obsScene)) return "br-winner";
+		if (/sala|lobby|empez|start|jugadores/i.test(obsScene)) return "br-lobby";
+		if (/pool|mapas|maps/i.test(obsScene)) return "br-pool";
+		return "br-gameplay";
+	}
 	for (const [rule, scene] of RULES) if (rule.test(obsScene)) return scene;
 	return null;
 }

@@ -16,15 +16,6 @@
 
 <body>
 	<svg width="0" height="0" aria-hidden="true" style="position:absolute">
-		<!-- Sun pectoral, after Quimbaya and Muisca goldwork. -->
-		<symbol id="sol" viewBox="0 0 100 100">
-			<path fill="currentColor"
-				d="M76.9 47.4 L97.0 50.0 L76.9 52.6ZM75.8 57.8 L87.0 65.3 L73.8 62.7ZM70.9 67.1 L83.2 83.2 L67.1 70.9ZM62.7 73.8 L65.3 87.0 L57.8 75.8ZM52.6 76.9 L50.0 97.0 L47.4 76.9ZM42.2 75.8 L34.7 87.0 L37.3 73.8ZM32.9 70.9 L16.8 83.2 L29.1 67.1ZM26.2 62.7 L13.0 65.3 L24.2 57.8ZM23.1 52.6 L3.0 50.0 L23.1 47.4ZM24.2 42.2 L13.0 34.7 L26.2 37.3ZM29.1 32.9 L16.8 16.8 L32.9 29.1ZM37.3 26.2 L34.7 13.0 L42.2 24.2ZM47.4 23.1 L50.0 3.0 L52.6 23.1ZM57.8 24.2 L65.3 13.0 L62.7 26.2ZM67.1 29.1 L83.2 16.8 L70.9 32.9ZM73.8 37.3 L87.0 34.7 L75.8 42.2Z" />
-			<circle cx="50" cy="50" r="25" fill="none" stroke="currentColor" stroke-width="1.6" />
-			<path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"
-				d="M67.0 50.0 L70.6 54.1 L65.7 56.5 L67.5 61.7 L62.0 62.0 L61.7 67.5 L56.5 65.7 L54.1 70.6 L50.0 67.0 L45.9 70.6 L43.5 65.7 L38.3 67.5 L38.0 62.0 L32.5 61.7 L34.3 56.5 L29.4 54.1 L33.0 50.0 L29.4 45.9 L34.3 43.5 L32.5 38.3 L38.0 38.0 L38.3 32.5 L43.5 34.3 L45.9 29.4 L50.0 33.0 L54.1 29.4 L56.5 34.3 L61.7 32.5 L62.0 38.0 L67.5 38.3 L65.7 43.5 L70.6 45.9 L67.0 50.0" />
-			<circle cx="50" cy="50" r="9" fill="currentColor" />
-		</symbol>
 		<symbol id="spark" viewBox="0 0 20 20">
 			<path d="M10 0 C11 7 13 9 20 10 C13 11 11 13 10 20 C9 13 7 11 0 10 C7 9 9 7 10 0Z" />
 		</symbol>
@@ -51,14 +42,14 @@
 			<canvas class="dust" data-dust="rise" width="1920" height="1080" aria-hidden="true"></canvas>
 			<div class="start-main">
 				<header class="start-head">
-					<svg class="start-sol" aria-hidden="true"><use href="#sol" /></svg>
+					<img class="start-sol" src="./src/oro/media/logo-ct3.webp" alt="" draggable="false">
 					<span class="label label--lg">Rempalago 3 · <span data-bind="round">Final</span></span>
 					<h2 class="start-title">Ya empezamos</h2>
 				</header>
 				<div class="start-match">
-					<div class="start-player start-player--l"><span class="pfp" data-pfp="l"></span><b data-name="l">Clippy</b><span class="label">Seed 1</span></div>
+					<div class="start-player start-player--l"><i class="start-banner" data-banner="l" aria-hidden="true"></i><span class="pfp" data-pfp="l"></span><b data-name="l">Clippy</b><span class="label">Seed 1</span></div>
 					<span class="start-vs">VS</span>
-					<div class="start-player start-player--r"><span class="pfp" data-pfp="r"></span><b data-name="r">Sombrax79</b><span class="label">Seed 4</span></div>
+					<div class="start-player start-player--r"><i class="start-banner" data-banner="r" aria-hidden="true"></i><span class="pfp" data-pfp="r"></span><b data-name="r">Sombrax79</b><span class="label">Seed 4</span></div>
 				</div>
 				<div class="start-casters" data-count="2">
 					<article class="booth" data-caster="0">
@@ -90,7 +81,7 @@
 			<canvas class="dust" data-dust="rise" width="1920" height="1080" aria-hidden="true"></canvas>
 			<i class="intro-line" aria-hidden="true"></i>
 			<header class="intro-head">
-				<svg class="intro-sol" aria-hidden="true"><use href="#sol" /></svg>
+				<img class="intro-sol" src="./src/oro/media/logo-ct3.webp" alt="" draggable="false">
 				<span class="label label--lg">Rempalago 3</span>
 				<h2 class="intro-title" data-bind="round">Final</h2>
 			</header>
@@ -134,6 +125,17 @@
 			<div class="replay" id="replay" aria-hidden="true">
 				<div class="replay-stand" id="replayStand"></div>
 				<i class="replay-corner"></i><i class="replay-corner"></i><i class="replay-corner"></i><i class="replay-corner"></i>
+				<!-- Who plays the replay (tosu's player name, their osu! profile):
+				     top left, on their banner. -->
+				<div class="replayer" id="replayer" hidden>
+					<i class="replayer-banner" id="replayerBanner"></i>
+					<span class="pfp" data-pfp="rp"></span>
+					<div class="replayer-text">
+						<span class="label">Replay de</span>
+						<b data-name="rp"></b>
+						<span class="replayer-stats" id="replayerStats"></span>
+					</div>
+				</div>
 			</div>
 
 			<article class="sheet glass" id="sheet">
@@ -464,7 +466,7 @@
 					<div class="champ-rays"><i></i><i></i></div>
 					<i class="champ-ring"></i>
 					<i class="champ-ring champ-ring--outer"></i>
-					<svg class="champ-sol"><use href="#sol" /></svg>
+					<img class="champ-sol" src="./src/oro/media/logo-ct3.webp" alt="" draggable="false">
 					<span class="pfp champ-pfp" data-pfp="l"></span>
 				</div>
 				<span class="label label--lg champ-kicker" data-bind="crown">Campeón de Rempalago 3</span>
@@ -511,6 +513,170 @@
 					<div class="feed" data-twitch></div>
 				</section>
 			</aside>
+		</section>
+
+		<!-- ================= BATTLE ROYALE (special event) =================
+		     Three scenes of its own, apart from the 1v1 match: battle.ts fills
+		     them, the panel's Battle Royale tab drives them. -->
+
+		<!-- BR: "Ya empezamos" with everyone in the lobby. -->
+		<section data-scene="br-lobby" class="brl">
+			<canvas class="dust" data-dust="rise" width="1920" height="1080" aria-hidden="true"></canvas>
+			<div class="brl-main">
+				<header class="brl-head">
+					<img class="brl-logo" src="./src/oro/media/logo-ct3.webp" alt="" draggable="false">
+					<div class="brl-titles">
+						<span class="label label--lg">Rempalago 3 · Battle Royale</span>
+						<h2 class="brl-title">Ya empezamos</h2>
+					</div>
+					<span class="brl-count"><b data-br-count>0</b><i>/ 16</i><span class="label">jugadores en la sala</span></span>
+				</header>
+				<ol class="brl-grid" id="brGrid"></ol>
+			</div>
+			<aside class="show-side brl-side">
+				<section class="show-casters glass " data-count="2">
+						<span class="chat-head"><b>Casters</b></span>
+						<div class="seats">
+						<div class="seat" data-caster="0"><span class="pfp" data-pfp="c0"></span><b data-name="c0">hxovc</b><i class="wave"><i></i><i></i><i></i></i></div>
+						<div class="seat" data-caster="1"><span class="pfp" data-pfp="c1"></span><b data-name="c1">Kuervo</b><i class="wave"><i></i><i></i><i></i></i></div>
+						<div class="seat" data-caster="2" hidden><span class="pfp" data-pfp="c2"></span><b data-name="c2"></b><i class="wave"><i></i><i></i><i></i></i></div>
+						<div class="seat" data-caster="3" hidden><span class="pfp" data-pfp="c3"></span><b data-name="c3"></b><i class="wave"><i></i><i></i><i></i></i></div>
+						</div>
+					</section>
+				<section class="show-chat glass">
+					<span class="chat-head"><b>Twitch</b><span data-twitch-channel>chat en vivo</span></span>
+					<div class="feed" data-twitch></div>
+				</section>
+			</aside>
+		</section>
+
+		<!-- BR: the tourney client's window (x 0, y 100, 1920x720) with nothing
+		     over it. While the client is down (restarted to seat players) the
+		     Rempalago background covers the window too. -->
+		<section data-scene="br-gameplay" class="brg">
+			<header class="brg-top glass">
+				<div class="brg-brand">
+					<img class="brg-logo" src="./src/oro/media/logo-ct3.webp" alt="" draggable="false">
+					<span class="brg-titles"><span class="label">Rempalago 3</span><b>Battle Royale</b></span>
+				</div>
+				<!-- up to four casters, in a row across the top -->
+				<section class="show-casters brg-casters" data-count="2">
+					<div class="seats">
+						<div class="seat" data-caster="0"><span class="pfp" data-pfp="c0"></span><b data-name="c0">hxovc</b><i class="wave"><i></i><i></i><i></i></i></div>
+						<div class="seat" data-caster="1"><span class="pfp" data-pfp="c1"></span><b data-name="c1">Kuervo</b><i class="wave"><i></i><i></i><i></i></i></div>
+						<div class="seat" data-caster="2" hidden><span class="pfp" data-pfp="c2"></span><b data-name="c2"></b><i class="wave"><i></i><i></i><i></i></i></div>
+						<div class="seat" data-caster="3" hidden><span class="pfp" data-pfp="c3"></span><b data-name="c3"></b><i class="wave"><i></i><i></i><i></i></i></div>
+					</div>
+				</section>
+				<span class="brg-count"><b data-br-count>0</b> jugadores</span>
+				<i class="rule" aria-hidden="true"><i></i></i>
+			</header>
+			<!-- The window: see-through live. What shows when nobody is in it
+			     (the logo over the background) is also br-fondo.html, the page
+			     that goes under the client in OBS. -->
+			<div class="brg-window" aria-hidden="true">
+				<div class="brg-wait">
+					<img class="brg-wait-logo" src="./src/oro/media/logo-ct3.webp" alt="" draggable="false">
+					<span class="label label--lg">Acomodando jugadores</span>
+				</div>
+			</div>
+			<!-- the map; the lobby chat while nobody plays (it folds away during
+			     a map, as on the match's deck); Twitch -->
+			<footer class="brg-deck glass" id="brDeck" data-mode="lobby">
+				<div class="brg-map">
+					<i class="brg-art" id="brArt"></i>
+					<div class="brg-map-text">
+						<span class="label">Mapa en juego</span>
+						<b class="brg-title" id="brTitle"></b>
+						<span class="brg-artist" id="brArtist"></span>
+						<span class="brg-diff" id="brDiff"></span>
+						<dl class="brg-stats" id="brStats"></dl>
+					</div>
+					<div class="brg-graph" aria-hidden="true">
+						<svg viewBox="0 0 100 40" preserveAspectRatio="none"><path class="strain-all" /></svg>
+						<svg viewBox="0 0 100 40" preserveAspectRatio="none" class="strain-played" id="brPlayed"><path /></svg>
+					</div>
+					<div class="brg-time"><span class="num" id="brClock">0:00</span><i class="brg-bar"><i id="brBar"></i></i><span class="num" id="brLen">0:00</span></div>
+				</div>
+				<section class="brg-chat brg-chat--lobby">
+					<span class="chat-head"><b>Lobby</b>#mp_battle_royale</span>
+					<div class="feed" data-lobby></div>
+				</section>
+				<section class="brg-chat brg-chat--twitch">
+					<span class="chat-head"><b>Twitch</b><span data-twitch-channel>chat en vivo</span></span>
+					<div class="feed" data-twitch></div>
+				</section>
+			</footer>
+		</section>
+				<section class="brg-chat">
+					<span class="chat-head"><b>Twitch</b><span data-twitch-channel>chat en vivo</span></span>
+					<div class="feed" data-twitch></div>
+				</section>
+			</footer>
+		</section>
+
+		<!-- BR: the event's own mappool (the sheet's "Pool BR" tab). No picks
+		     by player: the map in play, the one coming up and the ones played,
+		     in one neutral colour. -->
+		<section data-scene="br-pool" class="brp">
+			<div class="brp-main">
+				<header class="brp-head">
+					<img class="brp-logo" src="./src/oro/media/logo-ct3.webp" alt="" draggable="false">
+					<div class="brp-titles">
+						<span class="label">Rempalago 3 · Battle Royale</span>
+						<h2 class="brp-title">Mappool</h2>
+						<span class="brp-count"><b id="brPoolPlayed">0 / 0</b> mapas jugados</span>
+					</div>
+					<div class="brp-next" id="brPoolNext" hidden>
+						<i class="brp-next-art"></i>
+						<span class="brp-next-kicker">Mapa que viene</span>
+						<span class="brp-next-line"><b class="brp-next-id"></b><b class="brp-next-title"></b></span>
+						<span class="brp-next-sub"></span>
+					</div>
+				</header>
+				<div class="pool-grid brp-grid" id="brPoolGrid"></div>
+			</div>
+			<aside class="brp-side">
+				<section class="show-casters glass" data-count="2">
+					<span class="chat-head"><b>Casters</b></span>
+					<div class="seats">
+						<div class="seat" data-caster="0"><span class="pfp" data-pfp="c0"></span><b data-name="c0">hxovc</b><i class="wave"><i></i><i></i><i></i></i></div>
+						<div class="seat" data-caster="1"><span class="pfp" data-pfp="c1"></span><b data-name="c1">Kuervo</b><i class="wave"><i></i><i></i><i></i></i></div>
+						<div class="seat" data-caster="2" hidden><span class="pfp" data-pfp="c2"></span><b data-name="c2"></b><i class="wave"><i></i><i></i><i></i></i></div>
+						<div class="seat" data-caster="3" hidden><span class="pfp" data-pfp="c3"></span><b data-name="c3"></b><i class="wave"><i></i><i></i><i></i></i></div>
+					</div>
+				</section>
+				<section class="chat chat--game brp-chat glass">
+					<span class="chat-head"><b>Lobby</b>#mp_battle_royale</span>
+					<div class="feed" data-lobby></div>
+				</section>
+				<section class="chat chat--twitch brp-chat brp-chat--twitch glass">
+					<span class="chat-head"><b>Twitch</b><span data-twitch-channel>chat en vivo</span></span>
+					<div class="feed" data-twitch></div>
+				</section>
+			</aside>
+		</section>
+
+		<!-- BR: the winner, picked in the panel. -->
+		<section data-scene="br-winner" class="brw">
+			<canvas class="dust" data-dust="fall" width="1920" height="1080" aria-hidden="true"></canvas>
+			<canvas class="brw-fx" id="brFx" width="1920" height="1080" aria-hidden="true"></canvas>
+			<div class="brw-body">
+				<div class="brw-crest" aria-hidden="true">
+					<i class="brw-ring"></i>
+					<img class="brw-logo" src="./src/oro/media/logo-ct3.webp" alt="" draggable="false">
+				</div>
+				<span class="label label--lg brw-kicker">Ganador del Battle Royale</span>
+				<div class="brw-card">
+					<i class="brw-banner" id="brwBanner"></i>
+					<span class="brw-pfp" id="brwPfp"></span>
+					<div class="brw-text">
+						<h1 class="brw-name" id="brwName">—</h1>
+						<span class="brw-stats" id="brwStats"></span>
+					</div>
+				</div>
+				<span class="label brw-sub" id="brwSub"></span>
+			</div>
 		</section>
 
 		<!-- Scene stinger: the bolt. Charge, strike, crackle, zoom to cover,

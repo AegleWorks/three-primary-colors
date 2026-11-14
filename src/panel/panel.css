@@ -1125,7 +1125,7 @@ select:hover {
 [data-mod="hr"] { --mod: #ff7584; }
 [data-mod="dt"] { --mod: #b1a3ff; }
 [data-mod="fm"] { --mod: #85d8bf; }
-[data-mod="tb"] { --mod: var(--gold); }
+[data-mod="tb"] { --mod: #9ea1a8; }
 
 .mod-name {
 	display: flex;
@@ -2352,3 +2352,248 @@ body[data-remote] [data-local] {
 	outline: 2px solid var(--gold-hi);
 	outline-offset: 1px;
 }
+
+/* ---------- Battle Royale ---------- */
+
+.br-scenes {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 8px;
+	margin-bottom: 14px;
+}
+
+.br-scene {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+	text-align: left;
+}
+
+.br-scene b {
+	font: 900 17px/1.1 var(--display);
+}
+
+.br-scene span {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--soft);
+}
+
+.br-scene[aria-current="true"] {
+	border-color: var(--gold);
+	box-shadow: inset 0 0 0 1px var(--gold);
+}
+
+.br-cover {
+	margin-bottom: 16px;
+}
+
+.br-cover .hint {
+	margin-top: 6px;
+}
+
+.br-room-head {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+}
+
+.br-room-n {
+	font: 900 18px/1 var(--display);
+	color: var(--gold);
+}
+
+.br-room {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+	gap: 6px;
+	max-height: 380px;
+	overflow-y: auto;
+	padding: 2px;
+	margin: 8px 0 10px;
+}
+
+.br-player {
+	display: flex;
+	gap: 4px;
+	min-width: 0;
+}
+
+.br-player .player {
+	flex: 1;
+	min-width: 0;
+}
+
+.br-player .player b {
+	min-width: 14px;
+}
+
+.br-player .player small {
+	margin-left: auto;
+	flex: none;
+	font-size: 11px;
+	color: var(--soft);
+}
+
+.br-player .player[aria-selected="true"] small {
+	color: #4a3608;
+}
+
+.br-out {
+	flex: none;
+	width: 36px;
+	padding: 0;
+}
+
+.br-add {
+	display: flex;
+	gap: 6px;
+	margin-bottom: 14px;
+}
+
+.br-add input {
+	flex: 1;
+	min-width: 0;
+}
+
+#brClient[data-tone="ok"] {
+	color: var(--ok, #3ddc84);
+}
+
+#brClient[data-tone="warn"] {
+	color: var(--warn, #ffb547);
+}
+
+.br-obs {
+	margin-bottom: 16px;
+	padding: 12px 14px;
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	background: var(--raise);
+}
+
+.br-obs .hint {
+	margin-top: 8px;
+}
+
+.br-obs-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+
+.br-obs-actions [hidden] {
+	display: none;
+}
+
+.br-obs-status[data-ok="true"] {
+	color: var(--ok, #3ddc84);
+}
+
+.br-obs-status[data-ok="false"] {
+	color: var(--warn, #ffb547);
+}
+
+/* the BR mappool: one row per map, neutral states */
+.br-pool {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: 6px;
+	margin: 8px 0;
+}
+
+.br-map {
+	display: flex;
+	gap: 4px;
+	min-width: 0;
+}
+
+.br-map-pick {
+	position: relative;
+	isolation: isolate;
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 40px;
+	padding: 6px 10px;
+	overflow: hidden;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--raise);
+	color: var(--text);
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.br-map-pick .map-art {
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	background-size: cover;
+	background-position: center;
+	opacity: 0.25;
+}
+
+.br-map-pick b {
+	flex: none;
+	min-width: 38px;
+	font: 900 13px/1 var(--display);
+	color: var(--mod, var(--gold));
+}
+
+.br-map-pick span {
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	font-weight: 700;
+}
+
+.br-map-pick small {
+	margin-left: auto;
+	flex: none;
+	font-size: 11px;
+	color: var(--soft);
+}
+
+.br-map[data-state="live"] .br-map-pick {
+	border-color: #f4f1ea;
+	box-shadow: inset 0 0 0 1px #f4f1ea;
+}
+
+.br-map[data-state="next"] .br-map-pick {
+	border-color: #cfd6e4;
+	border-style: dashed;
+}
+
+.br-map[data-state="played"] .br-map-pick {
+	opacity: 0.5;
+}
+
+.br-map-tick {
+	flex: none;
+	width: 36px;
+	padding: 0;
+}
+
+.br-map-tick[aria-pressed="true"] {
+	background: #cfd6e4;
+	color: #14161a;
+}
+
+.br-pool-actions {
+	display: flex;
+	gap: 6px;
+	margin-bottom: 16px;
+}
+
+.br-pool-status[data-ok="false"] {
+	color: var(--warn, #ffb547);
+}
+
+[data-mod="ex"] { --mod: #f2a5d0; }

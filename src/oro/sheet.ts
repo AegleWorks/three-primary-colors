@@ -2,10 +2,11 @@ import axios from "axios";
 
 // The mappool from a Google Sheet shared as "anyone with the link can view".
 // Columns are found by their header, so they can move: Mod (the slot: NM1,
-// DT2, TB), ID (the beatmap id), and optionally SR, BPM, Length, CS, AR, OD
-// and Mapper, which win over the osu! API's values (the sheet's numbers come
-// with the mod applied, and its mapper credits guest difficulties). Rows
-// without an ID are skipped.
+// DT2, TB), ID (the beatmap id), and optionally Map ("Artist - Title [Diff]"),
+// SR, BPM, Length, CS, AR, OD and Mapper, which win over the osu! API's
+// values (the sheet's numbers come with the mod applied, and its mapper
+// credits guest difficulties). A row without an ID is a map not uploaded to
+// osu!: it is shown from its own cells.
 
 export interface SheetRef {
 	id: string;
@@ -14,7 +15,12 @@ export interface SheetRef {
 
 export interface SheetRow {
 	slot: string;
+	// 0 for a map not uploaded to osu!: the row's own cells describe it
 	beatmapId: number;
+	// "Artist - Title [Difficulty]" from the Map column, split
+	artist?: string;
+	title?: string;
+	diff?: string;
 	sr?: number;
 	bpm?: number;
 	len?: string;
@@ -34,18 +40,30 @@ export async function fetchSheetPool({ id, gid = 0 }: SheetRef): Promise<SheetRo
 	const at = Object.fromEntries(COLUMNS.map((name) => [name, header.findIndex((h) => h.trim().toLowerCase() === name)]));
 	if (at.mod < 0 || at.id < 0) throw new Error("the sheet needs a Mod and an ID column");
 	const cell = (row: string[], name: (typeof COLUMNS)[number]) => (at[name] < 0 ? "" : (row[at[name]] ?? "").trim());
+	// The Map column: its cell, or the unnamed one next to it (the sheet
+	// merges the header over the picture and the name).
+	const mapAt = header.findIndex((h) => h.trim().toLowerCase() === "map");
+	const mapName = (row: string[]) => {
+		if (mapAt < 0) return "";
+		const own = (row[mapAt] ?? "").trim();
+		if (own) return own;
+		return header[mapAt + 1]?.trim() === "" ? (row[mapAt + 1] ?? "").trim() : "";
+	};
 	const num = (row: string[], name: (typeof COLUMNS)[number]) => {
 		const n = Number.parseFloat(cell(row, name).replace(",", "."));
 		return Number.isFinite(n) ? n : undefined;
 	};
 	return rows.flatMap((row) => {
 		const slot = cell(row, "mod").toUpperCase().replace(/\s+/g, "");
-		const beatmapId = Number.parseInt(cell(row, "id"), 10);
-		if (!slot || !Number.isFinite(beatmapId)) return [];
+		const id = Number.parseInt(cell(row, "id"), 10);
+		const name = splitName(mapName(row));
+		// no id and no name: an empty row
+		if (!slot || (!Number.isFinite(id) && !name.title)) return [];
 		return [
 			{
 				slot,
-				beatmapId,
+				beatmapId: Number.isFinite(id) ? id : 0,
+				...name,
 				sr: num(row, "sr"),
 				bpm: num(row, "bpm"),
 				len: length(cell(row, "length")),
@@ -56,6 +74,15 @@ export async function fetchSheetPool({ id, gid = 0 }: SheetRef): Promise<SheetRo
 			},
 		];
 	});
+}
+
+// "Artist - Title [Difficulty]" -> its parts; without " - " it is all title.
+function splitName(text: string): { artist?: string; title?: string; diff?: string } {
+	if (!text) return {};
+	const m = /^(.*?)\s+-\s+(.*?)(?:\s*\[([^\]]*)\])?\s*$/.exec(text);
+	if (m) return { artist: m[1], title: m[2], diff: m[3] ?? "" };
+	const d = /^(.*?)\s*\[([^\]]*)\]\s*$/.exec(text);
+	return d ? { artist: "", title: d[1], diff: d[2] } : { artist: "", title: text, diff: "" };
 }
 
 export interface SheetTab {

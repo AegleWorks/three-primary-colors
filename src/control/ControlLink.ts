@@ -1,5 +1,6 @@
 import type { RemoteStatus } from "../config/remote";
 import type { SourcesState } from "../oro/sources";
+import type { BattleCover, BattleState } from "../oro/battle";
 import type { Draft, SceneName, Side } from "../oro/stage.js";
 
 // The wire between the control panel and the overlay, relayed by the bridge
@@ -19,6 +20,8 @@ export type Command =
 	| { action: "stars"; stars: Record<Side, number> }
 	// who picks next, by hand; null goes back to taking turns
 	| { action: "nextPicker"; side: Side | null }
+	// both players' numbers to 0 once the song is over (tosu keeps the last play's)
+	| { action: "clearScores" }
 	// puts the whole draft back as it was: the panel's undo
 	| { action: "draftRestore"; draft: DraftSnapshot }
 	| { action: "showcase"; id: string }
@@ -29,7 +32,22 @@ export type Command =
 	| { action: "qualifier"; index: number }
 	// which sheet tab the match plays and the results scene shows, by gid, and
 	// the results scene's scores file; refresh looks for new tabs
-	| { action: "sources"; pool?: number; results?: number; file?: string; refresh?: boolean };
+	| { action: "sources"; pool?: number; results?: number; file?: string; refresh?: boolean }
+	// the Battle Royale event: the winner, the window cover, the room by hand
+	| {
+			action: "battle";
+			winner?: string | null;
+			cover?: BattleCover;
+			add?: string;
+			remove?: string;
+			reset?: boolean;
+			// the BR mappool: the map coming up, a map played or not by hand,
+			// all unplayed again, the sheet read again
+			next?: string | null;
+			played?: string;
+			poolReset?: boolean;
+			poolReload?: boolean;
+	  };
 
 export interface OverlayState {
 	// one per overlay page load; several overlays can be open at once
@@ -56,6 +74,8 @@ export interface OverlayState {
 	qualifiers: { players: { name: string; seed: number }[]; index: number };
 	// the sheet's tabs and which one each part reads
 	sources: SourcesState;
+	// the Battle Royale event (absent from overlays older than it)
+	battle?: BattleState;
 }
 
 type Message = ({ type: "control" } & Command) | ({ type: "overlay_state" } & OverlayState) | RemoteStatus | { type: "remote"; on: boolean };

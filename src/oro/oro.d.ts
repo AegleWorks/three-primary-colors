@@ -39,6 +39,8 @@ export const oro: {
 	twitchChannel(name: string): void;
 	chat(who: string, side: Side | "bot" | "ref", msg: string, time: string, act?: boolean): void;
 	setStrains(strains: number[]): void;
+	setBanner(side: Side, url: string | undefined): void;
+	setReplayer(player: { name: string; osuId?: number; rank?: number; countryRank?: number; country?: string; pp?: number; cover?: string } | null): void;
 	setPlayerInfo(side: Side, info: { seed?: number; rank?: number; countryRank?: number; pp?: number }): void;
 	setPool(maps: PoolMap[]): void;
 	draftChanged(): void;

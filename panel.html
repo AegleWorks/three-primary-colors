@@ -104,6 +104,7 @@
 				<button type="button" role="tab" id="tab-match" aria-controls="pane-match" aria-selected="true" data-i18n="tabMatch">Partido</button>
 				<button type="button" role="tab" id="tab-showcase" aria-controls="pane-showcase" aria-selected="false" tabindex="-1" data-i18n="tabShowcase">Showcase</button>
 				<button type="button" role="tab" id="tab-quals" aria-controls="pane-quals" aria-selected="false" tabindex="-1" data-i18n="tabQuals">Qualifiers</button>
+				<button type="button" role="tab" id="tab-battle" aria-controls="pane-battle" aria-selected="false" tabindex="-1" data-i18n="tabBattle">Battle Royale</button>
 				<button type="button" role="tab" id="tab-chat" aria-controls="pane-chat" aria-selected="false" tabindex="-1" data-i18n="tabChat">Chat</button>
 				<button type="button" role="tab" id="tab-setup" aria-controls="pane-setup" aria-selected="false" tabindex="-1" data-i18n="tabSetup">Ajustes</button>
 			</div>
@@ -141,6 +142,11 @@
 							<button type="button" role="radio" data-next="l" class="seg--l" id="nextL" data-i18n="left">Izquierda</button>
 							<button type="button" role="radio" data-next="r" class="seg--r" id="nextR" data-i18n="right">Derecha</button>
 						</div>
+					</div>
+					<div class="ctl-group">
+						<span class="ctl-label" data-i18n="scoresTitle">Scores</span>
+						<button type="button" class="btn btn--small" id="clearScores" data-i18n="clearScores" data-i18n-title="clearScoresTitle"
+							title="Deja en 0 el score, combo, acc y hits de los dos jugadores hasta que empiece otra canción">Poner en 0</button>
 					</div>
 				</div>
 				<p class="legend" aria-hidden="true">
@@ -221,6 +227,73 @@
 				</div>
 				<label class="search"><span class="visually-hidden" data-i18n="searchPlayer">Buscar jugador</span><input type="search" id="qualsSearch" placeholder="Buscar jugador o seed…" data-i18n-placeholder="searchPlaceholder" autocomplete="off"></label>
 				<div class="players" id="qualsList" role="listbox" aria-label="Jugadores" data-i18n-aria-label="players"></div>
+			</section>
+
+			<!-- ---------- Battle Royale: a special event, apart from the match ---------- -->
+			<section class="pane" role="tabpanel" id="pane-battle" aria-labelledby="tab-battle" hidden>
+				<div class="pane-head">
+					<div>
+						<h2>Battle Royale</h2>
+						<p class="hint" data-i18n="brHint">Evento especial, aparte del partido: sus propias escenas y su propia sala. Los jugadores salen de la lobby de osu! (el cliente de torneo y las líneas de BanchoBot); también puedes agregarlos a mano.</p>
+					</div>
+					<span class="pill" id="brClient" aria-live="polite"></span>
+				</div>
+
+				<div class="br-scenes" role="group" aria-label="Escenas del Battle Royale" data-i18n-aria-label="brScenesLabel">
+					<button type="button" class="btn btn--big br-scene" data-br-scene="br-lobby"><b data-i18n="brSceneLobby">Sala</b><span data-i18n="brSceneLobbySub">Ya empezamos, con todos los jugadores</span></button>
+					<button type="button" class="btn btn--big br-scene" data-br-scene="br-pool"><b data-i18n="brScenePool">Mappool</b><span data-i18n="brScenePoolSub">El pool BR, con los chats</span></button>
+					<button type="button" class="btn btn--big br-scene" data-br-scene="br-gameplay"><b data-i18n="brSceneGameplay">Gameplay</b><span data-i18n="brSceneGameplaySub">El cliente sin nada encima</span></button>
+					<button type="button" class="btn btn--big br-scene" data-br-scene="br-winner"><b data-i18n="brSceneWinner">Ganador</b><span data-i18n="brSceneWinnerSub">El que elijas abajo</span></button>
+				</div>
+
+				<!-- OBS (only on the broadcasting machine): the TRC BR scene -->
+				<div class="br-obs" data-local>
+					<div class="br-obs-actions">
+						<!-- once the scene exists: the clients again, after every restart -->
+						<button type="button" class="btn btn--big btn--gold" id="obsBattleArrange" data-i18n="brObsArrange" hidden>Acomodar clientes</button>
+						<button type="button" class="btn" id="obsBattleBtn" data-i18n="brObsBtn">Armar escena TRC BR en OBS</button>
+					</div>
+					<p class="hint" data-i18n="brObsHint">Armar crea la escena "TRC BR" con el fondo del Rempalago abajo y el overlay arriba. Ya armada, "Acomodar clientes" pone los clientes chiquitos del torneo en la cuadrícula del gameplay según los jugadores en la sala (en número par): tócalo cada vez que reinicien el cliente.</p>
+					<p class="hint br-obs-status" id="obsBattleStatus" aria-live="polite"></p>
+				</div>
+
+				<div class="ctl-group br-cover">
+					<span class="ctl-label" id="brCoverTitle" data-i18n="brCoverTitle">Ventana del cliente</span>
+					<div class="seg" role="radiogroup" aria-labelledby="brCoverTitle">
+						<button type="button" role="radio" data-br-cover="auto" data-i18n="brCoverAuto">Auto</button>
+						<button type="button" role="radio" data-br-cover="cover" data-i18n="brCoverCover">Tapar</button>
+						<button type="button" role="radio" data-br-cover="open" data-i18n="brCoverOpen">Mostrar</button>
+					</div>
+					<p class="hint" data-i18n="brCoverHint">Auto tapa la ventana con el fondo del Rempalago mientras el cliente de torneo está cerrado (cuando lo reinician para acomodar jugadores) y la abre cuando vuelve.</p>
+				</div>
+
+				<div class="br-room-head">
+					<h3 data-i18n="brPoolTitle">Mappool BR</h3>
+					<span class="hint br-pool-status" id="brPoolStatus"></span>
+				</div>
+				<p class="hint" data-i18n="brPoolHint">Toca un mapa para marcarlo como el que viene (se quita solo cuando osu! lo carga). El ✓ lo marca jugado o no; los mapas se marcan jugados solos cuando se juegan.</p>
+				<div class="br-pool" id="brPool"></div>
+				<div class="br-pool-actions">
+					<button type="button" class="btn btn--small" id="brPoolReload" data-i18n="brPoolReload">↻ Recargar Pool BR</button>
+					<button type="button" class="btn btn--small" id="brPoolReset" data-i18n="brPoolReset">Todos sin jugar</button>
+				</div>
+
+				<div class="br-room-head">
+					<h3 data-i18n="brRoomTitle">Jugadores en la sala</h3>
+					<b class="br-room-n" id="brRoomN">0</b>
+				</div>
+				<p class="hint" data-i18n="brRoomHint">Toca un jugador para elegirlo como ganador. La × lo saca de la sala.</p>
+				<div class="br-room" id="brRoom" role="listbox" aria-label="Jugadores en la sala" data-i18n-aria-label="brRoomTitle"></div>
+				<form class="br-add" id="brAdd">
+					<input type="text" id="brAddName" placeholder="Agregar jugador a mano (nombre de osu!)" data-i18n-placeholder="brAddPlaceholder" autocomplete="off">
+					<button type="submit" class="btn" data-i18n="brAdd">Agregar</button>
+				</form>
+
+				<div class="feature" id="brWinnerNow"></div>
+				<div class="stepper">
+					<button type="button" class="btn btn--big btn--gold" id="brShowWinner" data-i18n="brShowWinner">Mostrar ganador ▶</button>
+					<button type="button" class="btn btn--big" id="brReset" data-i18n="brReset">Vaciar sala</button>
+				</div>
 			</section>
 
 			<!-- ---------- Chat de Twitch ---------- -->

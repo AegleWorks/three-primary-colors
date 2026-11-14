@@ -5,6 +5,7 @@
 @layer oro, theme, base, components, utilities;
 @import "./oro/stage.css" layer(oro);
 @import "./oro/oro.css" layer(oro);
+@import "./oro/battle.css" layer(oro);
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
 @import "./styles/theme.css";

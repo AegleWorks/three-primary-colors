@@ -22,6 +22,40 @@ const SYNC_MS = 5000;
 const PROBE_INPUT = "rempalago: buscando ventanas";
 const REPLAY_INPUT = "osu! replay";
 const OVERLAY_INPUT = "Overlay";
+// Battle Royale: its scene and the background page that goes under the clients
+export const BATTLE_SCENE = "TRC BR";
+const BATTLE_BACK_INPUT = "BR fondo";
+const BATTLE_GAP = 6;
+
+// The Battle Royale grid: as many 16:9 tiles as players, rounded up to an
+// even number (2 to 16), in the clients' band (x 0, y 100, 1920x720), sized
+// as big as they can be and centred. Rows and columns are whichever shape
+// gives the biggest tiles, but a full grid (16 as 4x4, not 6x3 with gaps)
+// wins when its tiles are nearly as big.
+export function battleGrid(players: number, box = { x: 0, y: 100, width: 1920, height: 720 }, gap = BATTLE_GAP) {
+	const count = Math.min(16, Math.max(2, Math.ceil(players / 2) * 2));
+	const shapes = Array.from({ length: count }, (_, i) => {
+		const cols = i + 1;
+		const rows = Math.ceil(count / cols);
+		const w = Math.floor(Math.min((box.width - gap * (cols - 1)) / cols, ((box.height - gap * (rows - 1)) / rows) * (16 / 9)));
+		return { cols, rows, w, h: Math.floor((w * 9) / 16), full: cols * rows === count };
+	});
+	const biggest = shapes.reduce((a, b) => (b.w > a.w ? b : a));
+	const full = shapes.filter((x) => x.full).reduce((a, b) => (b.w > a.w ? b : a));
+	const best = full.w >= biggest.w * 0.88 ? full : biggest;
+	const gridW = best.cols * best.w + gap * (best.cols - 1);
+	const gridH = best.rows * best.h + gap * (best.rows - 1);
+	const left = box.x + (box.width - gridW) / 2;
+	const top = box.y + (box.height - gridH) / 2;
+	const rects = Array.from({ length: count }, (_, i) => {
+		const row = Math.floor(i / best.cols);
+		// a short last row is centred too
+		const inRow = row === best.rows - 1 ? count - row * best.cols : best.cols;
+		const rowLeft = left + ((best.cols - inRow) * (best.w + gap)) / 2;
+		return { x: Math.round(rowLeft + (i % best.cols) * (best.w + gap)), y: Math.round(top + row * (best.h + gap)), width: Math.round(best.w), height: Math.round(best.h) };
+	});
+	return { count, cols: best.cols, rows: best.rows, rects };
+}
 
 interface OsuWindow {
 	// OBS's window id, "title:class:exe" with ':' written as "#3A"
@@ -785,6 +819,105 @@ export default class OBSHandler {
 			console.error("[OBSHandler] autoSetupShowcase error:", err);
 			return { success: false, message: t.obsSetupFailed(String((err as Error).message || err)) };
 		}
+	}
+
+	// Builds (or rebuilds) the Battle Royale scene, "TRC BR": the background
+	// page at the bottom, the tournament clients on a grid for the players in
+	// the lobby (an even number of tiles), the overlay on top. Each client is
+	// the same capture as in the match's scene ("osu! 1"...), placed again
+	// here; clients past the grid are hidden. The scene on air is left alone.
+	async autoSetupBattle(players: number, sceneName = BATTLE_SCENE): Promise<{ success: boolean; message: string }> {
+		try {
+			const problem = await this.ready();
+			if (problem) return { success: false, message: problem };
+			await this.ensureScene(sceneName);
+			const { clients, grid } = await this.placeBattleClients(sceneName, players);
+			const inputs = await this.inputNames();
+			const { sceneItems } = await this.obs.call("GetSceneItemList", { sceneName });
+			const itemOf = (name: string) => sceneItems.find((si) => si.sourceName === name)?.sceneItemId as number | undefined;
+			// the background page under everything
+			const backUrl = new URL("br-fondo.html", this.overlayUrl()).href;
+			let backId = itemOf(BATTLE_BACK_INPUT);
+			if (!inputs.has(BATTLE_BACK_INPUT)) {
+				backId = (
+					await this.obs.call("CreateInput", {
+						sceneName,
+						inputName: BATTLE_BACK_INPUT,
+						inputKind: "browser_source",
+						inputSettings: { url: backUrl, width: 1920, height: 1080, fps: 30, reroute_audio: false, restart_when_active: false, shutdown: false },
+					})
+				).sceneItemId;
+			} else {
+				await this.obs.call("SetInputSettings", { inputName: BATTLE_BACK_INPUT, inputSettings: { url: backUrl, width: 1920, height: 1080 } });
+				if (backId === undefined) backId = (await this.obs.call("CreateSceneItem", { sceneName, sourceName: BATTLE_BACK_INPUT })).sceneItemId;
+			}
+			await this.obs.call("SetSceneItemTransform", { sceneName, sceneItemId: backId, sceneItemTransform: { positionX: 0, positionY: 0, alignment: 5, boundsType: "OBS_BOUNDS_NONE", scaleX: 1, scaleY: 1 } });
+			await this.obs.call("SetSceneItemIndex", { sceneName, sceneItemId: backId, sceneItemIndex: 0 });
+			const overlay = await this.ensureOverlay(sceneName);
+			if (!clients.length) return { success: false, message: t.obsBattleNoClients(sceneName, overlay) };
+			return { success: true, message: t.obsBattleDone(sceneName, Math.min(clients.length, grid.count), grid.count, `${grid.cols}×${grid.rows}`, overlay) };
+		} catch (err) {
+			console.error("[OBSHandler] autoSetupBattle error:", err);
+			return { success: false, message: t.obsSetupFailed(String((err as Error).message || err)) };
+		}
+	}
+
+	// Only the clients, in a TRC BR scene already built: for after the
+	// tourney client restarts (new windows) or the room changes size.
+	async arrangeBattle(players: number, sceneName = BATTLE_SCENE): Promise<{ success: boolean; message: string }> {
+		try {
+			const problem = await this.ready();
+			if (problem) return { success: false, message: problem };
+			if (!(await this.sceneExists(sceneName))) return { success: false, message: t.obsBattleNoScene(sceneName) };
+			const { clients, grid } = await this.placeBattleClients(sceneName, players);
+			// new captures land on top: the overlay goes back above them
+			await this.ensureOverlay(sceneName);
+			if (!clients.length) return { success: false, message: t.obsBattleNoClientsArrange };
+			return { success: true, message: t.obsBattleArranged(Math.min(clients.length, grid.count), grid.count, `${grid.cols}×${grid.rows}`) };
+		} catch (err) {
+			console.error("[OBSHandler] arrangeBattle error:", err);
+			return { success: false, message: t.obsSetupFailed(String((err as Error).message || err)) };
+		}
+	}
+
+	async hasBattleScene(sceneName = BATTLE_SCENE) {
+		return this.connected && (await this.sceneExists(sceneName).catch(() => false));
+	}
+
+	// Every open tournament client on the grid for the players in the room;
+	// the ones past the grid hidden. Each is the match scene's own capture
+	// ("osu! 1"...), placed again here.
+	private async placeBattleClients(sceneName: string, players: number) {
+		const windows = await this.listOsuWindows(sceneName);
+		const clients = this.tourneyWindows(windows);
+		const grid = battleGrid(players || clients.length);
+		const inputs = await this.inputNames();
+		const { sceneItems } = await this.obs.call("GetSceneItemList", { sceneName });
+		const itemOf = (name: string) => sceneItems.find((si) => si.sourceName === name)?.sceneItemId as number | undefined;
+		for (const [i, win] of clients.entries()) {
+			const name = `osu! ${i + 1}`;
+			await this.retireWindowCapture(inputs, name);
+			let id = itemOf(name);
+			if (!inputs.has(name)) id = (await this.obs.call("CreateInput", { sceneName, inputName: name, inputKind: CAPTURE_KIND, inputSettings: captureSettings(win, WINDOW_PRIORITY_TITLE) })).sceneItemId;
+			else {
+				await this.bindCapture(name, win, WINDOW_PRIORITY_TITLE);
+				if (id === undefined) id = (await this.obs.call("CreateSceneItem", { sceneName, sourceName: name })).sceneItemId;
+			}
+			const rect = grid.rects[i];
+			await this.obs.call("SetSceneItemEnabled", { sceneName, sceneItemId: id, sceneItemEnabled: Boolean(rect) });
+			if (rect)
+				await this.obs.call("SetSceneItemTransform", {
+					sceneName,
+					sceneItemId: id,
+					sceneItemTransform: { positionX: rect.x, positionY: rect.y, alignment: 5, boundsType: "OBS_BOUNDS_SCALE_INNER", boundsAlignment: 0, boundsWidth: rect.width, boundsHeight: rect.height },
+				});
+		}
+		// clients that closed: their captures off the grid
+		for (const si of sceneItems) {
+			const m = /^osu! (\d+)$/.exec(String(si.sourceName));
+			if (m && Number(m[1]) > clients.length) await this.obs.call("SetSceneItemEnabled", { sceneName, sceneItemId: si.sceneItemId as number, sceneItemEnabled: false });
+		}
+		return { clients, grid };
 	}
 
 	// Keeps both scenes in step with the windows that are open. The window

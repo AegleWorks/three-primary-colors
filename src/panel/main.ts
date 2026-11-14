@@ -532,8 +532,8 @@ function renderScenes() {
 // Tabs
 // ======================================================================
 
-type Tab = "match" | "showcase" | "quals" | "chat" | "setup";
-const TABS: Tab[] = ["match", "showcase", "quals", "chat", "setup"];
+type Tab = "match" | "showcase" | "quals" | "battle" | "chat" | "setup";
+const TABS: Tab[] = ["match", "showcase", "quals", "battle", "chat", "setup"];
 let tab: Tab = (TABS as string[]).includes(stored("rempalago-tab") ?? "") ? (stored("rempalago-tab") as Tab) : "match";
 
 function showTab(next: Tab, focusContent = false) {
@@ -579,15 +579,20 @@ const SCENE_TAB: Partial<Record<SceneName, Tab>> = {
 	champion: "match",
 	showcase: "showcase",
 	qualifiers: "quals",
+	"br-lobby": "battle",
+	"br-pool": "battle",
+	"br-gameplay": "battle",
+	"br-winner": "battle",
 };
 let lastScene = "";
 function followScene() {
 	if (!state || state.scene === lastScene) return;
 	lastScene = state.scene;
 	const to = SCENE_TAB[state.scene as SceneName];
-	if (to && to !== tab && (tab === "match" || tab === "showcase" || tab === "quals")) showTab(to);
+	if (to && to !== tab && (tab === "match" || tab === "showcase" || tab === "quals" || tab === "battle")) showTab(to);
 	$("#tab-showcase").dataset.live = String(state.scene === "showcase");
 	$("#tab-quals").dataset.live = String(state.scene === "qualifiers");
+	$("#tab-battle").dataset.live = String(state.scene.startsWith("br-"));
 }
 
 // ======================================================================
@@ -692,6 +697,12 @@ for (const b of document.querySelectorAll<HTMLButtonElement>("[data-next]")) {
 	});
 }
 
+$<HTMLButtonElement>("#clearScores").addEventListener("click", () => {
+	if (!state?.live) return;
+	send({ action: "clearScores" });
+	toast(t.scoresCleared);
+});
+
 let ctlDrawn = "";
 function renderMatchCtl() {
 	const live = Boolean(state?.live);
@@ -701,6 +712,7 @@ function renderMatchCtl() {
 	// whose turn it is by taking turns, what "Auto" would pick
 	const turn: Side = last ? other(last.by) : "l";
 	const chosen = state?.draft.next ?? "auto";
+	$<HTMLButtonElement>("#clearScores").disabled = !live;
 	const key = JSON.stringify([live, stars, firstTo, chosen, turn, state?.names]);
 	if (key === ctlDrawn) return;
 	ctlDrawn = key;
@@ -1056,6 +1068,132 @@ function renderQualifiers() {
 }
 
 // ======================================================================
+// Battle Royale: a special event with its own scenes and room
+// ======================================================================
+
+for (const b of document.querySelectorAll<HTMLButtonElement>("[data-br-scene]")) {
+	b.addEventListener("click", () => goScene(b.dataset.brScene as SceneName));
+}
+for (const b of document.querySelectorAll<HTMLButtonElement>("[data-br-cover]")) {
+	b.addEventListener("click", () => send({ action: "battle", cover: b.dataset.brCover as "auto" | "cover" | "open" }));
+}
+$("#brAdd").addEventListener("submit", (e) => {
+	e.preventDefault();
+	const input = $<HTMLInputElement>("#brAddName");
+	const who = input.value.trim();
+	if (!who) return;
+	send({ action: "battle", add: who });
+	input.value = "";
+	toast(t.brAdded(who));
+});
+$("#brShowWinner").addEventListener("click", () => {
+	if (!state?.battle?.winner) return toast(t.brPickFirst, { tone: "warn" });
+	goScene("br-winner");
+});
+$("#brReset").addEventListener("click", () => {
+	const b = $<HTMLButtonElement>("#brReset");
+	// two taps: the room and the winner go
+	if (!b.dataset.armed) {
+		b.dataset.armed = "1";
+		b.textContent = t.brResetSure;
+		setTimeout(() => {
+			delete b.dataset.armed;
+			b.textContent = t.brReset;
+		}, 3000);
+		return;
+	}
+	delete b.dataset.armed;
+	b.textContent = t.brReset;
+	send({ action: "battle", reset: true });
+	toast(t.brCleared);
+});
+$("#brPoolReload").addEventListener("click", () => send({ action: "battle", poolReload: true }));
+$("#brPoolReset").addEventListener("click", () => {
+	const before = state?.battle?.pool.played ?? [];
+	send({ action: "battle", poolReset: true });
+	toast(t.brPoolCleared, { undo: () => before.forEach((id) => send({ action: "battle", played: id })) });
+});
+let brPoolDrawn = "";
+
+function renderBattlePool() {
+	const pool = state?.battle?.pool;
+	const key = JSON.stringify(pool ?? null);
+	if (key === brPoolDrawn) return;
+	brPoolDrawn = key;
+	$("#brPoolStatus").textContent = pool?.status.text ?? "";
+	$("#brPoolStatus").dataset.ok = String(pool?.status.ok ?? true);
+	const box = $("#brPool");
+	box.innerHTML = "";
+	const played = new Set(pool?.played ?? []);
+	for (const m of pool?.maps ?? []) {
+		const st = m.id === pool!.current ? "live" : m.id === pool!.next ? "next" : played.has(m.id) ? "played" : "";
+		const row = document.createElement("div");
+		row.className = "br-map";
+		row.dataset.state = st;
+		row.dataset.mod = modOf(m.id).toLowerCase();
+		const pick = button("", () => {
+			const next = pool!.next === m.id ? null : m.id;
+			send({ action: "battle", next });
+			toast(next ? t.brPoolNextSet(m.id) : t.brPoolNextOff);
+		}, "br-map-pick");
+		pick.innerHTML = `<i class="map-art" style="background-image:url('https://assets.ppy.sh/beatmaps/${Number(m.set)}/covers/card.jpg')"></i><b>${esc(m.id)}</b><span>${esc(m.title)}</span><small>${st === "live" ? "En juego" : st === "next" ? "Sigue" : st === "played" ? "Jugado" : `${m.sr.toFixed(2)}★`}</small>`;
+		const tick = button("✓", () => send({ action: "battle", played: m.id }), "btn btn--small br-map-tick");
+		tick.setAttribute("aria-pressed", String(played.has(m.id)));
+		tick.setAttribute("aria-label", t.brPoolPlayedLabel(m.id));
+		row.append(pick, tick);
+		box.append(row);
+	}
+	if (!pool?.maps.length) box.innerHTML = `<p class="hint">${esc(pool?.status.text ?? t.brNoOverlay)}</p>`;
+}
+
+let battleDrawn = "";
+
+function renderBattle() {
+	renderBattlePool();
+	const br = state?.battle;
+	const live = Boolean(state && br);
+	for (const b of document.querySelectorAll<HTMLButtonElement>("[data-br-scene]")) {
+		b.disabled = !live;
+		b.setAttribute("aria-current", String(state?.scene === b.dataset.brScene));
+	}
+	for (const b of document.querySelectorAll<HTMLButtonElement>("[data-br-cover]")) {
+		b.disabled = !live;
+		b.setAttribute("aria-checked", String(br?.cover === b.dataset.brCover));
+	}
+	$<HTMLButtonElement>("#brShowWinner").disabled = !br?.winner;
+	$("#brClient").textContent = !br ? t.brNoOverlay : br.clientsUp ? t.brClientUp : t.brClientDown;
+	$("#brClient").dataset.tone = !br ? "" : br.clientsUp ? "ok" : "warn";
+	const key = JSON.stringify([br?.players, br?.winner]);
+	if (key === battleDrawn) return;
+	battleDrawn = key;
+	const players = br?.players ?? [];
+	$("#brRoomN").textContent = String(players.length);
+	const box = $("#brRoom");
+	box.innerHTML = "";
+	for (const p of players) {
+		const on = br?.winner?.toLowerCase() === p.name.toLowerCase();
+		const row = document.createElement("div");
+		row.className = "br-player";
+		const pick = button("", () => send({ action: "battle", winner: on ? null : p.name }), "player");
+		pick.setAttribute("role", "option");
+		pick.setAttribute("aria-selected", String(on));
+		pick.innerHTML = `<b>${on ? "★" : ""}</b><span>${esc(p.name)}</span><small>${p.unknown ? esc(t.brNoProfile) : p.rank ? `#${p.rank.toLocaleString("en-US")}` : ""}</small>`;
+		const out = button("×", () => {
+			send({ action: "battle", remove: p.name });
+			toast(t.brRemoved(p.name), { undo: () => send({ action: "battle", add: p.name }) });
+		}, "btn btn--small br-out");
+		out.setAttribute("aria-label", t.brRemoveLabel(p.name));
+		row.append(pick, out);
+		box.append(row);
+	}
+	if (!players.length) box.innerHTML = `<p class="hint">${esc(t.brEmpty)}</p>`;
+	const w = players.find((p) => p.name.toLowerCase() === br?.winner?.toLowerCase());
+	$("#brWinnerNow").innerHTML = br?.winner
+		? `${w?.cover ? `<i class="feature-art" style="background-image:url('${esc(w.cover)}')"></i>` : ""}<span class="feature-kicker">${esc(t.brWinner)}</span><b class="feature-title">${esc(br.winner)}</b><span class="feature-sub">${esc(t.brWinnerSub)}</span>`
+		: `<span class="feature-kicker">${esc(t.brWinner)}</span><b class="feature-title">${esc(t.brNoWinner)}</b><span class="feature-sub">${esc(t.brPickFirst)}</span>`;
+}
+
+// ======================================================================
 // Sources: which sheet tab each part reads
 // ======================================================================
 
@@ -1269,6 +1407,7 @@ function renderAll() {
 	renderSheet();
 	renderShowcase();
 	renderQualifiers();
+	renderBattle();
 	renderSources();
 	renderTwitch();
 }

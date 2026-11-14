@@ -2,6 +2,7 @@ import ZEngine from "@fukutotojido/z-engine";
 import ControlLink from "./control/ControlLink";
 import CasterHandler from "./handler/CasterHandler";
 import { guardEngine } from "./handler/guardEngine";
+import Battle from "./oro/battle";
 import LiveOro from "./oro/live";
 import Qualifiers from "./oro/qualifiers";
 import OverlayRemote from "./oro/remote";
@@ -26,4 +27,6 @@ const qualifiers = new Qualifiers();
 const sources = new Sources();
 sources.onPool = ({ gid }) => live?.setPoolTab(gid);
 sources.onResults = (sheet, tab, file) => qualifiers.setSource(sheet, tab, file);
-if (!PREVIEW) new OverlayRemote(new ControlLink(), live, qualifiers, sources);
+// The Battle Royale event, apart from the match: its own scenes and roster.
+const battle = new Battle(PREVIEW ? null : engine);
+if (!PREVIEW) new OverlayRemote(new ControlLink(), live, qualifiers, sources, battle);

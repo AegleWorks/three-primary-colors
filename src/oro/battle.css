@@ -1,0 +1,1094 @@
+/* =====================================================================
+   BATTLE ROYALE — a one-off event with three scenes of its own (battle.ts):
+   the room ("Ya empezamos" with every player), the tourney client's window
+   with nothing over it, and the winner. Kept apart from the match's styles.
+   ===================================================================== */
+
+/* the background, per scene */
+body[data-scene="br-lobby"] .backdrop-grade {
+	background:
+		radial-gradient(80% 80% at 40% 40%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.75)),
+		rgba(0, 0, 0, 0.2);
+}
+
+body[data-scene="br-winner"] .backdrop-grade {
+	background:
+		radial-gradient(55% 60% at 50% 42%, rgba(40, 24, 0, 0.1), rgba(0, 0, 0, 0.8)),
+		rgba(0, 0, 0, 0.2);
+}
+
+/* ---------- player cards (the room) ---------- */
+
+.brl {
+	display: grid;
+	grid-template-columns: 1fr 520px;
+	gap: 48px;
+	padding: 64px 64px 70px 80px;
+}
+
+.brl-main {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 34px;
+}
+
+.brl-head {
+	display: flex;
+	align-items: center;
+	gap: 26px;
+}
+
+.brl-logo {
+	width: 120px;
+	height: auto;
+	filter: drop-shadow(0 0 18px rgba(76, 170, 255, 0.4));
+}
+
+.brl-titles {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.brl-titles .label--lg {
+	padding-left: 0;
+}
+
+.brl-title {
+	font: 900 92px/0.95 var(--display);
+	color: transparent;
+	background: linear-gradient(180deg, #fff6d8 0%, #f3d38a 36%, #b8873a 52%, #ebc77c 70%, #fff3c8 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+}
+
+.brl-count {
+	margin-left: auto;
+	display: grid;
+	grid-template-columns: auto auto;
+	align-items: baseline;
+	column-gap: 10px;
+	row-gap: 8px;
+	justify-items: end;
+}
+
+.brl-count b {
+	font: 900 64px/1 var(--display);
+	color: var(--gold-hi);
+}
+
+.brl-count i {
+	font: 800 26px/1 var(--display);
+	font-style: normal;
+	color: var(--dim);
+}
+
+.brl-count .label {
+	grid-column: 1 / -1;
+	font-size: 11px;
+}
+
+/* four abreast, four down: sixteen seats */
+.brl-grid {
+	flex: 1;
+	min-height: 0;
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	grid-template-rows: repeat(4, minmax(0, 1fr));
+	gap: 14px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.br-card,
+.br-seat {
+	position: relative;
+	min-width: 0;
+	border-radius: 12px;
+	overflow: hidden;
+}
+
+.br-card {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	padding: 0 16px 0 14px;
+	border: 1px solid var(--gold-line);
+	background: rgba(6, 5, 3, 0.6);
+	box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+}
+
+/* the profile banner, see-through, darker under the name */
+.br-banner {
+	position: absolute;
+	inset: 0;
+	background: center / cover no-repeat;
+	opacity: 0.38;
+}
+
+.br-card::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(90deg, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.15));
+	pointer-events: none;
+}
+
+.br-card > :not(.br-banner) {
+	position: relative;
+	z-index: 1;
+}
+
+.br-n {
+	position: absolute !important;
+	top: 8px;
+	right: 10px;
+	font: 700 10px/1 var(--label);
+	letter-spacing: 0.1em;
+	color: var(--faint);
+}
+
+.br-pfp {
+	position: relative;
+	flex: none;
+	width: 58px;
+	height: 58px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	overflow: hidden;
+	background: #1a160d;
+	box-shadow: 0 0 0 2px var(--gold-line);
+	font: 900 24px/1 var(--display);
+	color: var(--gold);
+}
+
+.br-pfp img {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.br-text {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 7px;
+}
+
+.br-name {
+	font: 900 22px/1 var(--display);
+	color: var(--text);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+}
+
+.br-stats {
+	display: flex;
+	gap: 12px;
+	font: 600 13px/1 var(--body);
+	color: var(--dim);
+	white-space: nowrap;
+}
+
+.br-stats b {
+	color: var(--gold-hi);
+	font-weight: 800;
+}
+
+.br-stat--muted {
+	color: var(--faint);
+	font-style: italic;
+}
+
+/* an empty seat */
+.br-seat {
+	display: grid;
+	place-items: center;
+	border: 1px dashed rgba(255, 240, 210, 0.12);
+	background: rgba(0, 0, 0, 0.18);
+	font: 700 14px/1 var(--label);
+	color: rgba(255, 240, 210, 0.16);
+}
+
+/* a player who just came in */
+.br-card.is-new {
+	animation: br-join 0.7s var(--snap) both;
+}
+
+@keyframes br-join {
+	0% {
+		opacity: 0;
+		transform: scale(0.7);
+		filter: brightness(2.2);
+	}
+
+	60% {
+		opacity: 1;
+		filter: brightness(1.4);
+	}
+}
+
+.brl[data-active] .brl-head {
+	animation: rise 0.7s 0.2s var(--out) both;
+}
+
+.brl[data-active] .br-card,
+.brl[data-active] .br-seat {
+	animation: rise 0.5s calc(0.35s + var(--i, 0) * 45ms) var(--out) both;
+}
+
+/* a player who comes in while the scene is on: their own entrance */
+.brl[data-active] .br-card.is-new {
+	animation: br-join 0.7s var(--snap) both;
+}
+
+.brl-side {
+	position: static;
+	width: auto;
+	height: auto;
+	min-height: 0;
+}
+
+.brl-side .show-chat {
+	flex: 1;
+	min-height: 0;
+}
+
+.brl[data-active] .brl-side {
+	animation: rise 0.6s 0.3s var(--out) both;
+}
+
+/* ---------- gameplay: the client's window and nothing over it ---------- */
+
+/* light glass, as the match's gameplay: the video shows through */
+.brg .glass {
+	background: linear-gradient(180deg, rgba(14, 11, 5, 0.5), rgba(4, 3, 1, 0.66));
+	-webkit-backdrop-filter: blur(1.5px) saturate(1.15);
+	backdrop-filter: blur(1.5px) saturate(1.15);
+}
+
+body[data-scene="br-gameplay"] .backdrop-grade {
+	background: rgba(0, 0, 0, 0.2);
+}
+
+.brg-top {
+	position: absolute;
+	inset: 0 0 auto;
+	height: 100px;
+	display: grid;
+	grid-template-columns: 340px 1fr 340px;
+	align-items: center;
+	padding: 0 40px;
+}
+
+.brg-brand {
+	display: flex;
+	align-items: center;
+	gap: 18px;
+}
+
+.brg-logo {
+	width: 76px;
+	height: auto;
+	filter: drop-shadow(0 0 12px rgba(76, 170, 255, 0.35));
+}
+
+.brg-titles {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.brg-titles b {
+	font: 900 34px/1 var(--display);
+	color: transparent;
+	background: linear-gradient(180deg, #fff6d8 0%, #f3d38a 40%, #b8873a 60%, #fff3c8 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+}
+
+/* the casters: a row of chips in the middle of the bar, up to four */
+.brg-casters {
+	justify-self: center;
+	padding: 0;
+	border: 0;
+	background: none;
+	-webkit-backdrop-filter: none;
+	backdrop-filter: none;
+	box-shadow: none;
+}
+
+.brg-casters .seats {
+	display: flex;
+	gap: 10px;
+}
+
+.brg-casters .seat {
+	flex: none;
+	max-width: 240px;
+	gap: 10px;
+	padding: 6px 14px 6px 6px;
+	border-radius: 40px;
+}
+
+.brg-casters .seat .pfp {
+	--pfp: 36px;
+}
+
+.brg-casters .seat b {
+	font-size: 17px;
+}
+
+.brg-count {
+	justify-self: end;
+	font: 700 15px/1 var(--label);
+	letter-spacing: 0.24em;
+	text-transform: uppercase;
+	color: var(--dim);
+}
+
+.brg-count b {
+	margin-right: 6px;
+	font: 900 30px/1 var(--display);
+	letter-spacing: 0;
+	color: var(--gold-hi);
+}
+
+.brg-top .rule {
+	position: absolute;
+}
+
+/* the window: x 0, y 100, 1920x720, as the match's clients */
+.brg-window {
+	position: absolute;
+	left: 0;
+	top: 100px;
+	width: 1920px;
+	height: 720px;
+}
+
+/* The logo over the background: always outside the live overlay (it is what
+   sits under the client), live only while the client is down. */
+.brg-wait {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 26px;
+}
+
+.stage[data-live]:not([data-br-cover]) .brg-wait {
+	display: none;
+}
+
+.brg-wait-logo {
+	width: 200px;
+	height: auto;
+	filter: drop-shadow(0 0 30px rgba(76, 170, 255, 0.45));
+	animation: br-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes br-breathe {
+	50% {
+		transform: scale(1.05);
+		filter: drop-shadow(0 0 46px rgba(76, 170, 255, 0.65));
+	}
+}
+
+/* live: the window is see-through, unless the client is down */
+body[data-scene="br-gameplay"] .stage[data-live]:not([data-br-cover]) .backdrop {
+	clip-path: polygon(0 0, 100% 0, 100% 100px, 0 100px, 0 820px, 100% 820px, 100% 100%, 0 100%);
+}
+
+.brg-deck {
+	position: absolute;
+	inset: auto 0 0;
+	height: 260px;
+	display: grid;
+	grid-template-columns: 720px 1fr 1fr;
+	border-top: 1px solid var(--gold-line);
+	transition: grid-template-columns 0.6s var(--out);
+}
+
+/* a map being played: the lobby chat folds, Twitch takes the room */
+.brg-deck[data-mode="playing"] {
+	grid-template-columns: 720px 0fr 1fr;
+}
+
+.brg-deck[data-mode="playing"] .brg-chat--lobby {
+	opacity: 0;
+	padding-inline: 0;
+	border-right: 0;
+}
+
+/* The map card: the whole background art, darkened toward the text. */
+.brg-map {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	padding: 22px 30px 16px;
+	overflow: hidden;
+	border-right: 1px solid var(--hair);
+}
+
+.brg-art {
+	position: absolute;
+	inset: 0;
+	background: #0d0b06 center / cover;
+	opacity: 0.85;
+}
+
+.brg-map::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background:
+		linear-gradient(90deg, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.35) 70%, rgba(0, 0, 0, 0.15)),
+		linear-gradient(180deg, transparent 45%, rgba(0, 0, 0, 0.55));
+	pointer-events: none;
+}
+
+.brg-map > :not(.brg-art) {
+	position: relative;
+	z-index: 1;
+}
+
+.brg-map-text {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9), 0 2px 10px rgba(0, 0, 0, 0.7);
+}
+
+.brg-title {
+	margin-top: 4px;
+	font: 900 28px/1.08 var(--display);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.brg-artist,
+.brg-diff {
+	font: 600 15px/1.2 var(--body);
+	color: #d8d3c8;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.brg-diff {
+	color: var(--gold-hi);
+}
+
+.brg-stats {
+	display: flex;
+	gap: 26px;
+	margin: 6px 0 0;
+}
+
+.brg-stats div {
+	display: flex;
+	align-items: baseline;
+	gap: 7px;
+}
+
+.brg-stats dt {
+	font: 700 10px/1 var(--label);
+	letter-spacing: 0.2em;
+	color: #cfc6b4;
+}
+
+.brg-stats dd {
+	margin: 0;
+	font: 900 20px/1 var(--display);
+	color: var(--text);
+}
+
+/* the map's difficulty over time (tosu's strains), the part played lit */
+.brg-graph {
+	position: relative;
+	margin-top: auto;
+	height: 34px;
+	border-bottom: 1px solid var(--gold-line);
+}
+
+.brg-graph svg {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+}
+
+.brg-graph path {
+	fill: rgba(255, 236, 190, 0.28);
+}
+
+.brg-graph .strain-played path {
+	fill: var(--gold);
+}
+
+.brg-time {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-top: 8px;
+	font: 700 13px/1 var(--display);
+	color: #d8d3c8;
+}
+
+.brg-bar {
+	flex: 1;
+	height: 3px;
+	background: rgba(255, 255, 255, 0.15);
+	overflow: hidden;
+}
+
+.brg-bar i {
+	display: block;
+	height: 100%;
+	background: linear-gradient(90deg, var(--gold), var(--gold-hi));
+	transform-origin: 0 50%;
+	transform: scaleX(0);
+	transition: transform 0.3s linear;
+}
+
+.brg-chat {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	padding: 16px 24px 10px;
+	overflow: hidden;
+	transition: opacity 0.35s;
+}
+
+.brg-chat--lobby {
+	border-right: 1px solid var(--hair);
+}
+
+.brg-chat .chat-head {
+	margin-bottom: 8px;
+}
+
+.brg-chat--twitch .chat-head b {
+	color: #b58cff;
+}
+
+.brg[data-active] .brg-top {
+	animation: rise 0.6s 0.1s var(--out) both;
+}
+
+.brg[data-active] .brg-deck {
+	animation: rise 0.6s 0.2s var(--out) both;
+}
+
+/* ---------- the winner ---------- */
+
+.brw-fx {
+	position: absolute;
+	inset: 0;
+	z-index: 3;
+	pointer-events: none;
+}
+
+.brw-body {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 26px;
+	padding-bottom: 40px;
+}
+
+.brw-crest {
+	position: relative;
+	width: 260px;
+	height: 260px;
+	display: grid;
+	place-items: center;
+}
+
+.brw-ring {
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	background: repeating-conic-gradient(rgba(255, 227, 163, 0.75) 0 0.7deg, transparent 0.7deg 7.5deg);
+	-webkit-mask-image: radial-gradient(circle, transparent 0 calc(50% - 9px), #000 calc(50% - 8px) calc(50% - 1px), transparent 50%);
+	mask-image: radial-gradient(circle, transparent 0 calc(50% - 9px), #000 calc(50% - 8px) calc(50% - 1px), transparent 50%);
+}
+
+.brw-crest::before {
+	content: "";
+	position: absolute;
+	inset: -60px;
+	border-radius: 50%;
+	background: radial-gradient(closest-side, rgba(255, 227, 163, 0.45), rgba(255, 210, 120, 0.12) 60%, transparent);
+}
+
+.brw-logo {
+	position: relative;
+	width: 160px;
+	height: auto;
+	/* the drawing leans left: nudged to look centred */
+	translate: 6px 0;
+	filter: drop-shadow(0 0 30px rgba(76, 170, 255, 0.45));
+}
+
+.brw-kicker {
+	padding-left: 0.5em;
+}
+
+.brw-card {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 34px;
+	min-width: 760px;
+	max-width: 1500px;
+	padding: 30px 56px 30px 30px;
+	border-radius: 20px;
+	overflow: hidden;
+	border: 1px solid var(--gold-line);
+	background: rgba(6, 5, 3, 0.55);
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 80px rgba(226, 184, 102, 0.15);
+}
+
+.brw-banner {
+	position: absolute;
+	inset: 0;
+	background: center / cover no-repeat;
+	opacity: 0.4;
+}
+
+.brw-card::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(90deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.2));
+	pointer-events: none;
+}
+
+.brw-card > :not(.brw-banner) {
+	position: relative;
+	z-index: 1;
+}
+
+.brw-pfp {
+	flex: none;
+	width: 168px;
+	height: 168px;
+	display: grid;
+	place-items: center;
+	border-radius: 50%;
+	overflow: hidden;
+	background: #1a160d;
+	box-shadow: 0 0 0 4px var(--gold-hi), 0 0 40px rgba(255, 227, 163, 0.55);
+	font: 900 70px/1 var(--display);
+	color: var(--gold);
+}
+
+.brw-pfp img {
+	grid-area: 1 / 1;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.brw-pfp b {
+	grid-area: 1 / 1;
+}
+
+.brw-text {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.brw-name {
+	margin: 0;
+	font: 900 120px/1 var(--display);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	color: transparent;
+	background: linear-gradient(180deg, #fff6d8 0%, #f3d38a 36%, #b8873a 52%, #ebc77c 70%, #fff3c8 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+	filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.6));
+}
+
+.brw-stats {
+	font: 600 20px/1 var(--body);
+	color: var(--dim);
+}
+
+.brw-stats b {
+	color: var(--gold-hi);
+	font-weight: 800;
+}
+
+.brw-stats i {
+	margin: 0 12px;
+	font-style: normal;
+	color: var(--faint);
+}
+
+.brw-sub {
+	color: var(--dim);
+}
+
+.brw[data-active] .brw-ring {
+	animation: ring-in 1.2s 0.3s var(--out) both, turn 24s linear infinite;
+}
+
+.brw[data-active] .brw-logo {
+	animation: logo-in 1.1s 0.35s var(--out) both;
+}
+
+.brw[data-active] .brw-kicker {
+	animation: rise 0.7s 0.6s var(--out) both;
+}
+
+.brw[data-active] .brw-card {
+	animation: br-slam 0.9s 0.8s var(--snap) both;
+}
+
+.brw[data-active] .brw-sub {
+	animation: rise 0.7s 1.3s var(--out) both;
+}
+
+@keyframes br-slam {
+	0% {
+		opacity: 0;
+		transform: scale(1.4);
+		filter: brightness(2);
+	}
+
+	55% {
+		opacity: 1;
+	}
+}
+
+/* ---------- the BR mappool: the pool, the chats and the casters ---------- */
+
+body[data-scene="br-pool"] .backdrop-grade {
+	background:
+		radial-gradient(80% 80% at 40% 40%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.7)),
+		rgba(0, 0, 0, 0.15);
+}
+
+.brp {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 470px;
+	gap: 34px;
+	padding: 40px 50px 44px 60px;
+}
+
+.brp-main {
+	min-width: 0;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 22px;
+}
+
+.brp-head {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 24px;
+	padding-bottom: 20px;
+}
+
+.brp-head::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 1px;
+	background: linear-gradient(90deg, var(--gold-line), transparent);
+}
+
+.brp-logo {
+	width: 104px;
+	height: auto;
+	filter: drop-shadow(0 0 16px rgba(76, 170, 255, 0.4));
+}
+
+.brp-titles {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+}
+
+.brp-title {
+	font: 900 64px/0.95 var(--display);
+	color: transparent;
+	background: linear-gradient(180deg, #fff6d8 0%, #f3d38a 36%, #b8873a 52%, #ebc77c 70%, #fff3c8 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+}
+
+.brp-count {
+	font: 600 14px/1 var(--body);
+	color: var(--dim);
+}
+
+.brp-count b {
+	color: var(--text);
+	font-weight: 800;
+}
+
+/* the map coming up (or in play): neutral, silver */
+.brp-next {
+	position: relative;
+	margin-left: auto;
+	width: 520px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 16px 22px;
+	border-radius: 12px;
+	overflow: hidden;
+	border: 1px solid rgba(232, 236, 244, 0.55);
+	background: rgba(8, 9, 11, 0.6);
+	box-shadow: 0 0 30px rgba(220, 228, 240, 0.12), 0 12px 30px rgba(0, 0, 0, 0.4);
+}
+
+.brp-next[hidden] {
+	display: none;
+}
+
+.brp-next-art {
+	position: absolute;
+	inset: 0;
+	background: center / cover no-repeat;
+	opacity: 0.4;
+}
+
+.brp-next::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(90deg, rgba(0, 0, 0, 0.7) 30%, rgba(0, 0, 0, 0.25));
+}
+
+.brp-next > :not(.brp-next-art) {
+	position: relative;
+	z-index: 1;
+}
+
+.brp-next-kicker {
+	font: 700 11px/1 var(--label);
+	letter-spacing: 0.3em;
+	text-transform: uppercase;
+	color: #dfe5ef;
+}
+
+.brp-next-line {
+	display: flex;
+	align-items: baseline;
+	gap: 12px;
+	min-width: 0;
+}
+
+.brp-next-id {
+	flex: none;
+	padding: 4px 8px 3px;
+	border-radius: 4px;
+	background: #e8ecf4;
+	color: #14161a;
+	font: 800 13px/1 var(--label);
+	letter-spacing: 0.1em;
+}
+
+.brp-next-title {
+	min-width: 0;
+	font: 900 26px/1.1 var(--display);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.brp-next-sub {
+	font: 600 14px/1 var(--body);
+	color: #cfd2d8;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.brp-grid {
+	flex: 1;
+	min-height: 0;
+	gap: 9px;
+}
+
+.brp-grid .pool-row {
+	flex: 1;
+	min-height: 0;
+	gap: 9px;
+	grid-template-columns: 70px repeat(var(--cols, 4), minmax(0, 1fr));
+}
+
+.brp-grid .pool-mod {
+	width: auto;
+	font-size: 17px;
+}
+
+.brp-grid .card-body {
+	padding: 0 16px;
+}
+
+.brp-grid .card-title {
+	font-size: 18px;
+}
+
+.brp-grid .card-artist {
+	font-size: 12px;
+}
+
+.mod--ex {
+	color: #f2a5d0;
+}
+
+.brp-empty {
+	color: var(--dim);
+	font: 600 16px/1.4 var(--body);
+}
+
+/* states, one neutral colour: in play (white, glowing), coming up (silver,
+   dashed, breathing), played (grey, dimmed) */
+.brp .card-state {
+	padding: 3px 7px 2px;
+	border-radius: 3px;
+	font: 800 10px/1 var(--body);
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+}
+
+.brp .card-state:empty {
+	display: none;
+}
+
+.brp .card[data-state="live"] {
+	border-color: #f4f1ea;
+	box-shadow: inset 0 0 0 1px #f4f1ea, 0 0 28px rgba(244, 241, 234, 0.28), 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.brp .card[data-state="live"] .card-state {
+	background: #f4f1ea;
+	color: #14161a;
+}
+
+.brp .card[data-state="next"] {
+	border: 1px dashed rgba(220, 228, 240, 0.85);
+	animation: brp-next 2.2s ease-in-out infinite;
+}
+
+.brp .card[data-state="next"] .card-state {
+	border: 1px solid rgba(220, 228, 240, 0.85);
+	color: #e8ecf4;
+}
+
+@keyframes brp-next {
+	50% {
+		box-shadow: 0 0 22px rgba(220, 228, 240, 0.25), 0 10px 30px rgba(0, 0, 0, 0.35);
+	}
+}
+
+.brp .card[data-state="played"] {
+	border-color: rgba(255, 255, 255, 0.08);
+}
+
+.brp .card[data-state="played"] .card-art {
+	filter: grayscale(1) brightness(0.45);
+}
+
+.brp .card[data-state="played"] .card-title,
+.brp .card[data-state="played"] .card-artist {
+	color: #77736b;
+}
+
+.brp .card[data-state="played"] .card-state {
+	background: rgba(255, 255, 255, 0.08);
+	color: #9b978f;
+}
+
+.brp[data-active] .brp-head {
+	animation: rise 0.6s 0.1s var(--out) both;
+}
+
+.brp[data-active] .card:not([data-state="next"]) {
+	animation: card-wipe 0.7s calc(0.15s + var(--i, 0) * 0.035s) var(--out) both;
+}
+
+/* the side: casters (two by two), the lobby (smaller), Twitch */
+.brp-side {
+	min-height: 0;
+	display: grid;
+	grid-template-rows: auto minmax(0, 1fr) minmax(0, 1.6fr);
+	gap: 14px;
+}
+
+.brp-side .show-casters {
+	padding: 14px 16px;
+}
+
+.brp-side .show-casters .chat-head {
+	margin-bottom: 10px;
+}
+
+.brp-side .seats {
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+
+.brp-side .seat {
+	padding: 6px 10px 6px 6px;
+}
+
+.brp-side .seat .pfp {
+	--pfp: 36px;
+}
+
+.brp-side .seat b {
+	font-size: 17px;
+}
+
+.brp-chat {
+	min-height: 0;
+	padding: 12px 18px 8px;
+	border: 1px solid var(--hair);
+}
+
+.brp-chat .chat-head {
+	margin-bottom: 6px;
+	font-size: 10px;
+}
+
+.brp-chat .feed {
+	font-size: 14px;
+}
+
+.brp-chat--twitch .chat-head b {
+	color: #b58cff;
+}
+
+.brp[data-active] .brp-side {
+	animation: rise 0.6s 0.3s var(--out) both;
+}

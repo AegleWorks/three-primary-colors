@@ -1,6 +1,8 @@
 // Types for the parts of the Oro runtime (stage.js) used from TypeScript.
 
-export type SceneName = "starting" | "intro" | "showcase" | "mappool" | "gameplay" | "result" | "champion" | "qualifiers";
+export type SceneName = "starting" | "intro" | "showcase" | "mappool" | "gameplay" | "result" | "champion" | "qualifiers" | BattleScene;
+// the Battle Royale event's own scenes (battle.ts)
+export type BattleScene = "br-lobby" | "br-pool" | "br-gameplay" | "br-winner";
 export type Side = "l" | "r";
 
 export interface Pick {
@@ -47,6 +49,7 @@ export const ROUND: { key: string; name: string; bestOf: number; firstTo: number
 export const MATCH: { stars: Record<Side, number>; firstTo: number };
 export const DRAFT: Draft;
 
+export function fmt(n: number): string;
 export function goTo(name: SceneName): Promise<void>;
 export function onEvent(fn: (type: string, arg?: unknown) => void): void;
 export function setSource(fn: (state: MatchState) => void): void;

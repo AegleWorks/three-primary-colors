@@ -65,6 +65,8 @@ const PEOPLE = {
 	c1: { name: MATCH.casters[1] },
 	c2: { name: "" },
 	c3: { name: "" },
+	// who plays the showcase replay
+	rp: { name: "" },
 };
 const pfpTag = (key) => `<span class="pfp" data-pfp="${key}"></span>`;
 function renderPfps(scope = document) {
@@ -158,6 +160,7 @@ function showMap(map, { slot = map.id, by = DRAFT.picks.find((p) => p.id === map
 	// Stand-in for the playfield background the tournament clients would show.
 	$$(".gp .client").forEach((c) => (c.style.backgroundImage = `linear-gradient(rgba(0,0,0,.6), rgba(0,0,0,.6)), ${cover(map)}`));
 	$("#mapSlot").textContent = slot;
+	$("#mapSlot").dataset.slot = slot;
 	const pickEl = $(".map-pick");
 	pickEl.innerHTML = pick ?? (by ? `Pick de ${pfpTag(by)}<b>${owner(by)}</b>` : "");
 	pickEl.dataset.side = pick || !by ? "" : by;
@@ -223,7 +226,7 @@ function paintCard(card, map) {
 	return true;
 }
 function renderPool() {
-	const shape = POOL.map((m) => `${m.id}|${m.set}|${m.title}`).join(",");
+	const shape = POOL.map((m) => `${m.id}|${m.set}|${m.title}|${m.sr}`).join(",");
 	if (shape !== poolShape || !grid.children.length) {
 		poolShape = shape;
 		grid.innerHTML = "";
@@ -534,6 +537,14 @@ function setTalking(i, on) {
 	$$(`[data-caster="${i}"]`).forEach((el) => el.classList.toggle("is-talking", on));
 }
 if (SIM) setTalking(0, true);
+// the simulation with more people on the call: ?casters=3 or 4
+if (SIM && Number(query.get("casters")) > 2) {
+	const extra = ["Caster_Largo_3", "OtroCaster4"];
+	for (let i = 2; i < Math.min(4, Number(query.get("casters"))); i++) {
+		setPerson(`c${i}`, { name: extra[i - 2] });
+		showCaster(i, true);
+	}
+}
 if (SIM && !shot) [0, 1].forEach((i) => {
 	let on = i === 0;
 	const flipTalk = () => {
@@ -1179,6 +1190,10 @@ const STINGER_LABEL = {
 	result: "Resultado del mapa",
 	champion: ROUND.short || "Ganador",
 	qualifiers: "Qualifiers",
+	"br-lobby": "Battle Royale",
+	"br-pool": "Mappool · Battle Royale",
+	"br-gameplay": "Battle Royale",
+	"br-winner": "Ganador",
 };
 function shake() {
 	stage.classList.remove("shake");
@@ -1209,7 +1224,51 @@ setTransition(async (swap, name) => {
 	boltVideo.pause();
 });
 
+// ---------- the showcase replay's player ----------
+// { name, osuId, rank, countryRank, country, pp, cover }, or null to hide.
+// A player osu! doesn't know (banned, renamed) is just their name, on the
+// featured map's art instead of a banner.
+let replayer = null;
+function replayerArt() {
+	// (the map is only read when needed: the simulation's stand-in is set
+	// before the showcase's state exists)
+	const art = replayer?.cover ? `url("${replayer.cover}")` : POOL[featured] ? cover(POOL[featured]) : "";
+	$("#replayerBanner").style.backgroundImage = art;
+}
+function setReplayer(p) {
+	const box = $("#replayer");
+	replayer = p?.name ? p : null;
+	box.hidden = !replayer;
+	if (!replayer) return;
+	setPerson("rp", { name: p.name, osuId: p.osuId });
+	replayerArt();
+	box.toggleAttribute("data-has-banner", Boolean(p.cover));
+	$("#replayerStats").innerHTML = [
+		p.rank ? `<b>#${fmt(p.rank)}</b> global` : "",
+		p.countryRank ? `<b>#${fmt(p.countryRank)}</b> ${esc(p.country || "país")}` : "",
+		p.pp ? `<b>${fmt(Math.round(p.pp))}</b>pp` : "",
+	]
+		.filter(Boolean)
+		.join("<i>·</i>");
+}
+// the simulation: a player on a stand-in banner
+if (SIM && query.get("replayer") === "unknown") queueMicrotask(() => setReplayer({ name: "yukipo15" }));
+else if (SIM) setReplayer({ name: PEOPLE.l.name, rank: 2841, countryRank: 39, country: "CO", pp: 9412, cover: `https://assets.ppy.sh/beatmaps/${POOL[2].set}/covers/cover.jpg` });
+
+// ---------- profile banners ("Ya empezamos") ----------
+function setBanner(side, url) {
+	const el = $(`[data-banner="${side}"]`);
+	el.style.backgroundImage = url ? `url("${url}")` : "";
+	el.parentElement.toggleAttribute("data-has-banner", Boolean(url));
+}
+// the simulation: two map covers stand in for the banners
+if (SIM) {
+	setBanner("l", `https://assets.ppy.sh/beatmaps/${POOL[0].set}/covers/cover.jpg`);
+	setBanner("r", `https://assets.ppy.sh/beatmaps/${POOL[5].set}/covers/cover.jpg`);
+}
+
 // ---------- count-ups ----------
+const intro = $(".intro");
 const ease = (t) => 1 - Math.pow(1 - t, 4);
 function countUp(el, to, { delay = 0, dur = 1100, format = "int", pre = "" } = {}) {
 	const dp = (String(to).split(".")[1] || "").length;
@@ -1220,9 +1279,11 @@ function countUp(el, to, { delay = 0, dur = 1100, format = "int", pre = "" } = {
 		dec: (v) => v.toFixed(dp),
 	}[format];
 	if (shot) return setNum(el, f(to));
+	const run = (el._countRun = (el._countRun || 0) + 1);
 	setNum(el, f(0));
 	const start = performance.now() + delay;
 	const step = (now) => {
+		if (el._countRun !== run) return;
 		const t = Math.min(Math.max((now - start) / dur, 0), 1);
 		setNum(el, f(format === "int" || format === "x" ? Math.round(to * ease(t)) : to * ease(t)));
 		if (t < 1) requestAnimationFrame(step);
@@ -1230,9 +1291,10 @@ function countUp(el, to, { delay = 0, dur = 1100, format = "int", pre = "" } = {
 	requestAnimationFrame(step);
 }
 const countAll = (sel, base, gap, dur) =>
-	$$(sel).forEach((el, i) =>
-		countUp(el, Number(el.dataset.count), { delay: base + i * gap, dur, format: el.dataset.fmt || "int", pre: el.dataset.pre || "" }),
-	);
+	$$(sel).forEach((el, i) => {
+		if (el.dataset.count === "0" && el.dataset.unknown !== undefined) return;
+		countUp(el, Number(el.dataset.count), { delay: base + i * gap, dur, format: el.dataset.fmt || "int", pre: el.dataset.pre || "" });
+	});
 
 onEvent((type, name) => {
 	if (type !== "scene") return;
@@ -1543,7 +1605,8 @@ const hitCount = (s, side, k) => (k === "miss" ? s.miss[side] : k === "sb" ? s.s
 
 // Difficulty graph under the vinyl: tosu's strains as an area, the played
 // part lit by clipping a second copy to the song's progress.
-const strainPaths = [...$$("#strainGraph path")];
+// the match's vinyl and the Battle Royale's map card draw the same curve
+const strainPaths = [...$$("#strainGraph path, .brg-graph path")];
 const strainPlayed = $("#strainPlayed");
 function drawStrains(strains) {
 	const list = (Array.isArray(strains) ? strains : []).map(Number).filter((n) => Number.isFinite(n));
@@ -1749,6 +1812,7 @@ function featureMap(i, animate = true) {
 	});
 	$$(".line-mod", showLine).forEach((g) => g.toggleAttribute("data-now", g.dataset.mod === mod.toLowerCase()));
 	if (animate && !shot) restart(sheet, "is-in");
+	if (replayer && !replayer.cover) replayerArt();
 	oro.onFeatured?.();
 }
 function featureId(id) {
@@ -2608,6 +2672,10 @@ export const oro = {
 		lobbyLine(who, side, msg, time);
 		if (act) pickTimer.bancho(msg);
 	},
+	// The player's osu! profile banner, behind them on "Ya empezamos".
+	setBanner,
+	// Who plays the showcase replay, from their osu! profile; null hides it.
+	setReplayer,
 	// Seed from data.json; ranks and pp from the player's osu! profile.
 	// The player's country isn't shown: only the country rank, under "País".
 	setPlayerInfo(side, { seed, rank, countryRank, pp }) {
@@ -2621,9 +2689,15 @@ export const oro = {
 		].forEach(([label, value, pre], i) => {
 			const [dt, dd] = [$("dt", tape[i]), $("dd", tape[i])];
 			dt.textContent = label;
+			const changed = dd.dataset.count !== String(value || 0);
 			dd.dataset.count = value || 0;
 			dd.dataset.pre = pre;
-			dd.textContent = value ? pre + fmt(value) : "—";
+			dd.toggleAttribute("data-unknown", !value);
+			if (!changed) return;
+			dd._countRun = (dd._countRun || 0) + 1;
+			// on screen already: count up to the real number now
+			if (value && intro.hasAttribute("data-active")) countUp(dd, value, { dur: 900, pre });
+			else dd.textContent = value ? pre + fmt(value) : "—";
 		});
 		// "#39 Seed 1" on the left, mirrored on the right; what is not known is
 		// left out
@@ -2712,8 +2786,9 @@ if (!SIM) {
 renderPfps();
 boot("gameplay", {
 	switcher: !LIVE,
-	scenes: ["starting", "intro", "showcase", "mappool", "gameplay", "result", "champion", "qualifiers"],
-	labels: { starting: "Ya empezamos", showcase: "Showcase", qualifiers: "Qualifiers" },
+	// the Battle Royale event's three come last (battle.ts)
+	scenes: ["starting", "intro", "showcase", "mappool", "gameplay", "result", "champion", "qualifiers", "br-lobby", "br-pool", "br-gameplay", "br-winner"],
+	labels: { starting: "Ya empezamos", showcase: "Showcase", qualifiers: "Qualifiers", "br-lobby": "BR sala", "br-pool": "BR mappool", "br-gameplay": "BR gameplay", "br-winner": "BR ganador" },
 	hint: "<kbd>T</kbd> TB · <kbd>Q</kbd><kbd>W</kbd> bancho · <kbd>G</kbd> chats · <kbd>R</kbd><kbd>E</kbd> timer · <kbd>F</kbd> ×4 · <kbd>C</kbd> choke · <kbd>A</kbd> demo · <kbd>M</kbd> sonido · <kbd>P</kbd> perf",
 });
 if ($('[data-goto="champion"]')) $('[data-goto="champion"]').lastChild.textContent = ROUND.short || "Ganador";

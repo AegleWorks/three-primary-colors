@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&display=swap" rel="stylesheet">
+	<title>Rempalago 3 // Battle Royale fondo</title>
+	<!-- Battle Royale: the page that goes UNDER the tourney client in OBS
+	     (1920x1080, at 0,0). Order in the OBS scene, bottom to top:
+	       1. this page          (the gold background, the logo where the clients go)
+	       2. the osu! tourney client capture
+	       3. the overlay        (scene "BR gameplay": see-through over the clients)
+	     While the client is closed or restarting, its capture is empty and this
+	     shows instead of black. No script: nothing to connect, nothing to keep. -->
+	<style>
+		:root {
+			--gold-hi: #ffe3a3;
+		}
+
+		html,
+		body {
+			margin: 0;
+			width: 1920px;
+			height: 1080px;
+			overflow: hidden;
+			background: #000;
+		}
+
+		.backdrop {
+			position: absolute;
+			inset: 0;
+		}
+
+		.backdrop video {
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			filter: saturate(0.95) contrast(1.05);
+		}
+
+		.backdrop i {
+			position: absolute;
+			inset: 0;
+			background: rgba(0, 0, 0, 0.2);
+		}
+
+		/* the clients' window: x 0, y 100, 1920x720 */
+		.wait {
+			position: absolute;
+			left: 0;
+			top: 100px;
+			width: 1920px;
+			height: 720px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 26px;
+		}
+
+		.wait img {
+			width: 200px;
+			height: auto;
+			filter: drop-shadow(0 0 30px rgba(76, 170, 255, 0.45));
+			animation: breathe 2.4s ease-in-out infinite;
+		}
+
+		.wait span {
+			font: 700 17px/1 "Comfortaa", sans-serif;
+			letter-spacing: 0.5em;
+			padding-left: 0.5em;
+			text-transform: uppercase;
+			color: var(--gold-hi);
+		}
+
+		@keyframes breathe {
+			50% {
+				transform: scale(1.05);
+				filter: drop-shadow(0 0 46px rgba(76, 170, 255, 0.65));
+			}
+		}
+	</style>
+</head>
+
+<body>
+	<div class="backdrop" aria-hidden="true">
+		<video autoplay muted loop playsinline preload="auto" poster="./src/oro/media/fondo-oro.webp">
+			<source src="./src/oro/media/fondo-oro.h264.mp4" type='video/mp4; codecs="avc1.64002A"'>
+			<source src="./src/oro/media/fondo-oro.av1.webm" type='video/webm; codecs="av01.0.09M.08"'>
+			<source src="./src/oro/media/fondo-oro.vp9.webm" type='video/webm; codecs="vp9"'>
+		</video>
+		<i></i>
+	</div>
+	<div class="wait">
+		<img src="./src/oro/media/logo-ct3.webp" alt="" draggable="false">
+		<span>Acomodando jugadores</span>
+	</div>
+</body>
+
+</html>

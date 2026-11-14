@@ -12,6 +12,8 @@ export default defineConfig(({ mode }) => ({
 			input: {
 				// the remote panel is published on its own, without the overlay
 				...(mode === "remote" ? {} : { index: path.resolve(import.meta.dirname, "index.html") }),
+				// Battle Royale: the background that goes under the tourney client in OBS
+				...(mode === "remote" ? {} : { "br-fondo": path.resolve(import.meta.dirname, "br-fondo.html") }),
 				panel: path.resolve(import.meta.dirname, "panel.html"),
 			},
 			output: {

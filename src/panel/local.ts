@@ -33,6 +33,34 @@ export function startLocal(link: ControlLink, send: (command: Command) => void, 
 	// in the round the overlay is showing.
 	obs.overlayUrl = () => new URL(`./?round=${encodeURIComponent(state()?.round || "f")}`, location.href).href;
 	new SceneSync(obs, (scene) => send({ action: "scene", scene }));
+
+	// Battle Royale: the TRC BR scene, its grid sized for the players in the room
+	const battleBtn = $<HTMLButtonElement>("#obsBattleBtn");
+	const arrangeBtn = $<HTMLButtonElement>("#obsBattleArrange");
+	const battleStatus = $("#obsBattleStatus");
+	// "Acomodar clientes" shows once TRC BR exists in OBS
+	const showArrange = async () => {
+		arrangeBtn.hidden = !(await obs.hasBattleScene());
+	};
+	const runBattle = async (button: HTMLButtonElement, busy: string, job: (players: number) => Promise<{ success: boolean; message: string }>) => {
+		const players = state()?.battle?.players.length ?? 0;
+		const label = button.textContent;
+		battleBtn.disabled = arrangeBtn.disabled = true;
+		button.textContent = busy;
+		battleStatus.textContent = t.obsSearching;
+		delete battleStatus.dataset.ok;
+		const res = await job(players);
+		battleBtn.disabled = arrangeBtn.disabled = false;
+		button.textContent = label;
+		battleStatus.textContent = res.message;
+		battleStatus.dataset.ok = String(res.success);
+		await showArrange();
+	};
+	battleBtn.onclick = () => runBattle(battleBtn, t.obsBuilding, (n) => obs.autoSetupBattle(n));
+	arrangeBtn.onclick = () => runBattle(arrangeBtn, t.obsArranging, (n) => obs.arrangeBattle(n));
+	// on connecting to OBS, and now and then (the scene may be made or deleted by hand)
+	new MutationObserver(showArrange).observe($("#obsStatusDot"), { attributes: true });
+	setInterval(showArrange, 10000);
 	new MutationObserver(changed).observe($("#obsStatusDot"), { attributes: true });
 
 	// OBS: connect once and the panel remembers it, so the next time it

@@ -47,6 +47,23 @@ const fmtLength = (ms: number) => {
 	return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 };
 
+// A map's numbers with its slot's mod (HR, DT/NC, EZ, HT); other slots as they are.
+const round1 = (n: number) => Math.round(n * 10) / 10;
+function withMod(slot: string, m: { bpm: number; ar: number; od: number; cs: number; seconds: number }) {
+	const mod = slot.replace(/\d+$/, "").toUpperCase();
+	let { ar, od, cs } = m;
+	if (mod === "HR") [ar, od, cs] = [Math.min(10, ar * 1.4), Math.min(10, od * 1.4), Math.min(10, cs * 1.3)];
+	if (mod === "EZ") [ar, od, cs] = [ar / 2, od / 2, cs / 2];
+	const rate = mod === "DT" || mod === "NC" ? 1.5 : mod === "HT" ? 0.75 : 1;
+	if (rate !== 1) {
+		// AR and OD by their timing windows, sped up
+		const arMs = (ar < 5 ? 1800 - 120 * ar : 1200 - 150 * (ar - 5)) / rate;
+		ar = arMs > 1200 ? (1800 - arMs) / 120 : 5 + (1200 - arMs) / 150;
+		od = (80 - (80 - 6 * od) / rate) / 6;
+	}
+	return { bpm: Math.round(m.bpm * rate), ar: round1(ar), od: round1(od), cs: round1(cs), seconds: m.seconds / rate };
+}
+
 export default class LiveOro {
 	private clients: IPCClient[];
 	private pool: PoolMap[] = [];
@@ -90,6 +107,16 @@ export default class LiveOro {
 			for (const side of SIDES) {
 				const c = this.client(side);
 				if (!c) continue;
+				// Cleared from the panel: tosu keeps the last play's numbers
+				// after the song, so they read as 0 until they change (a new play).
+				const held = this.cleared[side];
+				if (held !== undefined) {
+					if (held === this.playKey(c)) {
+						ingest(side, { score: 0, combo: 0, maxCombo: 0, acc: 100, miss: 0, n100: 0, n50: 0, sb: 0, ur: 0 });
+						continue;
+					}
+					delete this.cleared[side];
+				}
 				ingest(side, {
 					score: Number(c.score) || 0,
 					combo: Number(c.currentCombo) || 0,
@@ -120,6 +147,20 @@ export default class LiveOro {
 			oro.setChatMode(this.playing ? "playing" : "lobby");
 		});
 		onEvent((type, side) => type === "end" && this.mapEnded(side as Side));
+	}
+
+	// From the panel: both players' numbers back to 0 once the song is over.
+	private cleared: Partial<Record<Side, string>> = {};
+
+	private playKey(c: IPCClient) {
+		return [c.score, c.currentCombo, c.maxCombo, c.accuracy, c.h0, c.h100, c.h50].join("|");
+	}
+
+	clearScores() {
+		for (const side of SIDES) {
+			const c = this.client(side);
+			if (c) this.cleared[side] = this.playKey(c);
+		}
 	}
 
 	// A finished map: its winner takes the pick, the result screen gets the
@@ -195,12 +236,62 @@ export default class LiveOro {
 			this.onUpdate?.();
 		}
 		if (spec.userID) oro.setPerson(side, { osuId: spec.userID });
+		// osu!'s profile first: the tourney client's own numbers are often 0
+		const who = spec.userID ? String(spec.userID) : name;
+		const profile = who ? this.profiles.get(who.toLowerCase()) : undefined;
+		if (who && !this.profiles.has(who.toLowerCase())) this.loadProfile(who);
 		oro.setPlayerInfo(side, {
 			seed: info.seed,
-			rank: spec.globalRank,
-			countryRank: info.countryRank,
-			pp: spec.totalPP,
+			rank: profile?.rank || spec.globalRank,
+			countryRank: profile?.countryRank || info.countryRank,
+			pp: profile?.pp || spec.totalPP,
 		});
+		oro.setBanner(side, profile?.cover);
+	}
+
+	private replayName = "";
+
+	private showReplayer() {
+		const name = this.replayName;
+		if (!name) return oro.setReplayer(null);
+		const key = name.toLowerCase();
+		if (!this.profiles.has(key)) this.loadProfile(name);
+		const p = this.profiles.get(key);
+		oro.setReplayer({ name: p?.name || name, osuId: p?.id, rank: p?.rank, countryRank: p?.countryRank, country: p?.country, pp: p?.pp, cover: p?.cover });
+	}
+
+	// Ranks and pp from osu! (try-z, as the pool and the qualifiers use), by id
+	// or by name; asked once per player.
+	private profiles = new Map<string, { id?: number; name?: string; country?: string; rank?: number; countryRank?: number; pp?: number; cover?: string } | null>();
+
+	private async loadProfile(who: string) {
+		const key = who.toLowerCase();
+		this.profiles.set(key, null);
+		try {
+			const user = (await axios.get(`https://api.try-z.net/users/${encodeURIComponent(who)}/osu`)).data;
+			const stats = user?.statistics;
+			this.profiles.set(key, {
+				id: user?.id ?? undefined,
+				name: user?.username ?? undefined,
+				country: user?.country_code ?? undefined,
+				rank: stats?.global_rank ?? undefined,
+				countryRank: stats?.country_rank ?? undefined,
+				pp: stats?.pp ?? undefined,
+				cover: user?.cover?.url ?? user?.cover_url ?? undefined,
+			});
+			for (const s of SIDES) this.refreshPlayer(s);
+			if (key === this.replayName.toLowerCase()) this.showReplayer();
+		} catch (e) {
+			// osu! has no such player (banned, renamed): asked no more, shown
+			// by name alone. Any other failure: the next change tries again.
+			if (axios.isAxiosError(e) && e.response?.status === 404) {
+				this.profiles.set(key, {});
+				if (key === this.replayName.toLowerCase()) this.showReplayer();
+				return;
+			}
+			this.profiles.delete(key);
+			console.error(`[LiveOro] Failed to read ${who}'s osu! profile:`, (e as Error).message);
+		}
 	}
 
 	// ---------- the map in play ----------
@@ -212,6 +303,13 @@ export default class LiveOro {
 		for (const key of ["menu.bm.id", "menu.bm.stats.fullSR", "menu.bm.metadata.title", "menu.bm.path.full"]) {
 			this.engine.register(key, (_, __, data) => this.readMap(data));
 		}
+		// who plays the replay in the showcase
+		this.engine.register("gameplay.name", (_, name: string) => {
+			const next = String(name ?? "").trim();
+			if (next === this.replayName) return;
+			this.replayName = next;
+			this.showReplayer();
+		});
 		// the difficulty graph under the vinyl (a new array every frame; oro
 		// redraws only when it is a different curve)
 		this.engine.register("menu.pp.strains", (_, strains) => oro.setStrains(strains));
@@ -221,12 +319,15 @@ export default class LiveOro {
 	private readMap(data: any) {
 		const bm = data?.menu?.bm;
 		if (!bm) return;
-		const slot = this.pool.find((m) => m.beatmapId === bm.id);
+		const same = (a?: string, b?: string) => (a ?? "").trim().toLowerCase() === (b ?? "").trim().toLowerCase();
+		const slot =
+			this.pool.find((m) => m.beatmapId && m.beatmapId === bm.id) ??
+			this.pool.find((m) => !m.beatmapId && m.title && same(m.title, bm.metadata?.title) && same(m.diff, bm.metadata?.difficulty));
 		const map: PoolMap = {
 			id: slot?.id ?? "",
 			set: bm.set ?? slot?.set ?? 0,
 			// pool maps keep their set cover; anything else shows tosu's background
-			art: slot ? undefined : bm.path?.full ? `http://${host}:24050/Songs/${encodeURIComponent(bm.path.full)}` : "none",
+			art: slot?.set ? undefined : bm.path?.full ? `http://${host}:24050/Songs/${encodeURIComponent(bm.path.full)}` : "none",
 			artist: bm.metadata?.artist ?? "",
 			title: bm.metadata?.title ?? "",
 			mapper: bm.metadata?.mapper ?? "",
@@ -237,6 +338,9 @@ export default class LiveOro {
 			od: Number(Number(bm.stats?.OD).toFixed(1)) || 0,
 			cs: Number(Number(bm.stats?.CS).toFixed(1)) || 0,
 			len: fmtLength(Number(bm.time?.full) || 0),
+			// A pool map shows the pool's numbers, with its slot's mod applied
+			// (the tourney client reads the map without mods).
+			...(slot ? { sr: slot.sr, bpm: slot.bpm, ar: slot.ar, od: slot.od, cs: slot.cs, len: slot.len } : {}),
 		};
 		// The map an "!mp map" asked for, once osu! has it loaded: Bancho's line
 		// names the map that really came up, not the one in the command.
@@ -468,16 +572,37 @@ export default class LiveOro {
 			return;
 		}
 		const query = new URLSearchParams();
-		for (const id of new Set(rows.map((r) => r.beatmapId))) query.append("ids", String(id));
-		const res = await axios.get(`https://api.try-z.net/beatmaps?${query}`);
-		const beatmaps: Beatmap[] = res.data?.beatmaps ?? [];
+		for (const id of new Set(rows.map((r) => r.beatmapId).filter(Boolean))) query.append("ids", String(id));
+		const beatmaps: Beatmap[] = query.size ? ((await axios.get(`https://api.try-z.net/beatmaps?${query}`)).data?.beatmaps ?? []) : [];
 		const missing: string[] = [];
 		this.pool = rows.flatMap((r) => {
-			const b = beatmaps.find((m) => m.id === r.beatmapId);
+			const b = r.beatmapId ? beatmaps.find((m) => m.id === r.beatmapId) : undefined;
+			// Not uploaded (no id), or osu! doesn't know it: the sheet's own cells
+			if (!b && r.title) {
+				return [
+					{
+						id: r.slot,
+						beatmapId: r.beatmapId || 0,
+						set: 0,
+						art: "none",
+						artist: r.artist ?? "",
+						title: r.title,
+						mapper: r.mapper ?? "",
+						diff: r.diff ?? "",
+						sr: r.sr ?? 0,
+						bpm: r.bpm ?? 0,
+						ar: r.ar ?? 0,
+						od: r.od ?? 0,
+						cs: r.cs ?? 0,
+						len: r.len ?? "0:00",
+					},
+				];
+			}
 			if (!b) {
 				missing.push(r.slot);
 				return [];
 			}
+			const m = withMod(r.slot, { bpm: b.bpm, ar: b.ar, od: b.accuracy, cs: b.cs, seconds: b.total_length });
 			return [
 				{
 					id: r.slot,
@@ -487,12 +612,13 @@ export default class LiveOro {
 					title: b.beatmapset.title,
 					mapper: r.mapper ?? b.beatmapset.creator,
 					diff: b.version,
+					// osu!'s star rating is without mods: the sheet's wins
 					sr: r.sr ?? b.difficulty_rating,
-					bpm: r.bpm ?? b.bpm,
-					ar: r.ar ?? b.ar,
-					od: r.od ?? b.accuracy,
-					cs: r.cs ?? b.cs,
-					len: r.len ?? fmtLength(b.total_length * 1000),
+					bpm: r.bpm ?? m.bpm,
+					ar: r.ar ?? m.ar,
+					od: r.od ?? m.od,
+					cs: r.cs ?? m.cs,
+					len: r.len ?? fmtLength(m.seconds * 1000),
 				},
 			];
 		});

@@ -1,4 +1,5 @@
 import type ControlLink from "../control/ControlLink";
+import type Battle from "./battle";
 import type LiveOro from "./live";
 import { oro } from "./oro.js";
 import type Qualifiers from "./qualifiers";
@@ -32,6 +33,7 @@ export default class OverlayRemote {
 		private live: LiveOro | null,
 		private qualifiers: Qualifiers,
 		private sources: Sources,
+		private battle: Battle,
 	) {
 		link.onCommand((command) => {
 			switch (command.action) {
@@ -57,6 +59,9 @@ export default class OverlayRemote {
 				case "nextPicker":
 					this.live?.setNextPicker(command.side);
 					break;
+				case "clearScores":
+					this.live?.clearScores();
+					break;
 				case "draftRestore":
 					this.live?.restoreDraft(command.draft);
 					break;
@@ -78,6 +83,17 @@ export default class OverlayRemote {
 					if (command.results !== undefined) sources.setResults(Number(command.results));
 					if (command.file !== undefined) sources.setFile(String(command.file));
 					break;
+				case "battle":
+					if (command.reset) this.battle.reset();
+					if (command.add) this.battle.addPlayer(command.add);
+					if (command.remove) this.battle.removePlayer(command.remove);
+					if (command.cover) this.battle.setCover(command.cover);
+					if (command.winner !== undefined) this.battle.setWinner(command.winner);
+					if (command.next !== undefined) this.battle.setNext(command.next);
+					if (command.played) this.battle.togglePlayed(command.played);
+					if (command.poolReset) this.battle.resetPool();
+					if (command.poolReload) this.battle.loadPool();
+					break;
 				case "round": {
 					const url = new URL(location.href);
 					url.searchParams.set("round", command.round);
@@ -91,6 +107,7 @@ export default class OverlayRemote {
 		oro.onFeatured = () => this.publish();
 		qualifiers.onUpdate = () => this.publish();
 		sources.onUpdate = () => this.publish();
+		battle.onUpdate = () => this.publish();
 		link.onStatus = (connected) => connected && this.publish();
 		heartbeat(() => this.publish());
 		// back in front: say so right away rather than at the next beat
@@ -114,6 +131,7 @@ export default class OverlayRemote {
 			twitch: this.live?.twitch ?? { channels: [], channel: "", status: "off" },
 			sources: this.sources.state,
 			qualifiers: { players: this.qualifiers.players.map(({ name, seed }) => ({ name, seed })), index: this.qualifiers.index },
+			battle: this.battle.state,
 		});
 	}
 }
