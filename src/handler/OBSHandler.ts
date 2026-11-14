@@ -22,6 +22,9 @@ const SYNC_MS = 5000;
 const PROBE_INPUT = "rempalago: buscando ventanas";
 const REPLAY_INPUT = "osu! replay";
 const OVERLAY_INPUT = "Overlay";
+// The match is 1v1: its scene holds two clients ("osu! 1" and "osu! 2") and
+// never more, even when the Battle Royale's sixteen are open.
+const MATCH_CLIENTS = 2;
 // Battle Royale: its scene and the background page that goes under the clients
 export const BATTLE_SCENE = "TRC BR";
 const BATTLE_BACK_INPUT = "BR fondo";
@@ -133,7 +136,9 @@ export default class OBSHandler {
 		container: { x: 0, y: 100, width: 1920, height: 720 },
 		gap: 8,
 		keepAspectRatio: false,
-		autoTile: true,
+		// Opening or closing a client never moves the match scene by itself;
+		// "Acomodar ahora" or building the scene does.
+		autoTile: false,
 	};
 
 	clientStates: Map<number, ClientSlotState> = new Map();
@@ -483,7 +488,9 @@ export default class OBSHandler {
 		const hasTelemetry = Array.from(this.clientStates.values()).some((c) => c.name.length > 0);
 
 		for (const clientIdx of this.activeSceneItemIdMap.keys()) {
-			if (!this.windowed.has(clientIdx)) {
+			if (clientIdx >= MATCH_CLIENTS) {
+				inactiveClients.push(clientIdx);
+			} else if (!this.windowed.has(clientIdx)) {
 				inactiveClients.push(clientIdx);
 			} else if (!hasTelemetry) {
 				activeClients.push(clientIdx);
@@ -672,10 +679,15 @@ export default class OBSHandler {
 	private async syncGameplay(windows: OsuWindow[], tile: boolean) {
 		const sceneName = this.config.sceneName;
 		if (!sceneName || !(await this.sceneExists(sceneName))) return 0;
-		const clients = this.tourneyWindows(windows);
+		const clients = this.tourneyWindows(windows).slice(0, MATCH_CLIENTS);
 		const inputs = await this.inputNames();
 		const { sceneItems } = await this.obs.call("GetSceneItemList", { sceneName });
 		const inScene = new Set(sceneItems.map((si) => si.sourceName as string));
+		// captures past the two (an older version made one per client): hidden
+		for (const si of sceneItems) {
+			const m = /^osu! (\d+)$/.exec(String(si.sourceName));
+			if (m && Number(m[1]) > MATCH_CLIENTS && si.sceneItemEnabled) await this.obs.call("SetSceneItemEnabled", { sceneName, sceneItemId: si.sceneItemId as number, sceneItemEnabled: false });
+		}
 		const before = [...this.windowed].join();
 		let added = false;
 		this.windowed.clear();
@@ -696,9 +708,11 @@ export default class OBSHandler {
 		}
 		// a new capture lands on top: the overlay goes back above it
 		if (added) await this.ensureOverlay(sceneName);
-		if (tile || added || before !== [...this.windowed].join()) {
+		// Placed only when asked (the setup button) or when a capture was just
+		// made; a client opening or closing leaves everything where it is.
+		if (tile || added || (this.config.autoTile && before !== [...this.windowed].join())) {
 			this.activeSceneItemIdMap = await this.discoverSceneItems(sceneName);
-			if (tile || this.config.autoTile) await this.applyLayout();
+			await this.applyLayout();
 		}
 		return clients.length;
 	}
