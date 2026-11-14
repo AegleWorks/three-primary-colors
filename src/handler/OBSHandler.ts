@@ -312,18 +312,33 @@ export default class OBSHandler {
 	/**
 	 * Connect to OBS Studio WebSocket server.
 	 */
-	async connect(url = this.config.url, password = this.config.password): Promise<boolean> {
-		this.config.url = url;
-		this.config.password = password;
+	// One attempt at a time. obs-websocket-js closes the socket in use when
+	// connect() is called again, and the first attempt's cleanup then closes
+	// the second one's: two attempts that overlap (the panel's retry, the
+	// connect button, a scene setup) both fail. Each call waits for the one
+	// before it, and one that finds OBS already connected the same way is done.
+	private connecting: Promise<boolean> | null = null;
 
-		try {
-			await this.obs.connect(url, password || undefined);
-			return true;
-		} catch (err) {
-			console.warn("[OBSHandler] Failed to connect to OBS WebSocket:", err);
-			this.connected = false;
-			return false;
-		}
+	connect(url = this.config.url, password = this.config.password): Promise<boolean> {
+		const attempt = async () => {
+			if (this.connected && url === this.config.url && password === this.config.password) return true;
+			this.config.url = url;
+			this.config.password = password;
+			try {
+				await this.obs.connect(url, password || undefined);
+				return true;
+			} catch (err) {
+				console.warn("[OBSHandler] Failed to connect to OBS WebSocket:", err);
+				this.connected = false;
+				return false;
+			}
+		};
+		const next = (this.connecting ?? Promise.resolve(false)).then(attempt, attempt);
+		this.connecting = next;
+		void next.finally(() => {
+			if (this.connecting === next) this.connecting = null;
+		});
+		return next;
 	}
 
 	/**
