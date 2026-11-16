@@ -8,7 +8,7 @@ import TwitchChat, { type TwitchStatus } from "../handler/TwitchChat";
 import { avatar, chatBadges } from "../handler/TwitchUsers";
 import type { DraftEdit, DraftSnapshot, OverlayState } from "../control/ControlLink";
 import type { Beatmap, Data } from "../types";
-import { oro, type PoolMap } from "./oro.js";
+import { oro, type PoolMap, type ReplayMap } from "./oro.js";
 import { BRACKET_SHEET, type BracketMatch, fetchBracket, findMatch } from "./bracket";
 import { fetchSheetPool, type SheetRef, type SheetRow } from "./sheet";
 import Sources from "./sources";
@@ -24,6 +24,31 @@ type Chat = { team: string; time: string; name: string; messageBody: string };
 type PlayerInfo = { seed?: number; countryRank?: number };
 
 const SIDES: Side[] = ["l", "r"];
+
+// osu!'s loaded map for the showcase, numbers without mods (the overlay applies
+// the slot's mod): tosu's memory* values are the map's own, the plain ones can
+// carry the replay's mods.
+// biome-ignore lint/suspicious/noExplicitAny: tosu payload
+function replayMapOf(bm: any): ReplayMap {
+	const set = num(bm.set);
+	const stat = (raw: unknown, shown: unknown) => Number(Number(raw ?? shown).toFixed(1)) || 0;
+	return {
+		beatmapId: num(bm.id),
+		set: set > 0 ? set : 0,
+		// an uploaded map has its set's cover; a local one, tosu's background
+		art: set > 0 ? undefined : bm.path?.full ? `http://${host}:24050/Songs/${encodeURIComponent(bm.path.full)}` : "none",
+		artist: bm.metadata?.artist ?? "",
+		title: bm.metadata?.title ?? "",
+		mapper: bm.metadata?.mapper ?? "",
+		diff: bm.metadata?.difficulty ?? "",
+		sr: Number(bm.stats?.fullSR) || 0,
+		bpm: Number(bm.stats?.BPM?.common ?? bm.stats?.BPM) || 0,
+		ar: stat(bm.stats?.memoryAR, bm.stats?.AR),
+		od: stat(bm.stats?.memoryOD, bm.stats?.OD),
+		cs: stat(bm.stats?.memoryCS, bm.stats?.CS),
+		seconds: num(bm.time?.full) / 1000,
+	};
+}
 const TEAM: Record<string, Side> = { left: "l", right: "r" };
 const DRAFT_KEY = `draft:${ROUND.key}`;
 const TWITCH_KEY = "twitch:channel";
@@ -463,9 +488,12 @@ export default class LiveOro {
 			}
 		}
 		this.readLobby(data);
-		// A replay in the showcase is not a pick: it only features its map.
+		// A replay in the showcase is not a pick: it only features its map. A
+		// custom or secret slot (no beatmap id in the sheet, so osu!'s map
+		// matches nothing) shows osu!'s own data for it.
 		if (document.body.dataset.scene === "showcase") {
 			if (slot) oro.feature(slot.id);
+			oro.setReplayMap(bm.id || bm.metadata?.title ? replayMapOf(bm) : null, slot?.id ?? null);
 			return;
 		}
 		const key = JSON.stringify(map);

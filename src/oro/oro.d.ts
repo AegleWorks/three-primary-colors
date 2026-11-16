@@ -18,6 +18,22 @@ export interface PoolMap {
 	len: string;
 }
 
+export interface ReplayMap {
+	beatmapId: number;
+	set: number;
+	art?: string;
+	artist: string;
+	title: string;
+	mapper: string;
+	diff: string;
+	sr: number;
+	bpm: number;
+	ar: number;
+	od: number;
+	cs: number;
+	seconds: number;
+}
+
 export interface MapResult {
 	score: number;
 	acc: number;
@@ -46,6 +62,10 @@ export const oro: {
 	draftChanged(): void;
 	feature(id: string): void;
 	featured(): string;
+	// The map osu! has loaded during the showcase (the replay's), its numbers
+	// without mods, and the pool slot it matched, if any. A custom or secret
+	// slot shows this in place of the sheet's placeholder.
+	setReplayMap(map: ReplayMap | null, slot: string | null): void;
 	onFeatured: (() => void) | null;
 	setCurrentMap(map: PoolMap): void;
 	setStars(stars: Record<Side, number>): void;

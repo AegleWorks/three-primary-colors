@@ -1,4 +1,5 @@
 import { boot, onTick, onEvent, goTo, setTransition, trigger, setDirector, setSpeed, getSpeed, restart as restartMatch, LIVE, MATCH, ROUND, DRAFT, CHAT, modOf, fmt, fmtTime } from "./stage.js";
+import { fmtLength, withMod } from "./match";
 
 // Real beatmapsets so the mock carries real cover art. In the live overlay the
 // art comes from tosu (/files/beatmap/background) instead of assets.ppy.sh.
@@ -45,6 +46,50 @@ const $$ = (s, root = document) => [...root.querySelectorAll(s)];
 // A map's art: its set's cover, or the background tosu serves for a map
 // outside the pool.
 const cover = (map) => (map.art === "none" ? "none" : `url("${map.art || `https://assets.ppy.sh/beatmaps/${map.set}/covers/cover.jpg`}")`);
+
+// Custom and secret slots: the sheet holds a placeholder ("CUSTOM MAPA",
+// mapper "SECRETO") and no beatmap id, so the showcase shows the replay's map
+// as osu! has it loaded instead. A replay's map goes to one slot: the one it
+// matched, else the custom slot featured when it came up, else the first
+// custom slot featured after. Each slot keeps the map it got, so going back
+// to it shows it again, and another custom slot never borrows it. Up here:
+// the showcase's replayer art reads it on load.
+function isHiddenMap(m) {
+	return /custom/i.test(m?.title ?? "") || /secret/i.test(m?.mapper ?? "");
+}
+// slot id -> its replay's map
+const revealed = new Map();
+// a replay's map that came up while no custom slot was featured
+let unclaimed = null;
+// the replay osu! has loaded now, to tell a new one from tosu repeating it
+let replayKey = "";
+// what the showcase's sheet shows now, for the same reason
+let shownKey = "";
+function shownMap(m) {
+	if (!isHiddenMap(m)) return m;
+	if (!revealed.has(m.id) && unclaimed) {
+		revealed.set(m.id, unclaimed);
+		unclaimed = null;
+	}
+	const r = revealed.get(m.id);
+	if (!r) return m;
+	const n = withMod(m.id, { bpm: r.bpm, ar: r.ar, od: r.od, cs: r.cs, seconds: r.seconds });
+	return {
+		...m,
+		set: r.set,
+		art: r.art,
+		artist: r.artist,
+		title: r.title || m.title,
+		mapper: r.mapper,
+		diff: r.diff,
+		sr: r.sr || m.sr,
+		bpm: n.bpm || m.bpm,
+		ar: n.ar,
+		od: n.od,
+		cs: n.cs,
+		len: r.seconds ? fmtLength(n.seconds * 1000) : m.len,
+	};
+}
 // Text from outside (sheet cells, osu! metadata, lobby titles) going into
 // markup. A function declaration, hoisted: the pool renders on load, before the
 // chat's `esc` below exists.
@@ -1241,7 +1286,7 @@ let replayer = null;
 function replayerArt() {
 	// (the map is only read when needed: the simulation's stand-in is set
 	// before the showcase's state exists)
-	const art = replayer?.cover ? `url("${replayer.cover}")` : POOL[featured] ? cover(POOL[featured]) : "";
+	const art = replayer?.cover ? `url("${replayer.cover}")` : POOL[featured] ? cover(shownMap(POOL[featured])) : "";
 	$("#replayerBanner").style.backgroundImage = art;
 }
 function setReplayer(p) {
@@ -1797,10 +1842,35 @@ function renderShowLine() {
 }
 let featured = 0;
 let featureTimer = 0;
+
+// The replay's map for a custom or secret slot (see shownMap, at the top).
+function setReplayMap(map, slot) {
+	if (!map) return;
+	const key = `${map.beatmapId}|${map.title}|${map.diff}`;
+	const again = key === replayKey;
+	replayKey = key;
+	const now = POOL[featured];
+	// The same replay again goes nowhere new: the custom slot on screen may be
+	// the next one, still waiting for its own replay.
+	const target = slot ? POOL.find((m) => m.id === slot) : !again && isHiddenMap(now) ? now : null;
+	if (target && isHiddenMap(target)) {
+		revealed.set(target.id, map);
+		if (unclaimed && `${unclaimed.beatmapId}|${unclaimed.title}|${unclaimed.diff}` === key) unclaimed = null;
+	}
+	// tosu repeats the map on every change: only a new one waits for a slot
+	else if (!slot && !again) unclaimed = map;
+	// redraw only when the custom slot on screen shows something else now
+	if (isHiddenMap(now) && JSON.stringify(shownMap(now)) !== shownKey) featureMap(featured);
+}
+
 function featureMap(i, animate = true) {
 	if (!POOL.length) return;
 	featured = (i + POOL.length) % POOL.length;
-	const m = POOL[featured];
+	const m = shownMap(POOL[featured]);
+	shownKey = JSON.stringify(m);
+	// a custom slot shown with its replay's map is named by it on the timeline too
+	const lineTitle = $(`.line-map[data-id="${CSS.escape(m.id)}"] .line-title`, showLine);
+	if (lineTitle) lineTitle.textContent = m.title;
 	const mod = modOf(m.id);
 	sheet.dataset.mod = mod.toLowerCase();
 	$("#replay").dataset.mod = mod.toLowerCase();
@@ -2730,6 +2800,9 @@ export const oro = {
 	// The pool, in data.json order, as cards: { id, set, artist, title, ... }.
 	setPool(maps) {
 		POOL.splice(0, POOL.length, ...maps);
+		// another pool: its custom slots are other maps
+		revealed.clear();
+		unclaimed = null;
 		TB_MAP = byId("TB") || BLANK;
 		$("#tbiMap").textContent = TB_MAP.id ? `${TB_MAP.title} · ${TB_MAP.artist} · ${TB_MAP.sr.toFixed(2)}★ · ${TB_MAP.len}` : "";
 		renderPool();
@@ -2744,6 +2817,7 @@ export const oro = {
 	// The showcase's featured map, by pool slot; read back with featured().
 	feature: (id) => featureId(id),
 	featured: () => POOL[featured]?.id ?? "",
+	setReplayMap: (map, slot) => setReplayMap(map, slot),
 	// Set by the control link: told whenever the featured map changes.
 	onFeatured: null,
 	setCurrentMap(map) {
