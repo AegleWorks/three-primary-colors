@@ -1,5 +1,5 @@
 import { boot, onTick, onEvent, goTo, setTransition, trigger, setDirector, setSpeed, getSpeed, restart as restartMatch, LIVE, MATCH, ROUND, DRAFT, CHAT, modOf, fmt, fmtTime } from "./stage.js";
-import { fmtLength, withMod } from "./match";
+import { fmtLength } from "./match";
 
 // Real beatmapsets so the mock carries real cover art. In the live overlay the
 // art comes from tosu (/files/beatmap/background) instead of assets.ppy.sh.
@@ -73,7 +73,7 @@ function shownMap(m) {
 	}
 	const r = revealed.get(m.id);
 	if (!r) return m;
-	const n = withMod(m.id, { bpm: r.bpm, ar: r.ar, od: r.od, cs: r.cs, seconds: r.seconds });
+	// every number as osu! has it with the replay's mods (not the slot's)
 	return {
 		...m,
 		set: r.set,
@@ -83,13 +83,15 @@ function shownMap(m) {
 		mapper: r.mapper,
 		diff: r.diff,
 		sr: r.sr || m.sr,
-		bpm: n.bpm || m.bpm,
-		ar: n.ar,
-		od: n.od,
-		cs: n.cs,
-		len: r.seconds ? fmtLength(n.seconds * 1000) : m.len,
+		bpm: Math.round(r.bpm) || m.bpm,
+		ar: r.ar,
+		od: r.od,
+		cs: r.cs,
+		len: r.seconds ? fmtLength(r.seconds * 1000) : m.len,
+		replayMods: r.mods,
 	};
 }
+const replayKeyOf = (map) => `${map.beatmapId}|${map.title}|${map.diff}`;
 // Text from outside (sheet cells, osu! metadata, lobby titles) going into
 // markup. A function declaration, hoisted: the pool renders on load, before the
 // chat's `esc` below exists.
@@ -1846,16 +1848,22 @@ let featureTimer = 0;
 // The replay's map for a custom or secret slot (see shownMap, at the top).
 function setReplayMap(map, slot) {
 	if (!map) return;
-	const key = `${map.beatmapId}|${map.title}|${map.diff}`;
+	const key = replayKeyOf(map);
 	const again = key === replayKey;
 	replayKey = key;
+	// The same replay with new numbers (its mods came in after its map, or
+	// osu!'s stars were still being worked out): wherever it went, update it.
+	if (again) {
+		for (const [id, r] of revealed) if (replayKeyOf(r) === key) revealed.set(id, map);
+		if (unclaimed && replayKeyOf(unclaimed) === key) unclaimed = map;
+	}
 	const now = POOL[featured];
 	// The same replay again goes nowhere new: the custom slot on screen may be
 	// the next one, still waiting for its own replay.
 	const target = slot ? POOL.find((m) => m.id === slot) : !again && isHiddenMap(now) ? now : null;
 	if (target && isHiddenMap(target)) {
 		revealed.set(target.id, map);
-		if (unclaimed && `${unclaimed.beatmapId}|${unclaimed.title}|${unclaimed.diff}` === key) unclaimed = null;
+		if (unclaimed && replayKeyOf(unclaimed) === key) unclaimed = null;
 	}
 	// tosu repeats the map on every change: only a new one waits for a slot
 	else if (!slot && !again) unclaimed = map;
@@ -1876,7 +1884,8 @@ function featureMap(i, animate = true) {
 	$("#replay").dataset.mod = mod.toLowerCase();
 	$("#replayStand").style.backgroundImage = cover(m);
 	$("#sheetId").textContent = m.id;
-	$("#sheetMod").textContent = MOD_NAME[mod] || mod;
+	// a custom map's numbers are the replay's: say which mods it was played with
+	$("#sheetMod").innerHTML = escHtml(MOD_NAME[mod] || mod) + (m.replayMods ? `<span class="sheet-replay-mods">Replay +${escHtml(m.replayMods)}</span>` : "");
 	$("#sheetTitle").textContent = m.title;
 	$("#sheetArtist").textContent = m.artist;
 	$("#sheetDiff").textContent = `[${m.diff}]`;

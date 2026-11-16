@@ -32,6 +32,8 @@ export interface ReplayMap {
 	od: number;
 	cs: number;
 	seconds: number;
+	// the replay's mods ("HDDT"), "" for none; every number above has them
+	mods: string;
 }
 
 export interface MapResult {
@@ -63,8 +65,8 @@ export const oro: {
 	feature(id: string): void;
 	featured(): string;
 	// The map osu! has loaded during the showcase (the replay's), its numbers
-	// without mods, and the pool slot it matched, if any. A custom or secret
-	// slot shows this in place of the sheet's placeholder.
+	// with the replay's mods, and the pool slot it matched, if any. A custom or
+	// secret slot shows this in place of the sheet's placeholder.
 	setReplayMap(map: ReplayMap | null, slot: string | null): void;
 	onFeatured: (() => void) | null;
 	setCurrentMap(map: PoolMap): void;

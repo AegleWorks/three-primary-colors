@@ -25,13 +25,20 @@ type PlayerInfo = { seed?: number; countryRank?: number };
 
 const SIDES: Side[] = ["l", "r"];
 
-// osu!'s loaded map for the showcase, numbers without mods (the overlay applies
-// the slot's mod): tosu's memory* values are the map's own, the plain ones can
-// carry the replay's mods.
+// osu!'s loaded map for the showcase, with the replay's own mods. While a
+// replay plays, tosu's mods are the replay's (gameplay.mods) and its stars,
+// BPM, AR, OD and CS are worked out with them, speed included; only the
+// length comes without the speed, so it is divided here.
+const DT = 64;
+const HT = 256;
+const NC = 512;
 // biome-ignore lint/suspicious/noExplicitAny: tosu payload
-function replayMapOf(bm: any): ReplayMap {
+function replayMapOf(bm: any, mods: any): ReplayMap {
 	const set = num(bm.set);
-	const stat = (raw: unknown, shown: unknown) => Number(Number(raw ?? shown).toFixed(1)) || 0;
+	const stat = (v: unknown) => Number(Number(v).toFixed(1)) || 0;
+	const bits = num(mods?.num);
+	const rate = bits & (DT | NC) ? 1.5 : bits & HT ? 0.75 : 1;
+	const names = String(mods?.str ?? "").replace(/^NM$/i, "");
 	return {
 		beatmapId: num(bm.id),
 		set: set > 0 ? set : 0,
@@ -43,10 +50,11 @@ function replayMapOf(bm: any): ReplayMap {
 		diff: bm.metadata?.difficulty ?? "",
 		sr: Number(bm.stats?.fullSR) || 0,
 		bpm: Number(bm.stats?.BPM?.common ?? bm.stats?.BPM) || 0,
-		ar: stat(bm.stats?.memoryAR, bm.stats?.AR),
-		od: stat(bm.stats?.memoryOD, bm.stats?.OD),
-		cs: stat(bm.stats?.memoryCS, bm.stats?.CS),
-		seconds: num(bm.time?.full) / 1000,
+		ar: stat(bm.stats?.AR),
+		od: stat(bm.stats?.OD),
+		cs: stat(bm.stats?.CS),
+		seconds: num(bm.time?.full) / 1000 / rate,
+		mods: names,
 	};
 }
 const TEAM: Record<string, Side> = { left: "l", right: "r" };
@@ -428,7 +436,9 @@ export default class LiveOro {
 		for (const key of ["menu.state", "tourney.manager.teamName.left", "tourney.manager.teamName.right"]) {
 			this.engine.register(key, (_, __, data) => this.readLobby(data));
 		}
-		for (const key of ["menu.bm.id", "menu.bm.stats.fullSR", "menu.bm.metadata.title", "menu.bm.path.full"]) {
+		// the mods too: a replay's mods can come in after its map, and they
+		// change the custom maps' numbers in the showcase
+		for (const key of ["menu.bm.id", "menu.bm.stats.fullSR", "menu.bm.metadata.title", "menu.bm.path.full", "menu.mods.num"]) {
 			this.engine.register(key, (_, __, data) => this.readMap(data));
 		}
 		// who plays the replay in the showcase
@@ -493,7 +503,7 @@ export default class LiveOro {
 		// matches nothing) shows osu!'s own data for it.
 		if (document.body.dataset.scene === "showcase") {
 			if (slot) oro.feature(slot.id);
-			oro.setReplayMap(bm.id || bm.metadata?.title ? replayMapOf(bm) : null, slot?.id ?? null);
+			oro.setReplayMap(bm.id || bm.metadata?.title ? replayMapOf(bm, data?.menu?.mods) : null, slot?.id ?? null);
 			return;
 		}
 		const key = JSON.stringify(map);

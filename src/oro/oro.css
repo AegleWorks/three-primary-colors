@@ -6169,6 +6169,16 @@ body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after 
 	color: var(--mc);
 }
 
+/* A custom map's replay mods, under the slot's mod: its numbers have them. */
+.sheet-replay-mods {
+	display: block;
+	margin-top: 6px;
+	font-size: 10px;
+	letter-spacing: 0.2em;
+	color: var(--text);
+	opacity: 0.8;
+}
+
 .sheet-body {
 	display: flex;
 	flex-direction: column;
