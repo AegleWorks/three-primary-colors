@@ -407,6 +407,9 @@ const es = {
 	tabForMatch: (tab: string) => `${tab} para el partido`,
 	tabForResults: (tab: string) => `${tab} para resultados`,
 	loadingTabPool: "Cargando el pool de esa hoja. El draft se mantiene.",
+	poolPick: "Mappool",
+	poolPickTitle: "Qué hoja de la sheet juega el partido: draft, mappool, showcase y gameplay",
+	poolPickWaiting: "Esperando al overlay",
 
 	// ---------- setup: OBS
 	obsConnectLegend: "1 · Conectar",
@@ -841,6 +844,9 @@ const en: Dict = {
 	tabForMatch: (tab) => `${tab} for the match`,
 	tabForResults: (tab) => `${tab} for results`,
 	loadingTabPool: "Loading that tab's pool. The draft stays.",
+	poolPick: "Mappool",
+	poolPickTitle: "Which sheet tab the match plays: draft, mappool, showcase and gameplay",
+	poolPickWaiting: "Waiting for the overlay",
 
 	obsConnectLegend: "1 · Connect",
 	obsConnectHint: "In OBS: Tools → WebSocket Server Settings → enable the server and copy the password. The panel remembers it and connects by itself next time.",

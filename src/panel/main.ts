@@ -1248,11 +1248,36 @@ $("#sourcesRefresh").addEventListener("click", () => {
 sourcesFile.addEventListener("change", () => send({ action: "sources", file: sourcesFile.value }));
 let sourcesDrawn = "";
 
+// The match's pool, also pickable from the Match and Showcase tabs: the same
+// choice as Setup's "Match" column.
+const poolPicks = [...document.querySelectorAll<HTMLSelectElement>("[data-pool-pick]")];
+for (const pick of poolPicks)
+	pick.addEventListener("change", () => {
+		const gid = Number(pick.value);
+		for (const other of poolPicks) other.value = pick.value;
+		send({ action: "sources", pool: gid });
+		toast(t.loadingTabPool);
+	});
+
+function renderPoolPicks(src: OverlayState["sources"] | undefined) {
+	for (const pick of poolPicks) {
+		pick.innerHTML = "";
+		if (!src?.tabs.length) {
+			pick.add(new Option(t.poolPickWaiting, ""));
+			pick.disabled = true;
+			continue;
+		}
+		for (const tab of src.tabs) pick.add(new Option(tab.name, String(tab.gid), false, tab.gid === src.pool));
+		pick.disabled = false;
+	}
+}
+
 function renderSources() {
 	const src = state?.sources;
 	const key = JSON.stringify(src ?? null);
 	if (key === sourcesDrawn) return;
 	sourcesDrawn = key;
+	renderPoolPicks(src);
 	const status = $("#sourcesStatus");
 	status.textContent = overlayText(src?.status.text ?? "");
 	status.hidden = !src?.status.text;

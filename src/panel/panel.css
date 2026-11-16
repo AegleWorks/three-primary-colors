@@ -1149,6 +1149,40 @@ select:hover {
 	min-width: 0;
 }
 
+/* The match's mappool (sheet tab), on Match and Showcase. */
+.pane-head > .pane-tools {
+	flex-direction: row;
+	align-items: center;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 8px;
+}
+
+.pool-pick {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: none;
+}
+
+.pool-pick span {
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: var(--dim);
+}
+
+.pool-pick select {
+	min-width: 140px;
+	font-weight: 700;
+	color: var(--gold-hi);
+}
+
+.pool-pick select:disabled {
+	color: var(--dim);
+}
+
 .card-block {
 	display: flex;
 	flex-direction: column;

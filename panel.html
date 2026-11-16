@@ -126,7 +126,10 @@
 						<h2 data-i18n="draft">Draft</h2>
 						<p class="status-line" id="poolStatus" aria-live="polite"></p>
 					</div>
-					<button type="button" class="btn btn--quiet" id="poolReload" title="Vuelve a leer data.json y la sheet del mappool; el draft se mantiene" data-i18n-title="poolReloadTitle" data-i18n="poolReload">↻ Recargar pool</button>
+					<div class="pane-tools">
+						<label class="pool-pick" title="Qué hoja de la sheet juega el partido: draft, mappool, showcase y gameplay" data-i18n-title="poolPickTitle"><span data-i18n="poolPick">Mappool</span><select data-pool-pick></select></label>
+						<button type="button" class="btn btn--quiet" id="poolReload" title="Vuelve a leer data.json y la sheet del mappool; el draft se mantiene" data-i18n-title="poolReloadTitle" data-i18n="poolReload">↻ Recargar pool</button>
+					</div>
 				</div>
 				<!-- By hand, for when osu! or the turn order gets it wrong: the series
 				     (stars) and who picks next. -->
@@ -218,6 +221,7 @@
 						<h2>Showcase</h2>
 						<p class="hint" data-i18n="showcaseHint">Toca un mapa para destacarlo. Si osu! carga un mapa del pool durante el showcase, se destaca solo y no cuenta como pick.</p>
 					</div>
+					<label class="pool-pick" title="Qué hoja de la sheet juega el partido: draft, mappool, showcase y gameplay" data-i18n-title="poolPickTitle"><span data-i18n="poolPick">Mappool</span><select data-pool-pick></select></label>
 				</div>
 				<div class="feature" id="showcaseNow"></div>
 				<div class="stepper">
