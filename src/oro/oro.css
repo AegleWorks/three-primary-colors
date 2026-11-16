@@ -746,6 +746,64 @@ body[data-scene="champion"] .backdrop-grade {
 	}
 }
 
+/* Combo break and sliderbreak share one spot over the name. */
+.tag-alerts {
+	display: grid;
+	justify-items: end;
+}
+
+.tag-alerts > * {
+	grid-area: 1 / 1;
+}
+
+/* ---------- sliderbreak: the combo break's cue, in grey ---------- */
+
+.tag-sb {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 8px;
+	padding: 6px 12px;
+	background: #8a8d94;
+	color: #121316;
+	opacity: 0;
+	transform: translateX(16px);
+}
+
+.tag-sb b {
+	font: 700 10px/1 var(--label);
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+}
+
+.tag-sb span {
+	font: 900 17px/1 var(--display);
+}
+
+.tag.is-sb::before {
+	animation: hurt-sb 1.6s ease-out;
+}
+
+.tag.is-sb .tag-sb {
+	animation: break-in 2.2s var(--out);
+}
+
+.tag.is-sb .tag-name {
+	animation: name-hurt-sb 1.2s ease-out;
+}
+
+@keyframes hurt-sb {
+	12% {
+		box-shadow: inset 0 0 140px 0 rgba(170, 174, 182, 0.45);
+	}
+}
+
+@keyframes name-hurt-sb {
+	10% {
+		color: #b9bcc3;
+	}
+}
+
 /* ---------- FC choke (3.6s) ----------
    Over the choking player's half. Times in comments are ms from the break:
    flash and letterbox at once, the combo glitches in, the slash cuts it at
@@ -2270,24 +2328,63 @@ body[data-scene="champion"] .backdrop-grade {
 	gap: 12px;
 }
 
-.pool-turn {
-	font: 600 28px/1 var(--display);
-	color: var(--dim);
+/* The tournament's logo where the pick timer was. */
+.pool-logo {
+	display: block;
+	height: 88px;
+	width: auto;
+	filter: drop-shadow(0 0 18px rgba(0, 0, 0, 0.5));
 }
 
-.pool-turn {
+.pick-timer[hidden] {
+	display: none;
+}
+
+/* Name and stars on one row, "Está eligiendo" under them for the picker. */
+.tally-text {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.tally--r .tally-text {
+	align-items: flex-end;
+}
+
+.tally-row {
 	display: flex;
 	align-items: center;
-	gap: 12px;
+	gap: 18px;
 }
 
-.pool-turn .pfp {
-	--pfp: 38px;
+.tally-turn {
+	font: 700 13px/1 var(--label);
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	visibility: hidden;
 }
 
-.pool-turn b {
-	font-weight: 900;
-	color: var(--side-c);
+.tally--l .tally-turn {
+	color: var(--left);
+}
+
+.tally--r .tally-turn {
+	color: var(--right);
+	/* letter-spacing trails the last letter; keep the text flush right */
+	margin-right: -0.22em;
+}
+
+.pool-head[data-turn="l"] .tally--l .tally-turn,
+.pool-head[data-turn="r"] .tally--r .tally-turn {
+	visibility: visible;
+	animation: turn-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes turn-pulse {
+	50% {
+		opacity: 0.55;
+	}
 }
 
 .pool-grid {
@@ -2569,7 +2666,7 @@ body[data-scene="champion"] .backdrop-grade {
 	animation: track-in 1s 0.1s var(--out) both;
 }
 
-.pool[data-active] .pool-turn {
+.pool[data-active] .pool-logo {
 	animation: rise 0.6s 0.35s ease-out both;
 }
 
@@ -6035,13 +6132,28 @@ body[data-scene="gameplay"] .stage[data-tb-mode="clash"] .backdrop-grade::after 
 	display: flex;
 	flex-direction: column;
 	justify-content: space-between;
-	padding: 22px 0 22px 26px;
+	align-items: center;
+	text-align: center;
+	padding: 22px 16px;
 }
 
+/* "Showcase" over the round, both centered: on one line a long round name
+   ran past the column into the divider. */
 .sheet-slot .label {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 5px;
+	max-width: 100%;
 	font-size: 11px;
 	letter-spacing: 0.22em;
-	white-space: nowrap;
+	/* letter-spacing trails the last letter; pull it back so it centers */
+	margin-right: -0.22em;
+}
+
+.sheet-round {
+	color: var(--mc);
+	text-wrap: balance;
 }
 
 .sheet-id {
@@ -7439,9 +7551,10 @@ body[data-scene="qualifiers"] .backdrop-grade {
 }
 
 /* The gameplay deck's chats: a long message goes on to the next row instead
-   of being cut (the Battle Royale deck too). */
+   of being cut (the Battle Royale deck and the mappool's too). */
 .chats .msg,
-.brg-chat .msg {
+.brg-chat .msg,
+.pool-chats .msg {
 	white-space: normal;
 	overflow-wrap: anywhere;
 	text-overflow: clip;

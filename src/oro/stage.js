@@ -158,6 +158,11 @@ export function trigger(type, side) {
 		state.miss[side] += 1;
 		state.acc[side] = accuracy(side);
 	}
+	if (type === "sliderbreak") {
+		if (state.combo[side] > 30) emit("sliderbreak", side);
+		state.combo[side] = 0;
+		state.sb[side] += 1;
+	}
 	// Bancho desync: the client reports a miss that never happened, then a
 	// second later the combo and the miss count snap back. The overlay only
 	// sees the numbers, exactly as it would from tosu.
@@ -227,6 +232,8 @@ export const liveState = () => state;
 // shows the combo that was lost, as they do in the simulation.
 export function ingest(side, v) {
 	if (v.miss > state.miss[side] && v.combo < state.combo[side] && state.combo[side] > 30) emit("break", side);
+	// a slider break: the combo goes with no miss, the slider-break count rises
+	else if ((v.sb ?? 0) > state.sb[side] && v.combo < state.combo[side] && state.combo[side] > 30) emit("sliderbreak", side);
 	state.score[side] = v.score;
 	state.combo[side] = v.combo;
 	state.maxCombo[side] = v.maxCombo;
@@ -290,11 +297,7 @@ function step(dt) {
 		if (state.errors[s].length > ERRORS_KEPT * 4) state.errors[s] = state.errors[s].slice(-ERRORS_KEPT * 4);
 		state.ur[s] = unstableRate(state.errors[s]);
 		// now and then a slider break: the combo goes, no miss
-		if (Math.random() < dt * 0.006 && state.combo[s] > 30) {
-			emit("break", s);
-			state.combo[s] = 0;
-			state.sb[s] += 1;
-		}
+		if (Math.random() < dt * 0.006 && state.combo[s] > 30) trigger("sliderbreak", s);
 		state.maxCombo[s] = Math.max(state.maxCombo[s], state.combo[s]);
 		state.score[s] += notes * 300 * (1 + state.combo[s] / 25) * skill[s] * 0.62;
 		state.acc[s] = accuracy(s);
@@ -413,6 +416,8 @@ export function boot(initial = "gameplay", { hint, scenes: own, labels, switcher
 		if (!SIM) return;
 		if (e.key.toLowerCase() === "z") trigger("break", "l");
 		if (e.key.toLowerCase() === "x") trigger("break", "r");
+		if (e.key.toLowerCase() === "v") trigger("sliderbreak", "l");
+		if (e.key.toLowerCase() === "b") trigger("sliderbreak", "r");
 		if (e.key === " ") {
 			state.paused = !state.paused;
 			e.preventDefault();

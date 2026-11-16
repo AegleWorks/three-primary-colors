@@ -280,9 +280,7 @@ function renderPool() {
 	// The picker is whoever did not pick last; the first pick is the left's
 	// until the referee's roll is known.
 	const next = DRAFT.next || (DRAFT.picks.at(-1)?.by === "l" ? "r" : "l");
-	const turn = $(".pool-turn");
-	turn.dataset.side = next;
-	turn.innerHTML = `${pfpTag(next)}<b data-name="${next}">${ownerHtml(next)}</b> está eligiendo`;
+	$(".pool-head").dataset.turn = next;
 	$("#pickTimer").dataset.side = next;
 	renderPfps(grid.parentElement);
 	window.fitAll?.();
@@ -1710,9 +1708,21 @@ onEvent((type, side, s) => {
 	if (choke && document.body.dataset.scene === "gameplay") return playChoke(side, s);
 	const el = $(`[data-break="${side}"]`);
 	el.querySelector("span").textContent = `${s.combo[side]}x`;
-	el.parentElement.classList.remove("is-broken");
+	const tag = el.closest(".tag");
+	tag.classList.remove("is-broken", "is-sb");
 	void el.offsetWidth;
-	el.parentElement.classList.add("is-broken");
+	tag.classList.add("is-broken");
+});
+
+// A slider break: the same cue as a combo break, in grey (no miss was made).
+onEvent((type, side, s) => {
+	if (type !== "sliderbreak") return;
+	const el = $(`[data-sb="${side}"]`);
+	el.querySelector("span").textContent = `${s.combo[side]}x`;
+	const tag = el.closest(".tag");
+	tag.classList.remove("is-broken", "is-sb");
+	void el.offsetWidth;
+	tag.classList.add("is-sb");
 });
 
 // ---------- Bancho ghost miss ----------
@@ -1726,10 +1736,9 @@ const GHOST_JUMP = 20;
 function ghostCue(side, comboNow) {
 	const tag = $(`[data-ghost="${side}"]`);
 	tag.querySelector("span").textContent = `volvió el combo · ${comboNow}x`;
-	tag.parentElement.classList.remove("is-broken");
+	tag.closest(".tag").classList.remove("is-broken", "is-sb");
 	restart(tag.parentElement, "is-ghost");
 	restart($(`[data-miss="${side}"]`), "is-ghost");
-	lobbyLine("Overlay", "bot", `Miss fantasma de Bancho en ${owner(side)}: el combo volvió`);
 }
 onTick((s) => {
 	for (const side of ["l", "r"]) {
@@ -2275,7 +2284,8 @@ onTick((s) => {
 });
 onEvent((type, side, s) => {
 	if (!tb.on) return;
-	if (type === "end") {
+	// nobody scored: no map was played, so there is no winner to reveal
+	if (type === "end" && (s.score.l > 0 || s.score.r > 0)) {
 		tbeEl.dataset.side = side;
 		$("#tbeName").textContent = owner(side);
 		restart(tbeEl, "run");

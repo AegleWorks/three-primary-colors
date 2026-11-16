@@ -51,7 +51,18 @@ export default class LiveOro {
 	// When a match starts, tosu's first frames can still carry the lobby's
 	// song preview, at or past the map's length; read as the map clock, that
 	// "ended" the map before a note was played and gave it to the left (0-0).
+	// Being under the map's length is not enough: the preview loops, so it
+	// is under it again on every lap, and each lap's end "ended" the map (the
+	// tiebreaker's winner reveal played for red, 0-0, over and over). The
+	// clock arms only once the scores move: a preview never scores.
 	private clockArmed = false;
+	// the scores when the clock was disarmed; null = take the next sample's
+	private armFrom: Record<Side, number> | null = null;
+
+	private disarmClock() {
+		this.clockArmed = false;
+		this.armFrom = null;
+	}
 	private mapKey = "";
 	private last: MatchState | null = null;
 
@@ -117,7 +128,13 @@ export default class LiveOro {
 		}
 		if (this.playing) {
 			const { current, full } = this.time;
-			if (!this.clockArmed && full > 0 && current < full) this.clockArmed = true;
+			if (!this.clockArmed) {
+				// Scores left from the last map don't move during the preview;
+				// a play resets them to 0 and then they climb.
+				const from = (this.armFrom ??= { ...state.score });
+				const moved = SIDES.some((side) => state.score[side] > 0 && state.score[side] !== from[side]);
+				if (moved && full > 0 && current < full) this.clockArmed = true;
+			}
 			if (this.clockArmed) clock(current / 1000, full / 1000);
 		}
 	}
@@ -130,7 +147,7 @@ export default class LiveOro {
 			// a new play starts the clock unarmed again (see clockArmed), and
 			// the series as it stands is what this map's result adds to
 			if (this.playing) {
-				this.clockArmed = false;
+				this.disarmClock();
 				this.mapPlayed = true;
 				this.starsAtPlay = { ...this.osuStars };
 			}
@@ -302,11 +319,15 @@ export default class LiveOro {
 		// the old spectated name still on record hid the new match
 		this.checkNewMatch();
 		this.findRound();
-		if (spec.userID) oro.setPerson(side, { osuId: spec.userID });
 		// osu!'s profile first: the tourney client's own numbers are often 0
 		const who = spec.userID ? String(spec.userID) : name;
 		const profile = who ? this.profiles.get(who.toLowerCase()) : undefined;
 		if (who && !this.profiles.has(who.toLowerCase())) this.loadProfile(who);
+		// The avatar from the tourney client's id, or else from the profile
+		// found by name: the client only has the id once it spectates the
+		// player, well after the lobby title has named them.
+		const osuId = spec.userID || profile?.id;
+		if (osuId) oro.setPerson(side, { osuId });
 		oro.setPlayerInfo(side, {
 			seed: info.seed,
 			rank: profile?.rank || spec.globalRank,
@@ -434,7 +455,7 @@ export default class LiveOro {
 			// A new map disarms the clock too: after an !mp abort tosu keeps
 			// scoreVisible on and the old time frozen, which on a shorter map
 			// would read as that map already finished.
-			this.clockArmed = false;
+			this.disarmClock();
 			const asked = this.pendingMapReply;
 			if (asked && Date.now() - asked.at < MAP_REPLY_MS && bm.id) {
 				this.pendingMapReply = null;

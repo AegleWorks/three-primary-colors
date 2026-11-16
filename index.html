@@ -140,7 +140,7 @@
 
 			<article class="sheet glass" id="sheet">
 				<div class="sheet-slot">
-					<span class="label">Showcase · <span data-bind="round">Final</span></span>
+					<span class="label">Showcase<span class="sheet-round" data-bind="round">Final</span></span>
 					<b class="sheet-id" id="sheetId"></b>
 					<span class="sheet-mod" id="sheetMod"></span>
 				</div>
@@ -177,25 +177,37 @@
 		<!-- MAPPOOL -->
 		<section data-scene="mappool" class="pool">
 			<header class="pool-head">
+				<!-- data-turn on the header: whose pick it is; "está eligiendo"
+				     shows under that player. -->
 				<div class="tally tally--l">
 					<span class="pfp" data-pfp="l"></span>
-					<span class="tally-name" data-name="l">Clippy</span>
-					<div class="stars" data-stars="l"></div>
+					<div class="tally-text">
+						<div class="tally-row">
+							<span class="tally-name" data-name="l">Clippy</span>
+							<div class="stars" data-stars="l"></div>
+						</div>
+						<span class="tally-turn">Está eligiendo</span>
+					</div>
 				</div>
 				<div class="pool-title">
 					<span class="label">Mappool · <span data-bind="round">Final</span></span>
-					<span class="pool-turn" data-side="r"><span class="pfp" data-pfp="r"></span><b data-name="r">Sombrax79</b> está eligiendo</span>
-					<!-- Pick timer: started by hand or by the referee's !mp timer, then
-					     kept in step with BanchoBot's countdown lines. -->
-					<div class="pick-timer" id="pickTimer" data-side="r" data-state="idle">
+					<img class="pool-logo" src="./src/oro/media/logo-ct3.webp" alt="" draggable="false">
+					<!-- Pick timer: off screen (the logo took its place), still kept
+					     in step by the panel and BanchoBot's countdown lines. -->
+					<div class="pick-timer" id="pickTimer" data-side="r" data-state="idle" hidden>
 						<b class="pick-timer-n num" id="pickTimerN">2:00</b>
 						<i class="pick-timer-bar" aria-hidden="true"><i id="pickTimerFill"></i></i>
 						<span class="pick-timer-src" id="pickTimerSrc">Esperando timer</span>
 					</div>
 				</div>
 				<div class="tally tally--r">
-					<div class="stars" data-stars="r"></div>
-					<span class="tally-name" data-name="r">Sombrax79</span>
+					<div class="tally-text">
+						<div class="tally-row">
+							<div class="stars" data-stars="r"></div>
+							<span class="tally-name" data-name="r">Sombrax79</span>
+						</div>
+						<span class="tally-turn">Está eligiendo</span>
+					</div>
 					<span class="pfp" data-pfp="r"></span>
 				</div>
 			</header>
@@ -265,13 +277,19 @@
 			</div>
 			<div class="tags">
 				<div class="tag tag--l">
-					<div class="tag-break" data-break="l"><b>Combo break</b><span></span></div>
+					<div class="tag-alerts">
+						<div class="tag-break" data-break="l"><b>Combo break</b><span></span></div>
+						<div class="tag-sb" data-sb="l"><b>Sliderbreak</b><span></span></div>
+					</div>
 					<div class="tag-ghost" data-ghost="l"><i>⟲</i><b>Miss de Bancho</b><span></span></div>
 					<span class="tag-id"><span class="pfp" data-pfp="l"></span><span class="tag-name" data-name="l">Clippy</span></span>
 					<span class="tag-ur"><b class="num" data-ur="l">0</b>UR</span>
 				</div>
 				<div class="tag tag--r">
-					<div class="tag-break" data-break="r"><b>Combo break</b><span></span></div>
+					<div class="tag-alerts">
+						<div class="tag-break" data-break="r"><b>Combo break</b><span></span></div>
+						<div class="tag-sb" data-sb="r"><b>Sliderbreak</b><span></span></div>
+					</div>
 					<div class="tag-ghost" data-ghost="r"><i>⟲</i><b>Miss de Bancho</b><span></span></div>
 					<span class="tag-id"><span class="pfp" data-pfp="r"></span><span class="tag-name" data-name="r">Sombrax79</span></span>
 					<span class="tag-ur"><b class="num" data-ur="r">0</b>UR</span>
